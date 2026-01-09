@@ -6,7 +6,6 @@ default-run = "main"
 
 [dependencies]
 base64 = "0.22.1"
-color-eyre = "0.6.5"
 eframe = "0.33.3"
 egui_extras = { version = "0.33.3", features = ["svg", "image"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
@@ -22,6 +21,8 @@ clap = { version = "4.5.54", features = ["derive"] }
 resvg = "0.45.1"
 log = "0.4.29"
 cynic = { version = "3.12.0", features = ["http-reqwest"] }
+thiserror = "2.0.17"
+egui-toast = "0.19.1"
 
 [build-dependencies]
 cynic-codegen = "3.12.0"

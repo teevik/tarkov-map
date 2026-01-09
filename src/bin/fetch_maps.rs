@@ -8,18 +8,79 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use clap::Parser;
-use color_eyre::eyre::{Context, Result, eyre};
 use image::{ImageBuffer, RgbaImage};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use resvg::tiny_skia::Pixmap;
 use resvg::usvg::{Options, Transform, Tree};
 use ron::ser::PrettyConfig;
 use serde::Deserialize;
+use thiserror::Error;
 use tokio::fs as async_fs;
 use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
 
 use tarkov_map::{Extent, ExtentBound, Extract, Label, Layer, Map, Spawn, TarkovMaps};
+
+/// Errors that can occur during the fetch_maps process.
+#[derive(Error, Debug)]
+pub enum FetchError {
+    #[error("HTTP request failed: {0}")]
+    Http(#[from] reqwest::Error),
+
+    #[error("GraphQL error: {0}")]
+    GraphQL(String),
+
+    #[error("GraphQL response missing data")]
+    GraphQLMissingData,
+
+    #[error("failed to fetch {resource}: HTTP {status}")]
+    HttpStatus { resource: String, status: u16 },
+
+    #[error("JSON parse error: {0}")]
+    Json(#[from] serde_json::Error),
+
+    #[error("SVG parse error: {0}")]
+    SvgParse(String),
+
+    #[error("failed to create pixmap for rendering")]
+    PixmapCreation,
+
+    #[error("failed to save PNG: {0}")]
+    PngSave(String),
+
+    #[error("image error: {0}")]
+    Image(#[from] image::ImageError),
+
+    #[error("I/O error: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("RON serialization error: {0}")]
+    Ron(#[from] ron::Error),
+
+    #[error("progress bar template error: {0}")]
+    ProgressTemplate(#[from] indicatif::style::TemplateError),
+
+    #[error("semaphore acquire error: {0}")]
+    Semaphore(#[from] tokio::sync::AcquireError),
+
+    #[error("task join error: {0}")]
+    Join(#[from] tokio::task::JoinError),
+
+    #[error("map '{name}' has no human-readable name")]
+    MissingMapName { name: String },
+
+    #[error("map '{name}' has no svgPath or tilePath")]
+    MissingMapSource { name: String },
+
+    #[error("map '{name}' is missing minZoom")]
+    MissingMinZoom { name: String },
+
+    #[error("map '{name}' is missing maxZoom")]
+    MissingMaxZoom { name: String },
+}
+
+/// Result of downloading a single tile.
+type TileResult = Result<(u32, u32, Vec<u8>), FetchError>;
 
 #[cynic::schema("tarkov")]
 pub mod schema {}
@@ -301,7 +362,7 @@ impl From<FetchedLabel> for Label {
 async fn fetch_graphql<Q, T>(
     client: &reqwest::Client,
     operation: cynic::Operation<Q, ()>,
-) -> Result<T>
+) -> Result<T, FetchError>
 where
     Q: serde::de::DeserializeOwned,
     T: From<Q>,
@@ -311,24 +372,22 @@ where
         .header(reqwest::header::USER_AGENT, USER_AGENT)
         .json(&operation)
         .send()
-        .await
-        .context("Failed to send GraphQL request")?
+        .await?
         .json()
-        .await
-        .context("Failed to parse GraphQL response")?;
+        .await?;
 
     if let Some(errors) = response.errors.filter(|e| !e.is_empty()) {
         let messages: Vec<_> = errors.into_iter().map(|e| e.message).collect();
-        return Err(eyre!("GraphQL errors: {}", messages.join("; ")));
+        return Err(FetchError::GraphQL(messages.join("; ")));
     }
 
     response
         .data
         .map(Into::into)
-        .ok_or_else(|| eyre!("GraphQL response missing data"))
+        .ok_or(FetchError::GraphQLMissingData)
 }
 
-async fn fetch_map_names(client: &reqwest::Client) -> Result<HashMap<String, String>> {
+async fn fetch_map_names(client: &reqwest::Client) -> Result<HashMap<String, String>, FetchError> {
     use cynic::QueryBuilder;
 
     let data: MapNamesQuery = fetch_graphql(client, MapNamesQuery::build(())).await?;
@@ -340,7 +399,9 @@ async fn fetch_map_names(client: &reqwest::Client) -> Result<HashMap<String, Str
         .collect())
 }
 
-async fn fetch_map_spawns(client: &reqwest::Client) -> Result<HashMap<String, Vec<Spawn>>> {
+async fn fetch_map_spawns(
+    client: &reqwest::Client,
+) -> Result<HashMap<String, Vec<Spawn>>, FetchError> {
     use cynic::QueryBuilder;
 
     let data: MapSpawnsQuery = fetch_graphql(client, MapSpawnsQuery::build(())).await?;
@@ -367,7 +428,9 @@ async fn fetch_map_spawns(client: &reqwest::Client) -> Result<HashMap<String, Ve
         .collect())
 }
 
-async fn fetch_map_extracts(client: &reqwest::Client) -> Result<HashMap<String, Vec<Extract>>> {
+async fn fetch_map_extracts(
+    client: &reqwest::Client,
+) -> Result<HashMap<String, Vec<Extract>>, FetchError> {
     use cynic::QueryBuilder;
 
     let data: MapExtractsQuery = fetch_graphql(client, MapExtractsQuery::build(())).await?;
@@ -406,12 +469,12 @@ async fn process_svg_map(
     normalized_name: &str,
     svg_url: &str,
     force: bool,
-) -> Result<ImageResult> {
+) -> Result<ImageResult, FetchError> {
     let image_relative = format!("{MAPS_PATH_PREFIX}/{normalized_name}.png");
     let image_disk_path = repo_path(&format!("{MAPS_DIR}/{normalized_name}.png"));
 
     if !force && image_disk_path.exists() {
-        let img = image::open(&image_disk_path).context("Failed to open existing PNG")?;
+        let img = image::open(&image_disk_path)?;
         let source_size = [
             img.width() as f32 / SVG_RENDER_SCALE,
             img.height() as f32 / SVG_RENDER_SCALE,
@@ -426,23 +489,24 @@ async fn process_svg_map(
         .get(svg_url)
         .header(reqwest::header::USER_AGENT, USER_AGENT)
         .send()
-        .await
-        .context("Failed to fetch SVG")?;
+        .await?;
 
     if !response.status().is_success() {
-        return Err(eyre!("Failed to fetch SVG: {}", response.status()));
+        return Err(FetchError::HttpStatus {
+            resource: "SVG".into(),
+            status: response.status().as_u16(),
+        });
     }
 
     let svg_bytes = response.bytes().await?;
     let tree = Tree::from_data(&svg_bytes, &Options::default())
-        .map_err(|e| eyre!("SVG parse error: {e}"))?;
+        .map_err(|e| FetchError::SvgParse(e.to_string()))?;
 
     let source_size = [tree.size().width(), tree.size().height()];
     let render_w = (source_size[0] * SVG_RENDER_SCALE) as u32;
     let render_h = (source_size[1] * SVG_RENDER_SCALE) as u32;
 
-    let mut pixmap =
-        Pixmap::new(render_w, render_h).ok_or_else(|| eyre!("Failed to create pixmap"))?;
+    let mut pixmap = Pixmap::new(render_w, render_h).ok_or(FetchError::PixmapCreation)?;
 
     resvg::render(
         &tree,
@@ -450,10 +514,12 @@ async fn process_svg_map(
         &mut pixmap.as_mut(),
     );
 
-    async_fs::create_dir_all(image_disk_path.parent().unwrap()).await?;
+    if let Some(parent) = image_disk_path.parent() {
+        async_fs::create_dir_all(parent).await?;
+    }
     pixmap
         .save_png(&image_disk_path)
-        .map_err(|e| eyre!("Failed to save PNG: {e}"))?;
+        .map_err(|e| FetchError::PngSave(e.to_string()))?;
 
     Ok(ImageResult {
         image_path: image_relative,
@@ -472,7 +538,7 @@ async fn process_tile_map(
     zoom_offset: i32,
     multi_progress: &MultiProgress,
     force: bool,
-) -> Result<ImageResult> {
+) -> Result<ImageResult, FetchError> {
     let image_relative = format!("{MAPS_PATH_PREFIX}/{normalized_name}.png");
     let image_disk_path = repo_path(&format!("{MAPS_DIR}/{normalized_name}.png"));
 
@@ -497,7 +563,7 @@ async fn process_tile_map(
 
     let semaphore = Arc::new(Semaphore::new(TILE_DOWNLOAD_CONCURRENCY));
     let tile_pb = Arc::new(tile_pb);
-    let mut join_set: JoinSet<Result<(u32, u32, Vec<u8>)>> = JoinSet::new();
+    let mut join_set: JoinSet<TileResult> = JoinSet::new();
 
     for x in 0..tiles_per_axis {
         for y in 0..tiles_per_axis {
@@ -517,11 +583,13 @@ async fn process_tile_map(
                     .get(&remote_url)
                     .header(reqwest::header::USER_AGENT, USER_AGENT)
                     .send()
-                    .await
-                    .context("Failed to fetch tile")?;
+                    .await?;
 
                 if !response.status().is_success() {
-                    return Err(eyre!("Failed to fetch tile: {}", response.status()));
+                    return Err(FetchError::HttpStatus {
+                        resource: "tile".into(),
+                        status: response.status().as_u16(),
+                    });
                 }
 
                 let bytes = response.bytes().await?.to_vec();
@@ -565,7 +633,9 @@ async fn process_tile_map(
 
     compose_pb.finish_and_clear();
 
-    async_fs::create_dir_all(image_disk_path.parent().unwrap()).await?;
+    if let Some(parent) = image_disk_path.parent() {
+        async_fs::create_dir_all(parent).await?;
+    }
     full_image.save(&image_disk_path)?;
 
     Ok(ImageResult {
@@ -584,7 +654,7 @@ async fn convert_group(
     multi_progress: &MultiProgress,
     force: bool,
     tile_zoom_offset: i32,
-) -> Result<Option<Map>> {
+) -> Result<Option<Map>, FetchError> {
     let FetchedMapGroup {
         normalized_name,
         maps,
@@ -594,20 +664,27 @@ async fn convert_group(
         return Ok(None);
     };
 
-    let name = map_names
-        .get(&normalized_name)
-        .cloned()
-        .ok_or_else(|| eyre!("No human-readable name found for '{normalized_name}'"))?;
+    let name =
+        map_names
+            .get(&normalized_name)
+            .cloned()
+            .ok_or_else(|| FetchError::MissingMapName {
+                name: normalized_name.clone(),
+            })?;
 
     let result = match (&interactive.svg_path, &interactive.tile_path) {
         (Some(svg_url), _) => process_svg_map(client, &normalized_name, svg_url, force).await?,
         (_, Some(tile_template)) => {
             let min_zoom = interactive
                 .min_zoom
-                .ok_or_else(|| eyre!("Missing minZoom for '{normalized_name}'"))?;
+                .ok_or_else(|| FetchError::MissingMinZoom {
+                    name: normalized_name.clone(),
+                })?;
             let max_zoom = interactive
                 .max_zoom
-                .ok_or_else(|| eyre!("Missing maxZoom for '{normalized_name}'"))?;
+                .ok_or_else(|| FetchError::MissingMaxZoom {
+                    name: normalized_name.clone(),
+                })?;
             let tile_size = interactive.tile_size.unwrap_or(256);
 
             process_tile_map(
@@ -624,9 +701,9 @@ async fn convert_group(
             .await?
         }
         _ => {
-            return Err(eyre!(
-                "Interactive map '{normalized_name}' has no svgPath or tilePath"
-            ));
+            return Err(FetchError::MissingMapSource {
+                name: normalized_name,
+            });
         }
     };
 
@@ -664,9 +741,8 @@ async fn convert_group(
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<(), FetchError> {
     env_logger::init();
-    color_eyre::install()?;
 
     let args = Args::parse();
 
@@ -696,11 +772,13 @@ async fn main() -> Result<()> {
         .get(MAPS_JSON_URL)
         .header(reqwest::header::USER_AGENT, USER_AGENT)
         .send()
-        .await
-        .context("Failed to fetch maps.json")?;
+        .await?;
 
     if !response.status().is_success() {
-        return Err(eyre!("Failed to fetch maps: {}", response.status()));
+        return Err(FetchError::HttpStatus {
+            resource: "maps.json".into(),
+            status: response.status().as_u16(),
+        });
     }
 
     let json_text = response.text().await?;

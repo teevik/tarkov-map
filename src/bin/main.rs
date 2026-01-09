@@ -1,10 +1,36 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use eframe::egui::{self, ColorImage, TextureHandle, TextureOptions};
+use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
 use rust_embed::RustEmbed;
 use std::collections::HashMap;
 use std::sync::mpsc;
+use std::thread;
 use tarkov_map::{Extract, Label, Map, Spawn, TarkovMaps};
+use thiserror::Error;
+
+/// Errors that can occur when loading map data.
+#[derive(Error, Debug)]
+enum MapLoadError {
+    #[error("maps.ron not found in embedded assets")]
+    MapsNotFound,
+    #[error("invalid UTF-8 in maps.ron: {0}")]
+    InvalidUtf8(#[from] std::str::Utf8Error),
+    #[error("failed to parse maps.ron: {0}")]
+    ParseError(#[from] ron::de::SpannedError),
+}
+
+/// Errors that can occur when loading and decoding images.
+#[derive(Error, Debug)]
+enum ImageLoadError {
+    #[error("asset not found: {0}")]
+    AssetNotFound(String),
+    #[error("failed to decode image '{path}': {source}")]
+    DecodeError {
+        path: String,
+        source: image::ImageError,
+    },
+}
 
 /// Embeds all assets from the assets/ directory into the binary.
 /// In debug mode, assets are loaded from the filesystem for faster iteration.
@@ -44,8 +70,9 @@ struct DecodedImage {
 }
 
 enum AssetLoadState {
-    Loading(mpsc::Receiver<Result<DecodedImage, String>>),
+    Loading(mpsc::Receiver<Result<DecodedImage, ImageLoadError>>),
     Ready(DecodedImage),
+    /// Stores the error message (already displayed via toast)
     Error(String),
 }
 
@@ -72,7 +99,6 @@ impl Default for OverlayVisibility {
 
 struct TarkovMapApp {
     maps: TarkovMaps,
-    load_error: Option<String>,
     selected_map: usize,
     zoom: f32,
     prev_zoom: f32,
@@ -81,32 +107,40 @@ struct TarkovMapApp {
     overlays: OverlayVisibility,
     asset_cache: HashMap<String, AssetLoadState>,
     texture_cache: HashMap<String, TextureHandle>,
-    #[allow(dead_code)]
-    runtime: tokio::runtime::Runtime,
+    toasts: Toasts,
 }
 
 impl TarkovMapApp {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let (maps, load_error) = match load_maps() {
-            Ok(maps) => (maps, None),
-            Err(err) => (Vec::new(), Some(err)),
+        let mut toasts = Toasts::new()
+            .anchor(egui::Align2::RIGHT_TOP, (-10.0, 10.0))
+            .direction(egui::Direction::TopDown);
+
+        let maps = match load_maps() {
+            Ok(maps) => maps,
+            Err(err) => {
+                toasts.add(Toast {
+                    kind: ToastKind::Error,
+                    text: err.to_string().into(),
+                    options: ToastOptions::default()
+                        .duration_in_seconds(10.0)
+                        .show_icon(true),
+                    ..Default::default()
+                });
+                Vec::new()
+            }
         };
 
-        let runtime = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
         let mut asset_cache = HashMap::new();
 
-        // Preload all map images in background using blocking tasks for image decoding
+        // Preload all map images in background threads
         for map in &maps {
             let (tx, rx) = mpsc::channel();
             let ctx = cc.egui_ctx.clone();
             let asset_path = map.image_path.clone();
 
-            runtime.spawn(async move {
-                let result =
-                    tokio::task::spawn_blocking(move || load_and_decode_image(&asset_path))
-                        .await
-                        .map_err(|e| format!("Task join error: {e}"))
-                        .and_then(|r| r);
+            thread::spawn(move || {
+                let result = load_and_decode_image(&asset_path);
                 let _ = tx.send(result);
                 ctx.request_repaint();
             });
@@ -116,7 +150,6 @@ impl TarkovMapApp {
 
         Self {
             maps,
-            load_error,
             selected_map: 0,
             zoom: 1.0,
             prev_zoom: 1.0,
@@ -125,7 +158,7 @@ impl TarkovMapApp {
             overlays: OverlayVisibility::default(),
             asset_cache,
             texture_cache: HashMap::new(),
-            runtime,
+            toasts,
         }
     }
 
@@ -135,6 +168,7 @@ impl TarkovMapApp {
 
     fn poll_all_assets(&mut self, ctx: &egui::Context) {
         let mut updates: Vec<(String, AssetLoadState)> = Vec::new();
+        let mut errors: Vec<String> = Vec::new();
 
         for (path, state) in &mut self.asset_cache {
             if let AssetLoadState::Loading(rx) = state {
@@ -143,13 +177,14 @@ impl TarkovMapApp {
                         updates.push((path.clone(), AssetLoadState::Ready(decoded)));
                     }
                     Ok(Err(err)) => {
-                        updates.push((path.clone(), AssetLoadState::Error(err)));
+                        let msg = format!("{}: {}", path, err);
+                        errors.push(msg.clone());
+                        updates.push((path.clone(), AssetLoadState::Error(msg)));
                     }
                     Err(mpsc::TryRecvError::Disconnected) => {
-                        updates.push((
-                            path.clone(),
-                            AssetLoadState::Error("Channel disconnected".into()),
-                        ));
+                        let msg = format!("{}: channel disconnected", path);
+                        errors.push(msg.clone());
+                        updates.push((path.clone(), AssetLoadState::Error(msg)));
                     }
                     Err(mpsc::TryRecvError::Empty) => {}
                 }
@@ -158,6 +193,18 @@ impl TarkovMapApp {
 
         for (path, new_state) in updates {
             self.asset_cache.insert(path, new_state);
+        }
+
+        // Show toasts for any errors that occurred
+        for err in errors {
+            self.toasts.add(Toast {
+                kind: ToastKind::Error,
+                text: err.into(),
+                options: ToastOptions::default()
+                    .duration_in_seconds(8.0)
+                    .show_icon(true),
+                ..Default::default()
+            });
         }
 
         // Create textures for ready assets
@@ -209,6 +256,9 @@ impl eframe::App for TarkovMapApp {
 
         self.show_central_panel(ctx, selected_map);
         self.prev_zoom = self.zoom;
+
+        // Show toasts
+        self.toasts.show(ctx);
     }
 }
 
@@ -410,11 +460,6 @@ impl TarkovMapApp {
 
     fn show_central_panel(&mut self, ctx: &egui::Context, selected_map: Option<Map>) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            if let Some(err) = &self.load_error {
-                ui.colored_label(egui::Color32::RED, err);
-                ui.separator();
-            }
-
             let Some(map) = selected_map else {
                 ui.centered_and_justified(|ui| {
                     ui.label("No map data.\nRun `cargo run --bin fetch_maps` to generate assets.");
@@ -430,14 +475,16 @@ impl TarkovMapApp {
         let image_path = &map.image_path;
         let logical_size = egui::vec2(map.logical_size[0], map.logical_size[1]);
 
-        // Check loading state
+        // Check loading state - errors are shown via toasts
         match self.asset_cache.get(image_path) {
             Some(AssetLoadState::Loading(_)) | None => {
                 ui.centered_and_justified(|ui| ui.spinner());
                 return;
             }
-            Some(AssetLoadState::Error(err)) => {
-                ui.colored_label(egui::Color32::RED, format!("Error: {err}"));
+            Some(AssetLoadState::Error(msg)) => {
+                ui.centered_and_justified(|ui| {
+                    ui.label(format!("Failed to load map: {msg}"));
+                });
                 return;
             }
             Some(AssetLoadState::Ready(_)) => {}
@@ -750,11 +797,14 @@ fn draw_extracts(
     }
 }
 
-fn load_and_decode_image(path: &str) -> Result<DecodedImage, String> {
-    let file = Assets::get(path).ok_or_else(|| format!("Asset not found: {path}"))?;
+fn load_and_decode_image(path: &str) -> Result<DecodedImage, ImageLoadError> {
+    let file = Assets::get(path).ok_or_else(|| ImageLoadError::AssetNotFound(path.to_string()))?;
 
-    let img = image::load_from_memory(&file.data)
-        .map_err(|err| format!("Decode error for {path}: {err}"))?;
+    let img =
+        image::load_from_memory(&file.data).map_err(|source| ImageLoadError::DecodeError {
+            path: path.to_string(),
+            source,
+        })?;
     let rgba = img.to_rgba8();
     let (width, height) = rgba.dimensions();
 
@@ -765,11 +815,10 @@ fn load_and_decode_image(path: &str) -> Result<DecodedImage, String> {
     })
 }
 
-fn load_maps() -> Result<TarkovMaps, String> {
-    let file = Assets::get("maps.ron").ok_or("maps.ron not found in embedded assets")?;
-    let ron_string =
-        std::str::from_utf8(&file.data).map_err(|e| format!("Invalid UTF-8 in maps.ron: {e}"))?;
-    ron::from_str(ron_string).map_err(|err| format!("Failed to parse maps.ron: {err}"))
+fn load_maps() -> Result<TarkovMaps, MapLoadError> {
+    let file = Assets::get("maps.ron").ok_or(MapLoadError::MapsNotFound)?;
+    let ron_string = std::str::from_utf8(&file.data)?;
+    Ok(ron::from_str(ron_string)?)
 }
 
 fn main() -> eframe::Result {
