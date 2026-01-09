@@ -14,6 +14,63 @@ use tokio::fs as tokio_fs;
 use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
 
+// Pull in the tarkov graphql schema from build.rs
+#[cynic::schema("tarkov")]
+pub mod schema {}
+
+// ============================================================================
+// Cynic GraphQL query types
+// ============================================================================
+
+/// Query to fetch map names: `{ maps { normalizedName name } }`
+#[derive(cynic::QueryFragment, Debug)]
+#[cynic(graphql_type = "Query")]
+struct MapNamesQuery {
+    #[cynic(flatten)]
+    maps: Vec<MapNameFragment>,
+}
+
+#[derive(cynic::QueryFragment, Debug)]
+#[cynic(graphql_type = "Map")]
+struct MapNameFragment {
+    normalized_name: String,
+    name: String,
+}
+
+/// Query to fetch map spawns: `{ maps { normalizedName spawns { position { x y z } sides categories } } }`
+#[derive(cynic::QueryFragment, Debug)]
+#[cynic(graphql_type = "Query")]
+struct MapSpawnsQuery {
+    #[cynic(flatten)]
+    maps: Vec<MapSpawnsFragment>,
+}
+
+#[derive(cynic::QueryFragment, Debug)]
+#[cynic(graphql_type = "Map")]
+struct MapSpawnsFragment {
+    normalized_name: String,
+    #[cynic(flatten)]
+    spawns: Vec<MapSpawnFragment>,
+}
+
+#[derive(cynic::QueryFragment, Debug)]
+#[cynic(graphql_type = "MapSpawn")]
+struct MapSpawnFragment {
+    position: MapPositionFragment,
+    #[cynic(flatten)]
+    sides: Vec<String>,
+    #[cynic(flatten)]
+    categories: Vec<String>,
+}
+
+#[derive(cynic::QueryFragment, Debug)]
+#[cynic(graphql_type = "MapPosition")]
+struct MapPositionFragment {
+    x: f64,
+    y: f64,
+    z: f64,
+}
+
 /// Fetch Tarkov map assets from tarkov-dev
 #[derive(Parser, Debug)]
 #[command(name = "fetch_maps", version, about)]
@@ -201,90 +258,35 @@ where
 }
 
 // ============================================================================
-// tarkov.dev GraphQL map names
+// tarkov.dev GraphQL fetch functions
 // ============================================================================
 
-#[derive(Debug, Deserialize)]
-struct GraphQlResponse<T> {
-    data: Option<T>,
-    #[serde(default)]
-    errors: Vec<GraphQlError>,
-}
-
-#[derive(Debug, Deserialize)]
-struct GraphQlError {
-    message: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct MapNamesData {
-    maps: Vec<MapNameEntry>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct MapNameEntry {
-    normalized_name: String,
-    name: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct MapSpawnsData {
-    maps: Vec<MapSpawnsEntry>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct MapSpawnsEntry {
-    normalized_name: String,
-    spawns: Vec<FetchedSpawn>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct FetchedSpawn {
-    position: FetchedPosition,
-    sides: Vec<String>,
-    categories: Vec<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct FetchedPosition {
-    x: f64,
-    y: f64,
-    z: f64,
-}
-
 async fn fetch_map_names(client: &reqwest::Client) -> color_eyre::Result<HashMap<String, String>> {
-    let query = "{ maps { normalizedName name } }";
+    use cynic::QueryBuilder;
 
-    let response = client
+    let operation = MapNamesQuery::build(());
+
+    let response: cynic::GraphQlResponse<MapNamesQuery> = client
         .post(TARKOV_DEV_GRAPHQL_URL)
         .header(reqwest::header::USER_AGENT, USER_AGENT)
-        .json(&serde_json::json!({ "query": query }))
+        .json(&operation)
         .send()
+        .await?
+        .json()
         .await?;
 
-    if !response.status().is_success() {
-        return Err(color_eyre::eyre::eyre!(
-            "Failed to fetch map names: {}",
-            response.status()
-        ));
+    if let Some(errors) = response.errors {
+        if !errors.is_empty() {
+            let messages = errors
+                .into_iter()
+                .map(|err| err.message)
+                .collect::<Vec<_>>()
+                .join("; ");
+            return Err(color_eyre::eyre::eyre!("GraphQL errors: {}", messages));
+        }
     }
 
-    let gql: GraphQlResponse<MapNamesData> = response.json().await?;
-    if !gql.errors.is_empty() {
-        let messages = gql
-            .errors
-            .into_iter()
-            .map(|err| err.message)
-            .collect::<Vec<_>>()
-            .join("; ");
-
-        return Err(color_eyre::eyre::eyre!("GraphQL errors: {}", messages));
-    }
-
-    let data = gql
+    let data = response
         .data
         .ok_or_else(|| color_eyre::eyre::eyre!("GraphQL response missing data"))?;
 
@@ -298,35 +300,31 @@ async fn fetch_map_names(client: &reqwest::Client) -> color_eyre::Result<HashMap
 async fn fetch_map_spawns(
     client: &reqwest::Client,
 ) -> color_eyre::Result<HashMap<String, Vec<Spawn>>> {
-    let query = "{ maps { normalizedName spawns { position { x y z } sides categories } } }";
+    use cynic::QueryBuilder;
 
-    let response = client
+    let operation = MapSpawnsQuery::build(());
+
+    let response: cynic::GraphQlResponse<MapSpawnsQuery> = client
         .post(TARKOV_DEV_GRAPHQL_URL)
         .header(reqwest::header::USER_AGENT, USER_AGENT)
-        .json(&serde_json::json!({ "query": query }))
+        .json(&operation)
         .send()
+        .await?
+        .json()
         .await?;
 
-    if !response.status().is_success() {
-        return Err(color_eyre::eyre::eyre!(
-            "Failed to fetch map spawns: {}",
-            response.status()
-        ));
+    if let Some(errors) = response.errors {
+        if !errors.is_empty() {
+            let messages = errors
+                .into_iter()
+                .map(|err| err.message)
+                .collect::<Vec<_>>()
+                .join("; ");
+            return Err(color_eyre::eyre::eyre!("GraphQL errors: {}", messages));
+        }
     }
 
-    let gql: GraphQlResponse<MapSpawnsData> = response.json().await?;
-    if !gql.errors.is_empty() {
-        let messages = gql
-            .errors
-            .into_iter()
-            .map(|err| err.message)
-            .collect::<Vec<_>>()
-            .join("; ");
-
-        return Err(color_eyre::eyre::eyre!("GraphQL errors: {}", messages));
-    }
-
-    let data = gql
+    let data = response
         .data
         .ok_or_else(|| color_eyre::eyre::eyre!("GraphQL response missing data"))?;
 
