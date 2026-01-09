@@ -377,7 +377,7 @@ impl eframe::App for TarkovMapApp {
             ui.horizontal(|ui| {
                 // Hints on the left
                 ui.label(
-                    "Scroll: zoom | Drag: pan | +/-: zoom | 0: fit | L: labels | Tab: sidebar",
+                    "Scroll: Zoom | Drag: Pan | +/-: Zoom | 0: Fit | L: Labels | Tab: Sidebar",
                 );
 
                 // Credits on the right
