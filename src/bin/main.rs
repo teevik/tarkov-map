@@ -5,7 +5,7 @@ use eframe::egui;
 use egui_extras::install_image_loaders;
 use std::collections::HashMap;
 use std::sync::mpsc;
-use tarkov_map::{MapGroup, TarkovMaps};
+use tarkov_map::{Map, TarkovMaps};
 
 const MAPS_RON_PATH: &str = "assets/maps.ron";
 const USER_AGENT: &str = "tarkov-map";
@@ -20,7 +20,7 @@ struct TarkovMapApp {
     maps: TarkovMaps,
     load_error: Option<String>,
 
-    selected_group: usize,
+    selected_map: usize,
     scale: f32,
     tile_zoom: i32,
 
@@ -40,17 +40,14 @@ impl TarkovMapApp {
             Err(err) => (Vec::new(), Some(err)),
         };
 
-        let tile_zoom = maps
-            .first()
-            .and_then(|group| group.map.min_zoom)
-            .unwrap_or(0);
+        let tile_zoom = maps.first().and_then(|map| map.min_zoom).unwrap_or(0);
 
         let runtime = tokio::runtime::Runtime::new().expect("create tokio runtime");
 
         Self {
             maps,
             load_error,
-            selected_group: 0,
+            selected_map: 0,
             scale: 1.0,
             tile_zoom,
             asset_cache: HashMap::new(),
@@ -59,8 +56,8 @@ impl TarkovMapApp {
         }
     }
 
-    fn selected_group(&self) -> Option<&MapGroup> {
-        self.maps.get(self.selected_group)
+    fn selected_map(&self) -> Option<&Map> {
+        self.maps.get(self.selected_map)
     }
 
     fn request_asset(&mut self, ctx: &egui::Context, url: &str) {
@@ -206,30 +203,25 @@ impl eframe::App for TarkovMapApp {
                     return;
                 }
 
-                let prev_group = self.selected_group;
+                let prev_map = self.selected_map;
 
-                let selected_group_name = self
+                let selected_map_name = self
                     .maps
-                    .get(self.selected_group)
-                    .map(|group| group.normalized_name.as_str())
+                    .get(self.selected_map)
+                    .map(|map| map.name.as_str())
                     .unwrap_or("(unknown)");
 
-                egui::ComboBox::from_id_salt("map_group")
-                    .selected_text(selected_group_name)
+                egui::ComboBox::from_id_salt("map")
+                    .selected_text(selected_map_name)
                     .show_ui(ui, |ui| {
-                        for (idx, group) in self.maps.iter().enumerate() {
-                            ui.selectable_value(
-                                &mut self.selected_group,
-                                idx,
-                                &group.normalized_name,
-                            );
+                        for (idx, map) in self.maps.iter().enumerate() {
+                            ui.selectable_value(&mut self.selected_map, idx, &map.name);
                         }
                     });
 
                 let (use_tiles, min_zoom, max_zoom) = self
-                    .selected_group()
-                    .map(|group| {
-                        let map = &group.map;
+                    .selected_map()
+                    .map(|map| {
                         let min_zoom = map.min_zoom.unwrap_or(0);
                         let max_zoom = map.max_zoom.unwrap_or(min_zoom).max(min_zoom);
                         let use_tiles = map.svg_path.is_none() && map.tile_path.is_some();
@@ -237,7 +229,7 @@ impl eframe::App for TarkovMapApp {
                     })
                     .unwrap_or((false, 0, 0));
 
-                if self.selected_group != prev_group {
+                if self.selected_map != prev_map {
                     self.tile_zoom = min_zoom;
                 } else {
                     self.tile_zoom = self.tile_zoom.clamp(min_zoom, max_zoom);
@@ -266,7 +258,7 @@ impl eframe::App for TarkovMapApp {
                 ui.separator();
             }
 
-            let Some(group) = self.selected_group() else {
+            let Some(map) = self.selected_map() else {
                 ui.label(format!(
                     "No map data loaded. Generate it with `cargo run --bin fetch_maps` (writes {}).",
                     MAPS_RON_PATH
@@ -274,20 +266,18 @@ impl eframe::App for TarkovMapApp {
                 return;
             };
 
-            let map = &group.map;
-
-            let group_name = group.normalized_name.clone();
-            let map_key = map.key.clone();
+            let name = map.name.clone();
+            let normalized_name = map.normalized_name.clone();
             let author = map.author.clone();
             let author_link = map.author_link.clone();
             let svg_url = map.svg_path.clone();
             let tile_path = map.tile_path.clone();
             let tile_size = map.tile_size.unwrap_or(256) as f32;
 
-            ui.heading(group_name);
+            ui.heading(name);
 
             ui.horizontal_wrapped(|ui| {
-                ui.label(format!("Key: {}", map_key));
+                ui.label(format!("ID: {}", normalized_name));
 
                 if let Some(author) = &author {
                     ui.label(format!("Author: {}", author));

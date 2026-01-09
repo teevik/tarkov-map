@@ -1,23 +1,16 @@
 use serde::{Deserialize, Serialize};
 
-/// A group of maps for a single Tarkov location (e.g., "customs", "factory").
+/// A single interactive map for a Tarkov location.
 ///
-/// This crate only keeps the single `interactive` map variant per location.
+/// Derived from the upstream `tarkov-dev` `maps.json` (interactive variants only) and enriched with
+/// the human-readable map name from the tarkov.dev GraphQL API.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct MapGroup {
-    /// Normalized name of the location (e.g., "customs", "streets-of-tarkov")
+pub struct Map {
+    /// Normalized map name / slug (e.g., "customs", "streets-of-tarkov").
     pub normalized_name: String,
-    /// The interactive map for this location.
-    pub map: InteractiveMap,
-}
-
-/// The interactive map variant for a single location.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct InteractiveMap {
-    /// Unique key for this location.
-    pub key: String,
+    /// Human-readable map name (e.g., "Customs").
+    pub name: String,
     /// Alternative map keys that use this same map.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub alt_maps: Option<Vec<String>>,
@@ -132,4 +125,4 @@ pub struct Label {
 }
 
 /// Root type for the maps data file.
-pub type TarkovMaps = Vec<MapGroup>;
+pub type TarkovMaps = Vec<Map>;

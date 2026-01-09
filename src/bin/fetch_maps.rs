@@ -1,11 +1,17 @@
 use ron::ser::PrettyConfig;
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::fs;
-use tarkov_map::{Extent, ExtentBound, InteractiveMap, Label, Layer, MapGroup, TarkovMaps};
+use tarkov_map::{Extent, ExtentBound, Label, Layer, Map, TarkovMaps};
 
 /// GitHub raw content URL for maps.json
 const MAPS_JSON_URL: &str =
     "https://raw.githubusercontent.com/the-hideout/tarkov-dev/main/src/data/maps.json";
+
+/// tarkov.dev GraphQL API endpoint
+const TARKOV_DEV_GRAPHQL_URL: &str = "https://api.tarkov.dev/graphql";
+
+const USER_AGENT: &str = "tarkov-map";
 
 // ============================================================================
 // Fetched types - match the JSON structure exactly
@@ -21,7 +27,6 @@ struct FetchedMapGroup {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct FetchedMap {
-    key: String,
     #[serde(default)]
     alt_maps: Option<Vec<String>>,
     projection: String,
@@ -165,55 +170,118 @@ where
 }
 
 // ============================================================================
+// tarkov.dev GraphQL map names
+// ============================================================================
+
+#[derive(Debug, Deserialize)]
+struct GraphQlResponse<T> {
+    data: Option<T>,
+    #[serde(default)]
+    errors: Vec<GraphQlError>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GraphQlError {
+    message: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct MapNamesData {
+    maps: Vec<MapNameEntry>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MapNameEntry {
+    normalized_name: String,
+    name: String,
+}
+
+async fn fetch_map_names(client: &reqwest::Client) -> color_eyre::Result<HashMap<String, String>> {
+    let query = "{ maps { normalizedName name } }";
+
+    let response = client
+        .post(TARKOV_DEV_GRAPHQL_URL)
+        .header(reqwest::header::USER_AGENT, USER_AGENT)
+        .json(&serde_json::json!({ "query": query }))
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        return Err(color_eyre::eyre::eyre!(
+            "Failed to fetch map names: {}",
+            response.status()
+        ));
+    }
+
+    let gql: GraphQlResponse<MapNamesData> = response.json().await?;
+    if !gql.errors.is_empty() {
+        let messages = gql
+            .errors
+            .into_iter()
+            .map(|err| err.message)
+            .collect::<Vec<_>>()
+            .join("; ");
+
+        return Err(color_eyre::eyre::eyre!("GraphQL errors: {}", messages));
+    }
+
+    let data = gql
+        .data
+        .ok_or_else(|| color_eyre::eyre::eyre!("GraphQL response missing data"))?;
+
+    Ok(data
+        .maps
+        .into_iter()
+        .map(|map| (map.normalized_name, map.name))
+        .collect())
+}
+
+// ============================================================================
 // Conversion from Fetched types to lib types
 // ============================================================================
 
-impl TryFrom<FetchedMapGroup> for MapGroup {
-    type Error = String;
+fn convert_group(
+    fetched: FetchedMapGroup,
+    map_names: &HashMap<String, String>,
+) -> color_eyre::Result<Option<Map>> {
+    let FetchedMapGroup {
+        normalized_name,
+        maps,
+    } = fetched;
 
-    fn try_from(fetched: FetchedMapGroup) -> Result<Self, Self::Error> {
-        let FetchedMapGroup {
-            normalized_name,
-            maps,
-        } = fetched;
+    let Some(interactive) = maps.into_iter().find(|map| map.projection == "interactive") else {
+        eprintln!("Skipping group '{normalized_name}': no interactive map");
+        return Ok(None);
+    };
 
-        let interactive = maps
-            .into_iter()
-            .find(|map| map.projection == "interactive")
-            .ok_or_else(|| format!("map group '{normalized_name}' has no interactive map"))?;
+    let name = map_names.get(&normalized_name).cloned().ok_or_else(|| {
+        color_eyre::eyre::eyre!("No human-readable name found for '{normalized_name}'")
+    })?;
 
-        Ok(Self {
-            normalized_name,
-            map: InteractiveMap::from(interactive),
-        })
-    }
-}
-
-impl From<FetchedMap> for InteractiveMap {
-    fn from(fetched: FetchedMap) -> Self {
-        Self {
-            key: fetched.key,
-            alt_maps: fetched.alt_maps,
-            author: fetched.author,
-            author_link: fetched.author_link,
-            tile_size: fetched.tile_size,
-            min_zoom: fetched.min_zoom,
-            max_zoom: fetched.max_zoom,
-            transform: fetched.transform,
-            coordinate_rotation: fetched.coordinate_rotation,
-            bounds: fetched.bounds,
-            svg_path: fetched.svg_path,
-            svg_layer: fetched.svg_layer,
-            tile_path: fetched.tile_path,
-            height_range: fetched.height_range,
-            layers: fetched
-                .layers
-                .map(|layers| layers.into_iter().map(Layer::from).collect()),
-            labels: fetched
-                .labels
-                .map(|labels| labels.into_iter().map(Label::from).collect()),
-        }
-    }
+    Ok(Some(Map {
+        normalized_name,
+        name,
+        alt_maps: interactive.alt_maps,
+        author: interactive.author,
+        author_link: interactive.author_link,
+        tile_size: interactive.tile_size,
+        min_zoom: interactive.min_zoom,
+        max_zoom: interactive.max_zoom,
+        transform: interactive.transform,
+        coordinate_rotation: interactive.coordinate_rotation,
+        bounds: interactive.bounds,
+        svg_path: interactive.svg_path,
+        svg_layer: interactive.svg_layer,
+        tile_path: interactive.tile_path,
+        height_range: interactive.height_range,
+        layers: interactive
+            .layers
+            .map(|layers| layers.into_iter().map(Layer::from).collect()),
+        labels: interactive
+            .labels
+            .map(|labels| labels.into_iter().map(Label::from).collect()),
+    }))
 }
 
 impl From<FetchedLayer> for Layer {
@@ -271,13 +339,18 @@ async fn main() -> color_eyre::Result<()> {
     env_logger::init();
     color_eyre::install()?;
 
+    let client = reqwest::Client::new();
+
+    println!("Fetching map names from tarkov.dev...");
+    let map_names = fetch_map_names(&client).await?;
+    println!("Fetched {} map names", map_names.len());
+
     println!("Fetching maps from tarkov-dev...");
 
     // Fetch the maps JSON from GitHub
-    let client = reqwest::Client::new();
     let response = client
         .get(MAPS_JSON_URL)
-        .header(reqwest::header::USER_AGENT, "tarkov-map")
+        .header(reqwest::header::USER_AGENT, USER_AGENT)
         .send()
         .await?;
 
@@ -297,17 +370,14 @@ async fn main() -> color_eyre::Result<()> {
 
     // Convert to the library types (one interactive map per group)
     let mut skipped = 0usize;
-    let maps: TarkovMaps = fetched_maps
-        .into_iter()
-        .filter_map(|group| match MapGroup::try_from(group) {
-            Ok(group) => Some(group),
-            Err(err) => {
-                skipped += 1;
-                eprintln!("Skipping group: {err}");
-                None
-            }
-        })
-        .collect();
+    let mut maps: TarkovMaps = Vec::new();
+
+    for group in fetched_maps {
+        match convert_group(group, &map_names)? {
+            Some(map) => maps.push(map),
+            None => skipped += 1,
+        }
+    }
 
     println!(
         "Selected {} interactive maps (skipped {})",
@@ -335,8 +405,8 @@ async fn main() -> color_eyre::Result<()> {
 
     // Print summary
     println!("\nInteractive maps:");
-    for group in &maps {
-        println!("  - {} ({})", group.normalized_name, group.map.key);
+    for map in &maps {
+        println!("  - {} ({})", map.name, map.normalized_name);
     }
 
     Ok(())
