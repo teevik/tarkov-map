@@ -39,7 +39,20 @@ let
     "${wlibs}/sdk/lib/um/x86_64"
   ];
 
-  src = lib.cleanSourceWith {
+  # ==========================================================================
+  # Layer 1: Source filtering (separate Cargo sources from assets)
+  # ==========================================================================
+
+  # Cargo sources only (for dependency resolution and vendoring)
+  cargoSource = lib.cleanSourceWith {
+    src = ../.;
+    filter =
+      path: type:
+      (craneLib.filterCargoSources path type) || builtins.match ".*schema\\.graphql$" path != null;
+  };
+
+  # Full source including assets (for final build)
+  fullSource = lib.cleanSourceWith {
     src = ../.;
     filter =
       path: type:
@@ -48,12 +61,25 @@ let
       || builtins.match ".*/assets/.*" path != null;
   };
 
+  # ==========================================================================
+  # Layer 2: Vendored dependencies (cached when Cargo.lock unchanged)
+  # ==========================================================================
+
+  cargoVendorDir = craneLib.vendorCargoDeps {
+    src = cargoSource;
+  };
+
+  # ==========================================================================
+  # Common build arguments
+  # ==========================================================================
+
   commonArgs = {
     pname = "tarkov-map";
     version = "0.1.0";
-    inherit src;
     strictDeps = true;
     doCheck = false;
+
+    inherit cargoVendorDir;
 
     nativeBuildInputs = with pkgs; [
       clang
@@ -85,11 +111,25 @@ let
     dontFixup = true;
   };
 
-  cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+  # ==========================================================================
+  # Layer 3: Compiled dependencies (cached when deps unchanged)
+  # ==========================================================================
+
+  cargoArtifacts = craneLib.buildDepsOnly (
+    commonArgs
+    // {
+      src = cargoSource;
+    }
+  );
+
+  # ==========================================================================
+  # Layer 4: Final package (rebuilds only when your code changes)
+  # ==========================================================================
 in
 craneLib.buildPackage (
   commonArgs
   // {
+    src = fullSource;
     inherit cargoArtifacts;
     cargoExtraArgs = "--bin main";
     installPhaseCommand = ''
