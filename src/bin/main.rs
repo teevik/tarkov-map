@@ -189,12 +189,10 @@ impl TarkovMapApp {
         let scale_y = viewport_size.y / logical_size.y;
         let fit_scale = scale_x.min(scale_y);
 
-        // Display size: fit to viewport, then apply zoom
-        let display_size = logical_size * fit_scale * self.zoom;
-
         // Handle mouse wheel zoom
         let hover_pos = ui.input(|i| i.pointer.hover_pos());
         let scroll_delta = ui.input(|i| i.raw_scroll_delta.y);
+        let mut zoomed_this_frame = false;
 
         if scroll_delta != 0.0 && hover_pos.map_or(false, |p| viewport_rect.contains(p)) {
             let zoom_factor = if scroll_delta > 0.0 {
@@ -222,18 +220,24 @@ impl TarkovMapApp {
             }
 
             self.zoom = new_zoom;
+            zoomed_this_frame = true;
         }
 
-        // Handle slider zoom (center-based)
-        let zoom_ratio = self.zoom / self.prev_zoom;
-        if (zoom_ratio - 1.0).abs() > 0.001 && scroll_delta == 0.0 {
-            self.pan_offset = self.pan_offset * zoom_ratio;
+        // Handle slider zoom (center-based) - only if not already zoomed by scroll
+        if !zoomed_this_frame {
+            let zoom_ratio = self.zoom / self.prev_zoom;
+            if (zoom_ratio - 1.0).abs() > 0.001 {
+                self.pan_offset = self.pan_offset * zoom_ratio;
+            }
         }
 
         // Handle drag panning
         if response.dragged() {
             self.pan_offset += response.drag_delta();
         }
+
+        // Calculate display size with current zoom (after all zoom updates)
+        let display_size = logical_size * fit_scale * self.zoom;
 
         // Calculate map rect (centered in viewport, offset by pan)
         let map_center = viewport_rect.center() + self.pan_offset;
