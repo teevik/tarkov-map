@@ -14,7 +14,7 @@ const ZOOM_MIN: f32 = 1.0;
 const ZOOM_MAX: f32 = 10.0;
 
 /// Zoom speed for mouse wheel (multiplier per scroll unit)
-const ZOOM_SPEED: f32 = 1.1;
+const ZOOM_SPEED: f32 = 1.2;
 
 // ============================================================================
 // Asset loading
