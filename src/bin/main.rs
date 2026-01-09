@@ -5,7 +5,7 @@ use eframe::egui;
 use egui_extras::install_image_loaders;
 use std::collections::HashMap;
 use std::sync::mpsc;
-use tarkov_map::{Map, MapGroup, TarkovMaps};
+use tarkov_map::{MapGroup, TarkovMaps};
 
 const MAPS_RON_PATH: &str = "assets/maps.ron";
 const USER_AGENT: &str = "tarkov-map";
@@ -21,7 +21,6 @@ struct TarkovMapApp {
     load_error: Option<String>,
 
     selected_group: usize,
-    selected_map: usize,
     zoom: f32,
 
     svg_cache: HashMap<String, SvgLoadState>,
@@ -42,38 +41,19 @@ impl TarkovMapApp {
 
         let runtime = tokio::runtime::Runtime::new().expect("create tokio runtime");
 
-        let mut app = Self {
+        Self {
             maps,
             load_error,
             selected_group: 0,
-            selected_map: 0,
             zoom: 1.0,
             svg_cache: HashMap::new(),
             http: reqwest::Client::new(),
             runtime,
-        };
-
-        app.reset_selected_map();
-
-        app
-    }
-
-    fn reset_selected_map(&mut self) {
-        let Some(group) = self.maps.get(self.selected_group) else {
-            self.selected_map = 0;
-            return;
-        };
-
-        self.selected_map = default_map_index(group);
+        }
     }
 
     fn selected_group(&self) -> Option<&MapGroup> {
         self.maps.get(self.selected_group)
-    }
-
-    fn selected_map(&self) -> Option<&Map> {
-        self.selected_group()
-            .and_then(|group| group.maps.get(self.selected_map))
     }
 
     fn request_svg(&mut self, ctx: &egui::Context, url: &str) {
@@ -164,8 +144,6 @@ impl eframe::App for TarkovMapApp {
                     return;
                 }
 
-                let prev_group = self.selected_group;
-
                 let selected_group_name = self
                     .maps
                     .get(self.selected_group)
@@ -183,29 +161,6 @@ impl eframe::App for TarkovMapApp {
                             );
                         }
                     });
-
-                if self.selected_group != prev_group {
-                    self.reset_selected_map();
-                }
-
-                ui.separator();
-
-                if let Some(group) = self.selected_group() {
-                    let variants: Vec<String> = group.maps.iter().map(variant_label).collect();
-
-                    let selected_variant = variants
-                        .get(self.selected_map)
-                        .cloned()
-                        .unwrap_or_else(|| "(unknown)".to_owned());
-
-                    egui::ComboBox::from_id_salt("map_variant")
-                        .selected_text(selected_variant)
-                        .show_ui(ui, |ui| {
-                            for (idx, label) in variants.iter().enumerate() {
-                                ui.selectable_value(&mut self.selected_map, idx, label.as_str());
-                            }
-                        });
-                }
 
                 ui.separator();
                 ui.add(
@@ -230,13 +185,10 @@ impl eframe::App for TarkovMapApp {
                 return;
             };
 
-            let Some(map) = self.selected_map() else {
-                ui.label("No map variant selected.");
-                return;
-            };
+            let map = &group.map;
 
             let group_name = group.normalized_name.clone();
-            let variant = variant_label(map);
+            let map_key = map.key.clone();
             let author = map.author.clone();
             let author_link = map.author_link.clone();
             let svg_url = map.svg_path.clone();
@@ -244,7 +196,7 @@ impl eframe::App for TarkovMapApp {
             ui.heading(group_name);
 
             ui.horizontal_wrapped(|ui| {
-                ui.label(format!("Variant: {}", variant));
+                ui.label(format!("Key: {}", map_key));
 
                 if let Some(author) = &author {
                     ui.label(format!("Author: {}", author));
@@ -260,7 +212,7 @@ impl eframe::App for TarkovMapApp {
             if let Some(svg_url) = svg_url.as_deref() {
                 self.show_svg(ui, ctx, svg_url);
             } else {
-                ui.label("No SVG available for this map variant.");
+                ui.label("No SVG available for this map.");
             }
         });
     }
@@ -292,23 +244,6 @@ fn load_maps(path: &str) -> Result<TarkovMaps, String> {
         std::fs::read_to_string(path).map_err(|err| format!("read maps file {path}: {err}"))?;
 
     ron::from_str::<TarkovMaps>(&ron_string).map_err(|err| format!("parse maps file {path}: {err}"))
-}
-
-fn default_map_index(group: &MapGroup) -> usize {
-    group
-        .maps
-        .iter()
-        .position(|map| map.svg_path.is_some())
-        .unwrap_or(0)
-}
-
-fn variant_label(map: &Map) -> String {
-    match &map.specific {
-        Some(specific) if !specific.is_empty() => {
-            format!("{} – {} ({})", map.key, specific, map.projection)
-        }
-        _ => format!("{} ({})", map.key, map.projection),
-    }
 }
 
 fn main() -> eframe::Result {

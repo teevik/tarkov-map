@@ -1,7 +1,7 @@
 use ron::ser::PrettyConfig;
 use serde::Deserialize;
 use std::fs;
-use tarkov_map::{Extent, ExtentBound, Label, Layer, Map, MapGroup, TarkovMaps};
+use tarkov_map::{Extent, ExtentBound, InteractiveMap, Label, Layer, MapGroup, TarkovMaps};
 
 /// GitHub raw content URL for maps.json
 const MAPS_JSON_URL: &str =
@@ -15,8 +15,6 @@ const MAPS_JSON_URL: &str =
 #[serde(rename_all = "camelCase")]
 struct FetchedMapGroup {
     normalized_name: String,
-    #[serde(default)]
-    primary_path: Option<String>,
     maps: Vec<FetchedMap>,
 }
 
@@ -27,8 +25,6 @@ struct FetchedMap {
     #[serde(default)]
     alt_maps: Option<Vec<String>>,
     projection: String,
-    #[serde(default)]
-    specific: Option<String>,
     #[serde(default)]
     author: Option<String>,
     #[serde(default)]
@@ -172,46 +168,32 @@ where
 // Conversion from Fetched types to lib types
 // ============================================================================
 
-impl From<FetchedMapGroup> for MapGroup {
-    fn from(fetched: FetchedMapGroup) -> Self {
+impl TryFrom<FetchedMapGroup> for MapGroup {
+    type Error = String;
+
+    fn try_from(fetched: FetchedMapGroup) -> Result<Self, Self::Error> {
         let FetchedMapGroup {
             normalized_name,
-            primary_path,
             maps,
         } = fetched;
 
-        let primary_path = match primary_path {
-            Some(primary_path) => primary_path,
-            None => {
-                let fallback = maps
-                    .first()
-                    .map(|map| format!("/map/{}", map.key))
-                    .unwrap_or_else(|| format!("/map/{}", normalized_name));
+        let interactive = maps
+            .into_iter()
+            .find(|map| map.projection == "interactive")
+            .ok_or_else(|| format!("map group '{normalized_name}' has no interactive map"))?;
 
-                eprintln!(
-                    "Warning: map group '{}' missing primaryPath; using '{}'",
-                    normalized_name, fallback
-                );
-
-                fallback
-            }
-        };
-
-        Self {
+        Ok(Self {
             normalized_name,
-            primary_path,
-            maps: maps.into_iter().map(Map::from).collect(),
-        }
+            map: InteractiveMap::from(interactive),
+        })
     }
 }
 
-impl From<FetchedMap> for Map {
+impl From<FetchedMap> for InteractiveMap {
     fn from(fetched: FetchedMap) -> Self {
         Self {
             key: fetched.key,
             alt_maps: fetched.alt_maps,
-            projection: fetched.projection,
-            specific: fetched.specific,
             author: fetched.author,
             author_link: fetched.author_link,
             tile_size: fetched.tile_size,
@@ -313,8 +295,25 @@ async fn main() -> color_eyre::Result<()> {
     let fetched_maps: Vec<FetchedMapGroup> = serde_json::from_str(&json_text)?;
     println!("Parsed {} map groups", fetched_maps.len());
 
-    // Convert to the library types
-    let maps: TarkovMaps = fetched_maps.into_iter().map(MapGroup::from).collect();
+    // Convert to the library types (one interactive map per group)
+    let mut skipped = 0usize;
+    let maps: TarkovMaps = fetched_maps
+        .into_iter()
+        .filter_map(|group| match MapGroup::try_from(group) {
+            Ok(group) => Some(group),
+            Err(err) => {
+                skipped += 1;
+                eprintln!("Skipping group: {err}");
+                None
+            }
+        })
+        .collect();
+
+    println!(
+        "Selected {} interactive maps (skipped {})",
+        maps.len(),
+        skipped
+    );
 
     // Serialize to RON with pretty formatting
     let pretty_config = PrettyConfig::new()
@@ -335,13 +334,9 @@ async fn main() -> color_eyre::Result<()> {
     println!("Wrote maps to {}", output_path);
 
     // Print summary
-    println!("\nMap groups:");
+    println!("\nInteractive maps:");
     for group in &maps {
-        println!(
-            "  - {} ({} variants)",
-            group.normalized_name,
-            group.maps.len()
-        );
+        println!("  - {} ({})", group.normalized_name, group.map.key);
     }
 
     Ok(())
