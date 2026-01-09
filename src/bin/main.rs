@@ -258,40 +258,54 @@ impl TarkovMapApp {
             .auto_shrink([false, false])
             .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
             .show(ui, |ui| {
-                let (rect, response) = ui.allocate_exact_size(display_size, egui::Sense::drag());
+                // Center horizontally if map is narrower than viewport
+                let h_padding = ((viewport_size.x - display_size.x) / 2.0).max(0.0);
 
-                // Handle drag panning
-                if response.dragged() {
-                    if let Some(mut scroll_state) = egui::scroll_area::State::load(ctx, scroll_id) {
-                        let delta = response.drag_delta();
-                        scroll_state.offset -= delta;
+                ui.horizontal(|ui| {
+                    if h_padding > 0.0 {
+                        ui.add_space(h_padding);
+                    }
 
-                        // Clamp to valid range
-                        let viewport_size = available_rect.size();
-                        let max_offset = (display_size - viewport_size).max(egui::Vec2::ZERO);
-                        scroll_state.offset = egui::vec2(
-                            scroll_state.offset.x.clamp(0.0, max_offset.x),
-                            scroll_state.offset.y.clamp(0.0, max_offset.y),
+                    ui.vertical(|ui| {
+                        let (rect, response) =
+                            ui.allocate_exact_size(display_size, egui::Sense::drag());
+
+                        // Handle drag panning
+                        if response.dragged() {
+                            if let Some(mut scroll_state) =
+                                egui::scroll_area::State::load(ctx, scroll_id)
+                            {
+                                let delta = response.drag_delta();
+                                scroll_state.offset -= delta;
+
+                                // Clamp to valid range
+                                let max_offset =
+                                    (display_size - viewport_size).max(egui::Vec2::ZERO);
+                                scroll_state.offset = egui::vec2(
+                                    scroll_state.offset.x.clamp(0.0, max_offset.x),
+                                    scroll_state.offset.y.clamp(0.0, max_offset.y),
+                                );
+
+                                scroll_state.store(ctx, scroll_id);
+                            }
+                        }
+
+                        // Draw the map image
+                        ui.painter().image(
+                            texture_id,
+                            rect,
+                            egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                            egui::Color32::WHITE,
                         );
 
-                        scroll_state.store(ctx, scroll_id);
-                    }
-                }
-
-                // Draw the map image
-                ui.painter().image(
-                    texture_id,
-                    rect,
-                    egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
-                    egui::Color32::WHITE,
-                );
-
-                // Draw labels
-                if self.show_labels {
-                    if let Some(labels) = &map.labels {
-                        draw_labels(ui, rect, map, labels, self.zoom);
-                    }
-                }
+                        // Draw labels
+                        if self.show_labels {
+                            if let Some(labels) = &map.labels {
+                                draw_labels(ui, rect, map, labels, self.zoom);
+                            }
+                        }
+                    });
+                });
             });
     }
 }
