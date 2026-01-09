@@ -15,7 +15,8 @@ const MAPS_JSON_URL: &str =
 #[serde(rename_all = "camelCase")]
 struct FetchedMapGroup {
     normalized_name: String,
-    primary_path: String,
+    #[serde(default)]
+    primary_path: Option<String>,
     maps: Vec<FetchedMap>,
 }
 
@@ -173,10 +174,33 @@ where
 
 impl From<FetchedMapGroup> for MapGroup {
     fn from(fetched: FetchedMapGroup) -> Self {
+        let FetchedMapGroup {
+            normalized_name,
+            primary_path,
+            maps,
+        } = fetched;
+
+        let primary_path = match primary_path {
+            Some(primary_path) => primary_path,
+            None => {
+                let fallback = maps
+                    .first()
+                    .map(|map| format!("/map/{}", map.key))
+                    .unwrap_or_else(|| format!("/map/{}", normalized_name));
+
+                eprintln!(
+                    "Warning: map group '{}' missing primaryPath; using '{}'",
+                    normalized_name, fallback
+                );
+
+                fallback
+            }
+        };
+
         Self {
-            normalized_name: fetched.normalized_name,
-            primary_path: fetched.primary_path,
-            maps: fetched.maps.into_iter().map(Map::from).collect(),
+            normalized_name,
+            primary_path,
+            maps: maps.into_iter().map(Map::from).collect(),
         }
     }
 }

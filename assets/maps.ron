@@ -1,0 +1,3056 @@
+[
+  MapGroup(
+    normalizedName: "streets-of-tarkov",
+    primaryPath: "/map/streets-of-tarkov",
+    maps: [
+      Map(
+        key: "streets-of-tarkov",
+        projection: "interactive",
+        author: Some("Shebuka"),
+        authorLink: Some("https://github.com/the-hideout/tarkov-dev-svg-maps/"),
+        minZoom: Some(1),
+        maxZoom: Some(5),
+        transform: Some((0.38, 0.0, 0.38, 0.0)),
+        coordinateRotation: Some(180.0),
+        bounds: Some(((323.0, -317.0), (-280.0, 554.0))),
+        svgPath: Some("https://assets.tarkov.dev/maps/svg/StreetsOfTarkov.svg"),
+        svgLayer: Some("Ground_Level"),
+        heightRange: Some((-6.0, 10.0)),
+        layers: Some([
+          Layer(
+            name: "Underground",
+            svgLayer: Some("Underground_Level"),
+            show: false,
+            extents: [
+              Extent(
+                height: (-10000.0, -6.0),
+              ),
+            ],
+          ),
+          Layer(
+            name: "2nd Floor",
+            svgLayer: Some("Second_Floor"),
+            show: false,
+            extents: [
+              Extent(
+                height: (10.0, 15.0),
+              ),
+            ],
+          ),
+          Layer(
+            name: "3rd Floor",
+            svgLayer: Some("Third_Floor"),
+            show: false,
+            extents: [
+              Extent(
+                height: (15.0, 20.0),
+              ),
+            ],
+          ),
+          Layer(
+            name: "4th Floor",
+            svgLayer: Some("Fourth_Floor"),
+            show: false,
+            extents: [
+              Extent(
+                height: (20.0, 25.0),
+              ),
+            ],
+          ),
+          Layer(
+            name: "5th Floor",
+            svgLayer: Some("Fifth_Floor"),
+            show: false,
+            extents: [
+              Extent(
+                height: (25.0, 10000.0),
+              ),
+            ],
+          ),
+        ]),
+        labels: Some([
+          Label(
+            position: (9.0, 308.0),
+            text: "Primorsky Ave.",
+            rotation: Some(-90.0),
+            size: Some(80),
+          ),
+          Label(
+            position: (9.0, 104.0),
+            text: "Primorsky Ave.",
+            rotation: Some(-90.0),
+            size: Some(80),
+          ),
+          Label(
+            position: (9.0, -80.0),
+            text: "Primorsky Ave.",
+            rotation: Some(-90.0),
+            size: Some(80),
+          ),
+          Label(
+            position: (125.0, 10.0),
+            text: "Kilmov St.",
+            size: Some(80),
+          ),
+          Label(
+            position: (-104.0, 28.0),
+            text: "Kilmov St.",
+            rotation: Some(10.0),
+            size: Some(80),
+          ),
+          Label(
+            position: (-125.0, 210.0),
+            text: "Nikitskaya St.",
+            size: Some(80),
+          ),
+          Label(
+            position: (-112.0, 361.0),
+            text: "Verhnyaya St.",
+            size: Some(80),
+          ),
+          Label(
+            position: (-200.0, 290.0),
+            text: "Malevecha St.",
+            rotation: Some(-64.0),
+            size: Some(80),
+          ),
+          Label(
+            position: (111.0, 251.0),
+            text: "Chekannaya St.",
+            size: Some(80),
+          ),
+          Label(
+            position: (-101.0, 441.0),
+            text: "Nizhnyaya St.",
+            size: Some(80),
+          ),
+          Label(
+            position: (174.0, 430.0),
+            text: "Razvedchikov St.",
+            rotation: Some(-30.0),
+            size: Some(80),
+          ),
+          Label(
+            position: (140.0, 150.0),
+            text: "Zmejskij Alley",
+            rotation: Some(-68.0),
+            size: Some(80),
+          ),
+          Label(
+            position: (232.0, 100.0),
+            text: "Kamchatskaya St.",
+            rotation: Some(-90.0),
+            size: Some(80),
+          ),
+          Label(
+            position: (-128.0, -35.0),
+            text: "Kilmov Shopping Mall",
+            size: Some(90),
+          ),
+          Label(
+            position: (-45.0, -52.0),
+            text: "Beluga",
+            size: Some(90),
+          ),
+          Label(
+            position: (99.0, -71.0),
+            text: "Cardinal Apartments",
+            size: Some(90),
+          ),
+          Label(
+            position: (230.0, 295.0),
+            text: "Construction",
+            size: Some(90),
+          ),
+          Label(
+            position: (66.0, 305.0),
+            text: "Lexos",
+            size: Some(90),
+          ),
+          Label(
+            position: (140.0, 300.0),
+            text: "Sparja Grocery",
+            size: Some(90),
+          ),
+          Label(
+            position: (-175.0, 400.0),
+            text: "Cinema",
+            size: Some(90),
+          ),
+          Label(
+            position: (-218.0, 135.0),
+            text: "Shestyorochka",
+            size: Some(90),
+          ),
+          Label(
+            position: (-35.0, 64.0),
+            text: "Pinewood Hotel",
+            size: Some(90),
+          ),
+          Label(
+            position: (65.0, 398.0),
+            text: "Teppakot / Koener",
+            size: Some(70),
+          ),
+          Label(
+            position: (140.0, 362.0),
+            text: "Concordia",
+            size: Some(70),
+          ),
+          Label(
+            position: (89.0, -20.0),
+            text: "Cardinal Bank",
+            size: Some(70),
+          ),
+          Label(
+            position: (239.0, -60.0),
+            text: "LERM Expo",
+            size: Some(70),
+          ),
+          Label(
+            position: (-64.0, 166.0),
+            text: "Sparja Express",
+            size: Some(70),
+          ),
+          Label(
+            position: (-30.0, 138.0),
+            text: "Burger Spot",
+            size: Some(70),
+          ),
+          Label(
+            position: (42.0, 97.0),
+            text: "Post Office",
+            size: Some(70),
+          ),
+          Label(
+            position: (42.0, 160.0),
+            text: "Pharmacy 1",
+            size: Some(70),
+          ),
+          Label(
+            position: (-173.0, 226.0),
+            text: "Office",
+            size: Some(70),
+          ),
+          Label(
+            position: (-197.0, 340.0),
+            text: "Corner Restaurant",
+            size: Some(70),
+          ),
+          Label(
+            position: (-43.0, 335.0),
+            text: "Pharmacy 2",
+            size: Some(70),
+          ),
+          Label(
+            position: (90.0, -277.0),
+            text: "Pharmacy 3",
+            size: Some(70),
+          ),
+          Label(
+            position: (67.0, 230.0),
+            text: "Tarbank",
+            size: Some(70),
+          ),
+          Label(
+            position: (211.0, 129.0),
+            text: "School",
+            size: Some(70),
+          ),
+          Label(
+            position: (222.0, 173.0),
+            text: "Vet Clinic",
+            size: Some(70),
+          ),
+          Label(
+            position: (-212.0, 300.0),
+            text: "Hive",
+            size: Some(70),
+          ),
+          Label(
+            position: (-223.0, 279.0),
+            text: "Family Market",
+            size: Some(70),
+          ),
+          Label(
+            position: (-200.0, 248.0),
+            text: "Marked Hotel",
+            size: Some(70),
+          ),
+          Label(
+            position: (-175.0, 297.0),
+            text: "South Hotel",
+            size: Some(70),
+          ),
+          Label(
+            position: (-119.0, 287.0),
+            text: "Abandon Factory",
+            size: Some(70),
+          ),
+          Label(
+            position: (-80.0, 235.0),
+            text: "Diner",
+            size: Some(70),
+          ),
+          Label(
+            position: (-13.0, 244.0),
+            text: "Primorskij 49",
+            size: Some(70),
+          ),
+          Label(
+            position: (39.0, 230.0),
+            text: "Prestigio Cafe",
+            rotation: Some(-45.0),
+            size: Some(60),
+          ),
+          Label(
+            position: (-70.0, 343.0),
+            text: "Bilbo Coffee",
+            size: Some(60),
+          ),
+        ]),
+      ),
+      Map(
+        key: "streets-2d",
+        projection: "2D",
+        author: Some("Jindouz"),
+        authorLink: Some("https://www.reddit.com/user/Jindouz"),
+      ),
+      Map(
+        key: "streets-3d",
+        projection: "3D",
+        author: Some("re3mr"),
+        authorLink: Some("https://reemr.se"),
+      ),
+      Map(
+        key: "streets-3d-caches",
+        projection: "3D",
+        specific: Some("Caches"),
+        author: Some("re3mr"),
+        authorLink: Some("https://reemr.se"),
+      ),
+      Map(
+        key: "streets-3d-lexos",
+        projection: "3D",
+        specific: Some("Lexos"),
+        author: Some("re3mr"),
+        authorLink: Some("https://reemr.se"),
+      ),
+    ],
+  ),
+  MapGroup(
+    normalizedName: "ground-zero",
+    primaryPath: "/map/ground-zero",
+    maps: [
+      Map(
+        key: "ground-zero",
+        altMaps: Some([
+          "ground-zero-21",
+        ]),
+        projection: "interactive",
+        author: Some("Shebuka"),
+        authorLink: Some("https://github.com/the-hideout/tarkov-dev-svg-maps/"),
+        tileSize: Some(256),
+        minZoom: Some(1),
+        maxZoom: Some(6),
+        transform: Some((0.524, 167.3, 0.524, 65.1)),
+        coordinateRotation: Some(180.0),
+        bounds: Some(((249.0, -124.0), (-99.0, 364.0))),
+        svgPath: Some("https://assets.tarkov.dev/maps/svg/GroundZero.svg"),
+        svgLayer: Some("Ground_Level"),
+        tilePath: Some("https://assets.tarkov.dev/maps/groundzero/main_summer/{z}/{x}/{y}.png"),
+        heightRange: Some((-1000.0, 28.0)),
+        layers: Some([
+          Layer(
+            name: "Garage",
+            svgLayer: Some("Underground_Level"),
+            tilePath: Some("https://assets.tarkov.dev/maps/groundzero/garage/{z}/{x}/{y}.png"),
+            show: false,
+            extents: [
+              Extent(
+                height: (-1000.0, 21.0),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (117.0, -100.0),
+                    point2: (43.0, 190.0),
+                    name: "garage",
+                  ),
+                  ExtentBound(
+                    point1: (143.0, 49.0),
+                    point2: (117.0, 80.0),
+                    name: "underpass",
+                  ),
+                ]),
+              ),
+            ],
+          ),
+          Layer(
+            name: "2nd Floor",
+            svgLayer: Some("Second_Floor"),
+            tilePath: Some("https://assets.tarkov.dev/maps/groundzero/2nd/{z}/{x}/{y}.png"),
+            show: false,
+            extents: [
+              Extent(
+                height: (28.0, 32.3),
+              ),
+              Extent(
+                height: (26.0, 31.0),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (98.0, 216.0),
+                    point2: (91.0, 228.0),
+                    name: "m showroom",
+                  ),
+                ]),
+              ),
+            ],
+          ),
+          Layer(
+            name: "3rd Floor",
+            svgLayer: Some("Third_Floor"),
+            tilePath: Some("https://assets.tarkov.dev/maps/groundzero/3rd/{z}/{x}/{y}.png"),
+            show: false,
+            extents: [
+              Extent(
+                height: (32.3, 1000.0),
+              ),
+            ],
+          ),
+        ]),
+        labels: Some([
+          Label(
+            position: (-50.0, 0.0),
+            text: "TerraGroup",
+          ),
+          Label(
+            position: (150.0, 1.0),
+            text: "Skyside",
+          ),
+          Label(
+            position: (141.0, 142.0),
+            text: "Fusion",
+          ),
+          Label(
+            position: (14.0, 201.0),
+            text: "Empire",
+          ),
+          Label(
+            position: (115.0, 285.0),
+            text: "Capital Insight",
+          ),
+          Label(
+            position: (2.0, 324.0),
+            text: "Nakatani",
+          ),
+          Label(
+            position: (80.0, -118.0),
+            text: "Elemental Global",
+          ),
+          Label(
+            position: (115.0, 104.0),
+            text: "Oasis",
+            size: Some(70),
+            top: Some(30.0),
+            bottom: Some(22.0),
+          ),
+          Label(
+            position: (115.0, 30.0),
+            text: "ASAP Winery",
+            size: Some(70),
+            top: Some(27.0),
+            bottom: Some(22.0),
+          ),
+          Label(
+            position: (43.0, 150.0),
+            text: "Tarbank",
+            size: Some(70),
+          ),
+          Label(
+            position: (58.0, 234.0),
+            text: "GAGRIN Hotel",
+            size: Some(70),
+          ),
+          Label(
+            position: (97.0, 223.0),
+            text: "M Showroom",
+            size: Some(70),
+          ),
+          Label(
+            position: (-13.0, 48.0),
+            text: "Science Office",
+            size: Some(60),
+            top: Some(28.0),
+            bottom: Some(28.0),
+          ),
+        ]),
+      ),
+      Map(
+        key: "ground-zero-2d",
+        projection: "2D",
+        author: Some("xTycho"),
+        authorLink: Some("https://www.reddit.com/user/Tychodelouw/"),
+      ),
+      Map(
+        key: "ground-zero-3d",
+        projection: "3D",
+        author: Some("re3mr"),
+        authorLink: Some("https://reemr.se"),
+      ),
+    ],
+  ),
+  MapGroup(
+    normalizedName: "customs",
+    primaryPath: "/map/customs",
+    maps: [
+      Map(
+        key: "customs",
+        projection: "interactive",
+        author: Some("Shebuka"),
+        authorLink: Some("https://github.com/the-hideout/tarkov-dev-svg-maps/"),
+        tileSize: Some(256),
+        minZoom: Some(2),
+        maxZoom: Some(6),
+        transform: Some((0.239, 168.65, 0.239, 136.35)),
+        coordinateRotation: Some(180.0),
+        bounds: Some(((698.0, -307.0), (-372.0, 237.0))),
+        svgPath: Some("https://assets.tarkov.dev/maps/svg/Customs.svg"),
+        svgLayer: Some("Ground_Level"),
+        tilePath: Some("https://assets.tarkov.dev/maps/customs_0.16/main/{z}/{x}/{y}.png"),
+        heightRange: Some((-1000.0, 1000.0)),
+        layers: Some([
+          Layer(
+            name: "Underground",
+            svgLayer: Some("Underground_Level"),
+            tilePath: Some("https://assets.tarkov.dev/maps/customs_0.16/underground/{z}/{x}/{y}.png"),
+            show: false,
+            extents: [
+              Extent(
+                height: (-1000.0, 0.5),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (635.0, -137.0),
+                    point2: (620.0, -125.0),
+                    name: "zb-1011",
+                  ),
+                  ExtentBound(
+                    point1: (473.0, -122.0),
+                    point2: (458.0, -110.0),
+                    name: "zb-1012",
+                  ),
+                  ExtentBound(
+                    point1: (314.0, -173.0),
+                    point2: (308.0, -184.0),
+                    name: "old gas",
+                  ),
+                  ExtentBound(
+                    point1: (349.0, -88.0),
+                    point2: (323.0, -32.0),
+                    name: "switch basement",
+                  ),
+                  ExtentBound(
+                    point1: (219.0, -158.0),
+                    point2: (193.0, -137.0),
+                    name: "zb-013",
+                  ),
+                  ExtentBound(
+                    point1: (122.0, -61.0),
+                    point2: (88.0, -40.0),
+                    name: "boiler room",
+                  ),
+                ]),
+              ),
+            ],
+          ),
+          Layer(
+            name: "2nd Floor",
+            svgLayer: Some("Second_Floor"),
+            tilePath: Some("https://assets.tarkov.dev/maps/customs_0.16/2nd/{z}/{x}/{y}.png"),
+            show: false,
+            extents: [
+              Extent(
+                height: (2.7, 6.5),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (243.0, 190.0),
+                    point2: (165.0, 125.0),
+                    name: "dorms",
+                  ),
+                  ExtentBound(
+                    point1: (116.0, -83.0),
+                    point2: (72.0, -170.0),
+                    name: "mechanic",
+                  ),
+                  ExtentBound(
+                    point1: (356.0, -30.0),
+                    point2: (341.0, -84.0),
+                    name: "switch 2nd",
+                  ),
+                  ExtentBound(
+                    point1: (334.0, -52.0),
+                    point2: (321.0, -59.0),
+                    name: "switch 2nd",
+                  ),
+                  ExtentBound(
+                    point1: (589.0, 10.0),
+                    point2: (577.0, -1.0),
+                    name: "scav checkpoint",
+                  ),
+                  ExtentBound(
+                    point1: (580.0, -104.0),
+                    point2: (532.0, -134.0),
+                    name: "dead scav warehouse",
+                  ),
+                  ExtentBound(
+                    point1: (625.0, -120.0),
+                    point2: (599.0, -139.0),
+                    name: "pump 2nd",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (5.7, 1000.0),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (580.0, -104.0),
+                    point2: (532.0, -134.0),
+                    name: "dead scav warehouse",
+                  ),
+                  ExtentBound(
+                    point1: (-199.0, -90.0),
+                    point2: (-223.0, -131.0),
+                    name: "big red 2nd",
+                  ),
+                  ExtentBound(
+                    point1: (239.0, 3.0),
+                    point2: (169.0, -160.0),
+                    name: "skeleton",
+                  ),
+                  ExtentBound(
+                    point1: (336.0, -56.0),
+                    point2: (316.0, -95.0),
+                    name: "switch snipe",
+                  ),
+                  ExtentBound(
+                    point1: (584.0, -46.0),
+                    point2: (556.0, -92.0),
+                    name: "USEC 2nd",
+                  ),
+                  ExtentBound(
+                    point1: (93.0, 0.0),
+                    point2: (65.0, -22.0),
+                    name: "construction 2nd",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (14.0, 15.0),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (497.0, -44.0),
+                    point2: (450.0, -90.0),
+                    name: "chemical warehouse sniper scav",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (3.9, 7.6),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (73.0, 57.0),
+                    point2: (22.0, -38.0),
+                    name: "warehouse 17",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (4.4, 6.5),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (119.0, -57.0),
+                    point2: (100.0, -42.0),
+                    name: "boiler",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (4.6, 7.9),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (279.0, -79.0),
+                    point2: (246.0, -1.4),
+                    name: "oilrig & panda",
+                  ),
+                ]),
+              ),
+            ],
+          ),
+          Layer(
+            name: "3rd Floor",
+            svgLayer: Some("Third_Floor"),
+            tilePath: Some("https://assets.tarkov.dev/maps/customs_0.16/3rd/{z}/{x}/{y}.png"),
+            show: false,
+            extents: [
+              Extent(
+                height: (5.7, 1000.0),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (243.0, 190.0),
+                    point2: (165.0, 125.0),
+                    name: "dorms",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (7.7, 11.3),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (73.0, -73.0),
+                    point2: (22.0, -38.0),
+                    name: "warehouse 17",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (6.7, 11.6),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (126.0, -64.0),
+                    point2: (88.0, -35.0),
+                    name: "boiler",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (8.0, 11.1),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (279.0, -79.0),
+                    point2: (246.0, -1.4),
+                    name: "oilrig & panda",
+                  ),
+                ]),
+              ),
+            ],
+          ),
+          Layer(
+            name: "4th Floor",
+            tilePath: Some("https://assets.tarkov.dev/maps/customs_0.16/4th/{z}/{x}/{y}.png"),
+            show: false,
+            extents: [
+              Extent(
+                height: (11.2, 54.7),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (279.0, -79.0),
+                    point2: (246.0, -1.4),
+                    name: "oilrig & panda",
+                  ),
+                ]),
+              ),
+            ],
+          ),
+        ]),
+        labels: Some([
+          Label(
+            position: (-215.0, -119.0),
+            text: "Big Red",
+          ),
+          Label(
+            position: (200.0, 150.0),
+            text: "Dorms",
+          ),
+          Label(
+            position: (404.0, 31.0),
+            text: "New Gas",
+          ),
+          Label(
+            position: (331.0, -173.0),
+            text: "Old Gas",
+          ),
+          Label(
+            position: (201.0, -127.0),
+            text: "Fortress",
+          ),
+          Label(
+            position: (83.0, -153.0),
+            text: "Crackhouse",
+          ),
+          Label(
+            position: (567.0, -67.0),
+            text: "Streamer House",
+            size: Some(90),
+          ),
+          Label(
+            position: (-69.0, 9.0),
+            text: "Main Bridge",
+            rotation: Some(6.0),
+            size: Some(90),
+          ),
+          Label(
+            position: (110.0, 85.0),
+            text: "Sniper Hill",
+            size: Some(90),
+          ),
+          Label(
+            position: (-288.0, -134.0),
+            text: "Storage",
+            size: Some(90),
+          ),
+          Label(
+            position: (-211.0, -219.0),
+            text: "Trailer Park",
+            size: Some(90),
+          ),
+          Label(
+            position: (-66.0, 46.0),
+            text: "Junk Bridge",
+            size: Some(90),
+          ),
+          Label(
+            position: (106.0, -90.0),
+            text: "Repair Shop",
+            size: Some(90),
+          ),
+          Label(
+            position: (491.0, 63.0),
+            text: "Sniper Ridge",
+            rotation: Some(5.0),
+          ),
+          Label(
+            position: (75.0, -9.0),
+            text: "Old Construction",
+            size: Some(90),
+          ),
+          Label(
+            position: (200.0, -13.0),
+            text: "Skeleton",
+            rotation: Some(-9.0),
+          ),
+          Label(
+            position: (390.0, -94.0),
+            text: "Warehouse 3",
+          ),
+          Label(
+            position: (472.0, -67.0),
+            text: "Depot",
+          ),
+          Label(
+            position: (555.0, -118.0),
+            text: "Warehouse 7",
+          ),
+          Label(
+            position: (572.0, 0.0),
+            text: "Military Checkpoint",
+          ),
+          Label(
+            position: (238.0, 53.0),
+            text: "Bus Station",
+            size: Some(90),
+          ),
+          Label(
+            position: (333.0, -67.0),
+            text: "Warehouse 4",
+          ),
+          Label(
+            position: (497.0, 110.0),
+            text: "Powerline Tower",
+          ),
+          Label(
+            position: (46.0, -59.0),
+            text: "Warehouse 17",
+            size: Some(90),
+          ),
+        ]),
+      ),
+      Map(
+        key: "customs-2d",
+        projection: "2D",
+        author: Some("monkimonkimonk"),
+        authorLink: Some("https://www.reddit.com/user/monkimonkimonk/"),
+      ),
+      Map(
+        key: "customs-3d",
+        projection: "3D",
+        author: Some("re3mr"),
+        authorLink: Some("https://reemr.se"),
+      ),
+      Map(
+        key: "customs-3d-dorms",
+        projection: "3D",
+        specific: Some("Dorms"),
+        author: Some("re3mr"),
+        authorLink: Some("https://reemr.se"),
+      ),
+    ],
+  ),
+  MapGroup(
+    normalizedName: "factory",
+    primaryPath: "/map/factory-3d",
+    maps: [
+      Map(
+        key: "factory",
+        altMaps: Some([
+          "night-factory",
+        ]),
+        projection: "interactive",
+        author: Some("Shebuka"),
+        authorLink: Some("https://github.com/the-hideout/tarkov-dev-svg-maps/"),
+        tileSize: Some(256),
+        minZoom: Some(1),
+        maxZoom: Some(6),
+        transform: Some((1.629, 119.9, 1.629, 139.3)),
+        coordinateRotation: Some(90.0),
+        bounds: Some(((79.0, -64.5), (-66.5, 67.4))),
+        svgPath: Some("https://assets.tarkov.dev/maps/svg/Factory.svg"),
+        svgLayer: Some("Ground_Floor"),
+        tilePath: Some("https://assets.tarkov.dev/maps/factory/main/{z}/{x}/{y}.png"),
+        heightRange: Some((-1.0, 3.0)),
+        layers: Some([
+          Layer(
+            name: "2nd Floor",
+            svgLayer: Some("Second_Floor"),
+            tilePath: Some("https://assets.tarkov.dev/maps/factory/2nd/{z}/{x}/{y}.png"),
+            show: false,
+            extents: [
+              Extent(
+                height: (3.0, 6.0),
+              ),
+            ],
+          ),
+          Layer(
+            name: "3rd Floor",
+            svgLayer: Some("Third_Floor"),
+            tilePath: Some("https://assets.tarkov.dev/maps/factory/3rd/{z}/{x}/{y}.png"),
+            show: false,
+            extents: [
+              Extent(
+                height: (6.0, 10000.0),
+              ),
+            ],
+          ),
+          Layer(
+            name: "Tunnels",
+            svgLayer: Some("Basement"),
+            tilePath: Some("https://assets.tarkov.dev/maps/factory/tunnels/{z}/{x}/{y}.png"),
+            show: false,
+            extents: [
+              Extent(
+                height: (-10000.0, -1.0),
+              ),
+            ],
+          ),
+        ]),
+        labels: Some([
+          Label(
+            position: (21.0, 39.0),
+            text: "Office Building",
+            size: Some(80),
+            top: Some(10000.0),
+            bottom: Some(-1.0),
+          ),
+          Label(
+            position: (15.5, 39.0),
+            text: "Main Office",
+            size: Some(80),
+            top: Some(10000.0),
+            bottom: Some(6.0),
+          ),
+          Label(
+            position: (24.5, 39.0),
+            text: "Breach Room",
+            size: Some(80),
+            top: Some(10000.0),
+            bottom: Some(6.0),
+          ),
+          Label(
+            position: (30.5, 39.0),
+            text: "Locked Office",
+            size: Some(80),
+            top: Some(10000.0),
+            bottom: Some(6.0),
+          ),
+          Label(
+            position: (35.0, 39.0),
+            text: "North Stairs",
+            size: Some(80),
+            top: Some(10000.0),
+            bottom: Some(-1.0),
+          ),
+          Label(
+            position: (9.0, 39.0),
+            text: "South Stairs",
+            size: Some(80),
+            top: Some(10000.0),
+            bottom: Some(-1.0),
+          ),
+          Label(
+            position: (34.0, 26.0),
+            text: "Sky Bridge",
+            size: Some(80),
+            top: Some(10000.0),
+            bottom: Some(6.0),
+          ),
+          Label(
+            position: (29.5, 17.0),
+            text: "Connector",
+            size: Some(80),
+            top: Some(10000.0),
+            bottom: Some(-1.0),
+          ),
+          Label(
+            position: (29.0, 41.0),
+            text: "Locker Rooms",
+            size: Some(80),
+            top: Some(5.0),
+            bottom: Some(3.0),
+          ),
+          Label(
+            position: (15.0, 41.0),
+            text: "Sinks",
+            size: Some(80),
+            top: Some(5.0),
+            bottom: Some(3.0),
+          ),
+          Label(
+            position: (20.0, 42.0),
+            text: "Hole",
+            size: Some(80),
+            top: Some(5.0),
+            bottom: Some(3.0),
+          ),
+          Label(
+            position: (-3.0, 37.0),
+            text: "Platform",
+            size: Some(80),
+            top: Some(5.0),
+            bottom: Some(-1.0),
+          ),
+          Label(
+            position: (-21.0, 27.0),
+            text: "Servers",
+            size: Some(80),
+            top: Some(5.0),
+            bottom: Some(3.0),
+          ),
+          Label(
+            position: (-18.0, -29.0),
+            text: "Med Tent",
+            size: Some(80),
+            top: Some(2.0),
+            bottom: Some(-1.0),
+          ),
+          Label(
+            position: (4.5, 10.5),
+            text: "Silos",
+            top: Some(2.0),
+            bottom: Some(-1.0),
+          ),
+          Label(
+            position: (30.0, -8.5),
+            text: "Heli Crash",
+            size: Some(80),
+            top: Some(10000.0),
+            bottom: Some(-1.0),
+          ),
+          Label(
+            position: (-1.0, 16.0),
+            text: "Pit",
+            size: Some(80),
+            top: Some(-2.0),
+            bottom: Some(-10000.0),
+          ),
+          Label(
+            position: (-2.0, -24.5),
+            text: "Underground Stash",
+            size: Some(80),
+            top: Some(-2.0),
+            bottom: Some(-10000.0),
+          ),
+          Label(
+            position: (-20.5, 23.0),
+            text: "Scav Bunker",
+            size: Some(80),
+            top: Some(2.0),
+            bottom: Some(-1.0),
+          ),
+          Label(
+            position: (-18.0, 50.0),
+            text: "Blue Containers",
+            top: Some(2.0),
+            bottom: Some(-1.0),
+          ),
+          Label(
+            position: (-45.5, 61.0),
+            text: "Wood Room",
+            size: Some(80),
+            top: Some(2.0),
+            bottom: Some(-1.0),
+          ),
+          Label(
+            position: (68.25, -20.0),
+            text: "Glass Hall",
+            size: Some(80),
+            top: Some(2.0),
+            bottom: Some(-1.0),
+          ),
+          Label(
+            position: (56.0, 5.0),
+            text: "Boilers",
+            size: Some(80),
+            top: Some(5.0),
+            bottom: Some(-1.0),
+          ),
+          Label(
+            position: (41.0, -11.0),
+            text: "Pumping Station",
+            size: Some(80),
+            top: Some(5.0),
+            bottom: Some(-1.0),
+          ),
+          Label(
+            position: (44.0, -36.0),
+            text: "East Halls",
+            size: Some(80),
+            top: Some(2.0),
+            bottom: Some(-1.0),
+          ),
+          Label(
+            position: (66.0, -42.0),
+            text: "Forklifts",
+            size: Some(80),
+            top: Some(2.0),
+            bottom: Some(-1.0),
+          ),
+          Label(
+            position: (18.0, 4.0),
+            text: "Rafters",
+            top: Some(10000.0),
+            bottom: Some(6.0),
+          ),
+        ]),
+      ),
+      Map(
+        key: "factory-2d",
+        projection: "2D",
+        author: Some("re3mr"),
+        authorLink: Some("https://reemr.se"),
+      ),
+    ],
+  ),
+  MapGroup(
+    normalizedName: "interchange",
+    primaryPath: "/map/interchange-2d",
+    maps: [
+      Map(
+        key: "interchange",
+        projection: "interactive",
+        author: Some("Shebuka"),
+        authorLink: Some("https://github.com/the-hideout/tarkov-dev-svg-maps/"),
+        tileSize: Some(256),
+        minZoom: Some(1),
+        maxZoom: Some(6),
+        transform: Some((0.265, 150.6, 0.265, 134.6)),
+        coordinateRotation: Some(180.0),
+        bounds: Some(((532.75, -442.75), (-364.0, 453.5))),
+        svgPath: Some("https://assets.tarkov.dev/maps/svg/Interchange.svg"),
+        svgLayer: Some("Ground_Level"),
+        tilePath: Some("https://assets.tarkov.dev/maps/interchange/main/{z}/{x}/{y}.png"),
+        layers: Some([
+          Layer(
+            name: "2nd Floor",
+            svgLayer: Some("First_Floor"),
+            show: true,
+            extents: [
+              Extent(
+                height: (25.0, 34.0),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (120.0, 218.0),
+                    point2: (-222.0, -327.0),
+                    name: "mall",
+                  ),
+                ]),
+              ),
+            ],
+          ),
+          Layer(
+            name: "3rd Floor",
+            svgLayer: Some("Second_Floor"),
+            show: false,
+            extents: [
+              Extent(
+                height: (34.0, 1000.0),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (120.0, 218.0),
+                    point2: (-222.0, -327.0),
+                    name: "mall",
+                  ),
+                ]),
+              ),
+            ],
+          ),
+        ]),
+        labels: Some([
+          Label(
+            position: (-186.4, -318.7),
+            text: "Power Station",
+            size: Some(100),
+            top: Some(10.0),
+            bottom: Some(-1.0),
+          ),
+          Label(
+            position: (155.0, -253.0),
+            text: "Go Kart",
+            size: Some(80),
+            top: Some(10.0),
+            bottom: Some(-1.0),
+          ),
+          Label(
+            position: (158.0, -78.5),
+            text: "Four Camp",
+            size: Some(80),
+            top: Some(10.0),
+            bottom: Some(-1.0),
+          ),
+          Label(
+            position: (68.2, 312.9),
+            text: "Cargo Containers",
+            size: Some(80),
+            top: Some(10.0),
+            bottom: Some(-1.0),
+          ),
+          Label(
+            position: (-260.2, 123.8),
+            text: "Wall Break",
+            size: Some(80),
+            top: Some(10.0),
+            bottom: Some(-1.0),
+          ),
+          Label(
+            position: (-175.5, 145.1),
+            text: "Ramps",
+            size: Some(80),
+            top: Some(10.0),
+            bottom: Some(-1.0),
+          ),
+          Label(
+            position: (202.3, 219.4),
+            text: "Oli Tower",
+            size: Some(80),
+            top: Some(10.0),
+            bottom: Some(-1.0),
+          ),
+          Label(
+            position: (46.5, -358.5),
+            text: "Idea Tower",
+            size: Some(80),
+            top: Some(10.0),
+            bottom: Some(-1.0),
+          ),
+          Label(
+            position: (263.2, -11.1),
+            text: "Scav Camp",
+            size: Some(80),
+            top: Some(10.0),
+            bottom: Some(-1.0),
+          ),
+          Label(
+            position: (373.5, -391.2),
+            text: "Highway Construction",
+            top: Some(10.0),
+            bottom: Some(-1.0),
+          ),
+          Label(
+            position: (33.0, -222.0),
+            text: "Garage A",
+            size: Some(80),
+            top: Some(24.0),
+            bottom: Some(-1000.0),
+          ),
+          Label(
+            position: (47.0, -112.0),
+            text: "Garage B",
+            size: Some(80),
+            top: Some(24.0),
+            bottom: Some(-1000.0),
+          ),
+          Label(
+            position: (0.0, 47.0),
+            text: "Garage C",
+            size: Some(80),
+            top: Some(24.0),
+            bottom: Some(-1000.0),
+          ),
+          Label(
+            position: (20.0, 138.0),
+            text: "Garage D",
+            size: Some(80),
+            top: Some(24.0),
+            bottom: Some(-1000.0),
+          ),
+          Label(
+            position: (-34.0, -235.0),
+            text: "IDEA",
+            size: Some(80),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (-115.0, -45.0),
+            text: "Goshan",
+            size: Some(80),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (-28.0, 140.0),
+            text: "OLI",
+            size: Some(80),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (87.0, -165.0),
+            text: "Nortex",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (60.0, -152.0),
+            text: "TRend",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (69.5, -134.0),
+            text: "Mode7",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (19.0, -129.0),
+            text: "TTS",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (-38.0, -129.0),
+            text: "Book Store",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (91.0, -119.0),
+            text: "Dino Clothes",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (18.0, -103.0),
+            text: "EMERCOM",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (-28.0, -103.0),
+            text: "Kostin",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (-65.0, -103.0),
+            text: "Bizarro",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (92.0, -87.0),
+            text: "Spiel",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (-18.0, -87.0),
+            text: "Voyage",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (57.0, -66.0),
+            text: "Viking",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (13.0, -66.0),
+            text: "Mantis",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (-18.0, -72.0),
+            text: "German",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (57.0, -32.0),
+            text: "The National",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (13.0, -32.0),
+            text: "Brutal",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (-18.0, -25.0),
+            text: "Kiba",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (-34.0, -20.0),
+            text: "Pretty Lights",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (92.0, -18.0),
+            text: "Telespot",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (62.0, -12.0),
+            text: "Revis",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (19.0, -6.0),
+            text: "ADIK",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (-28.0, 0.5),
+            text: "Generic",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (92.0, 15.0),
+            text: "Top Brand",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (61.0, 15.0),
+            text: "Sports",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (70.0, 32.0),
+            text: "Yushka",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (19.5, 26.0),
+            text: "Rasmussen",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (-37.0, 26.0),
+            text: "Avokado",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (91.0, 55.0),
+            text: "Boots 4 Life",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (61.0, 50.0),
+            text: "Texho",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (6.0, 49.0),
+            text: "Dom",
+            size: Some(65),
+            top: Some(33.0),
+            bottom: Some(25.0),
+          ),
+          Label(
+            position: (38.0, -170.0),
+            text: "Father & Sons",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (69.0, -150.0),
+            text: "Tarkovstar",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (26.0, -149.0),
+            text: "Eastland",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (71.0, -130.0),
+            text: "Arena",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (54.0, -128.0),
+            text: "ТАРЗДРАВ",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (20.0, -128.0),
+            text: "МЕБЕЛЬ МК",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (69.0, -116.0),
+            text: "Intourist",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (-27.0, -103.0),
+            text: "Burger Spot",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (70.0, -94.0),
+            text: "FCK",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (70.0, -87.0),
+            text: "McDaniels",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (64.0, -69.0),
+            text: "Tarducks",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (43.0, -69.0),
+            text: "Coffee Joy",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (15.0, -74.0),
+            text: "Jacob & Jacob",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (-34.0, -79.0),
+            text: "ПУШКИН",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (64.0, -34.0),
+            text: "Sushi Huyushi",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (-17.0, -32.0),
+            text: "Underway",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (67.0, -23.5),
+            text: "Burger House",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (-34.0, -24.0),
+            text: "Philly Cute",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (67.0, -16.0),
+            text: "Shiccos",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (17.0, 0.0),
+            text: "МУЗЕЙ ИСТОРИИ",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (92.0, 17.0),
+            text: "Papillon",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (58.0, 13.0),
+            text: "ЗАКРЫТО НА РЕМОНТ",
+            size: Some(60),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (70.0, 27.0),
+            text: "НА-СВЯЗИ",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (54.0, 24.0),
+            text: "СКОРО ОТКРЫТИЕ",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (19.0, 26.0),
+            text: "Figaro",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (71.0, 47.0),
+            text: "АПТЕКА",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (53.0, 47.0),
+            text: "SARA",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (26.0, 46.0),
+            text: "Urban Clothes",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (91.0, 54.0),
+            text: "TECHLIGHT",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+          Label(
+            position: (39.0, 67.0),
+            text: "Fashion Store",
+            size: Some(65),
+            top: Some(999.0),
+            bottom: Some(34.0),
+          ),
+        ]),
+      ),
+      Map(
+        key: "interchange-2d",
+        projection: "2D",
+        author: Some("Lorathor"),
+        authorLink: Some("https://www.reddit.com/user/Lorathor6/"),
+      ),
+      Map(
+        key: "interchange-3d",
+        projection: "3D",
+        author: Some("re3mr"),
+        authorLink: Some("https://reemr.se"),
+      ),
+    ],
+  ),
+  MapGroup(
+    normalizedName: "the-lab",
+    primaryPath: "/map/labs-2d",
+    maps: [
+      Map(
+        key: "the-lab",
+        projection: "interactive",
+        author: Some("Tarkov.dev"),
+        authorLink: Some("https://tarkov.dev"),
+        tileSize: Some(175),
+        minZoom: Some(2),
+        maxZoom: Some(6),
+        transform: Some((0.575, 281.2, 0.575, 193.7)),
+        coordinateRotation: Some(270.0),
+        bounds: Some(((-80.0, -477.0), (-287.0, -193.0))),
+        tilePath: Some("https://assets.tarkov.dev/maps/labs_v4/1st/{z}/{x}/{y}.png"),
+        heightRange: Some((-0.9, 3.0)),
+        layers: Some([
+          Layer(
+            name: "Second Level",
+            tilePath: Some("https://assets.tarkov.dev/maps/labs_v4/2nd/{z}/{x}/{y}.png"),
+            show: false,
+            extents: [
+              Extent(
+                height: (3.0, 10000.0),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (-101.0, -422.0),
+                    point2: (-271.0, -270.0),
+                    name: "",
+                  ),
+                ]),
+              ),
+            ],
+          ),
+          Layer(
+            name: "Technical",
+            tilePath: Some("https://assets.tarkov.dev/maps/labs_v4/technical/{z}/{x}/{y}.png"),
+            show: false,
+            extents: [
+              Extent(
+                height: (-10000.0, -0.9),
+              ),
+            ],
+          ),
+        ]),
+        labels: Some([
+          Label(
+            position: (-230.0, -400.0),
+            text: "Parking",
+            size: Some(90),
+            top: Some(2.0),
+            bottom: Some(-0.8),
+          ),
+          Label(
+            position: (-246.0, -379.0),
+            text: "Vestibules #1",
+            size: Some(90),
+            top: Some(2.0),
+            bottom: Some(-0.8),
+          ),
+          Label(
+            position: (-216.0, -379.0),
+            text: "Vestibules #2",
+            size: Some(90),
+            top: Some(2.0),
+            bottom: Some(-0.8),
+          ),
+          Label(
+            position: (-172.0, -342.0),
+            text: "Main Working Area",
+            size: Some(90),
+            top: Some(2.0),
+            bottom: Some(-0.8),
+          ),
+          Label(
+            position: (-148.0, -398.0),
+            text: "Negotiation Room",
+            size: Some(90),
+            top: Some(2.0),
+            bottom: Some(-0.8),
+          ),
+          Label(
+            position: (-130.0, -398.0),
+            text: "Infirmary Lvl 1",
+            size: Some(90),
+            top: Some(2.0),
+            bottom: Some(-0.8),
+          ),
+          Label(
+            position: (-130.0, -356.0),
+            text: "Test Room",
+            size: Some(90),
+            top: Some(2.0),
+            bottom: Some(-0.8),
+          ),
+          Label(
+            position: (-125.0, -308.0),
+            text: "Server Room",
+            size: Some(90),
+            top: Some(2.0),
+            bottom: Some(-0.8),
+          ),
+          Label(
+            position: (-116.0, -266.0),
+            text: "Warehouse Tunnels",
+            size: Some(90),
+            top: Some(2.0),
+            bottom: Some(-0.8),
+          ),
+          Label(
+            position: (-163.0, -269.0),
+            text: "Warehouse",
+            size: Some(90),
+            top: Some(2.0),
+            bottom: Some(-0.8),
+          ),
+          Label(
+            position: (-170.0, -248.0),
+            text: "Warehouse Gate",
+            size: Some(90),
+            top: Some(2.0),
+            bottom: Some(-0.8),
+          ),
+          Label(
+            position: (-207.0, -305.0),
+            text: "Lecture Hall",
+            size: Some(90),
+            top: Some(2.0),
+            bottom: Some(-0.8),
+          ),
+          Label(
+            position: (-221.0, -343.0),
+            text: "Recreation Area",
+            size: Some(90),
+            top: Some(2.0),
+            bottom: Some(-0.8),
+          ),
+          Label(
+            position: (-236.0, -302.0),
+            text: "Gym",
+            size: Some(90),
+            top: Some(2.0),
+            bottom: Some(-0.8),
+          ),
+          Label(
+            position: (-241.0, -280.0),
+            text: "Men\'s Locker Room",
+            size: Some(90),
+            top: Some(2.0),
+            bottom: Some(-0.8),
+          ),
+          Label(
+            position: (-232.0, -280.0),
+            text: "Women\'s Locker Room",
+            size: Some(90),
+            top: Some(2.0),
+            bottom: Some(-0.8),
+          ),
+          Label(
+            position: (-259.0, -366.0),
+            text: "Boiler Room",
+            size: Some(90),
+            top: Some(2.0),
+            bottom: Some(-1000.0),
+          ),
+          Label(
+            position: (-260.0, -319.0),
+            text: "Security Barracks",
+            size: Some(90),
+            top: Some(2.0),
+            bottom: Some(-0.8),
+          ),
+          Label(
+            position: (-260.0, -342.0),
+            text: "Reception",
+            size: Some(90),
+            top: Some(2.0),
+            bottom: Some(-0.8),
+          ),
+          Label(
+            position: (-260.0, -364.0),
+            text: "Administrative Office",
+            size: Some(90),
+            top: Some(1000.0),
+            bottom: Some(3.0),
+          ),
+          Label(
+            position: (-254.0, -320.0),
+            text: "Security Office",
+            size: Some(90),
+            top: Some(1000.0),
+            bottom: Some(3.0),
+          ),
+          Label(
+            position: (-244.0, -378.0),
+            text: "Security #1",
+            size: Some(90),
+            top: Some(1000.0),
+            bottom: Some(3.0),
+          ),
+          Label(
+            position: (-215.0, -379.0),
+            text: "Security #2",
+            size: Some(90),
+            top: Some(1000.0),
+            bottom: Some(3.0),
+          ),
+          Label(
+            position: (-229.0, -343.0),
+            text: "Conference Room",
+            size: Some(90),
+            top: Some(1000.0),
+            bottom: Some(3.0),
+          ),
+          Label(
+            position: (-219.0, -302.0),
+            text: "Cafeteria",
+            size: Some(90),
+            top: Some(1000.0),
+            bottom: Some(3.0),
+          ),
+          Label(
+            position: (-189.0, -401.0),
+            text: "Offices #1",
+            size: Some(90),
+            top: Some(1000.0),
+            bottom: Some(3.0),
+          ),
+          Label(
+            position: (-149.0, -401.0),
+            text: "Offices #2",
+            size: Some(90),
+            top: Some(1000.0),
+            bottom: Some(3.0),
+          ),
+          Label(
+            position: (-130.0, -401.0),
+            text: "Infirmary Lvl 2",
+            size: Some(90),
+            top: Some(1000.0),
+            bottom: Some(3.0),
+          ),
+          Label(
+            position: (-130.0, -361.0),
+            text: "Sterile Laboratory",
+            size: Some(90),
+            top: Some(1000.0),
+            bottom: Some(3.0),
+          ),
+          Label(
+            position: (-169.0, -288.0),
+            text: "Control Room",
+            size: Some(90),
+            top: Some(1000.0),
+            bottom: Some(3.0),
+          ),
+          Label(
+            position: (-250.0, -281.0),
+            text: "Corridor To Building #2",
+            size: Some(90),
+            top: Some(1000.0),
+            bottom: Some(3.0),
+          ),
+        ]),
+      ),
+      Map(
+        key: "labs-2d",
+        projection: "2D",
+        author: Some("monkimonkimonk"),
+        authorLink: Some("https://www.reddit.com/user/monkimonkimonk/"),
+      ),
+    ],
+  ),
+  MapGroup(
+    normalizedName: "the-labyrinth",
+    primaryPath: "/map/labyrinth",
+    maps: [
+      Map(
+        key: "the-labyrinth",
+        projection: "interactive",
+        author: Some("Tarkov.dev"),
+        authorLink: Some("https://tarkov.dev"),
+        minZoom: Some(1),
+        maxZoom: Some(6),
+        transform: Some((2.115, 85.5, 2.115, 128.0)),
+        coordinateRotation: Some(270.0),
+        bounds: Some(((-52.0, -37.0), (53.0, 76.0))),
+        tilePath: Some("https://assets.tarkov.dev/maps/labyrinth/main/{z}/{x}/{y}.png"),
+        labels: Some([]),
+      ),
+      Map(
+        key: "labyrinth-2d",
+        projection: "3D",
+        author: Some("re3mr"),
+        authorLink: Some("https://reemr.se"),
+      ),
+    ],
+  ),
+  MapGroup(
+    normalizedName: "lighthouse",
+    primaryPath: "/map/lighthouse-2d-landscape",
+    maps: [
+      Map(
+        key: "lighthouse",
+        projection: "interactive",
+        author: Some("Shebuka"),
+        authorLink: Some("https://github.com/the-hideout/tarkov-dev-svg-maps/"),
+        minZoom: Some(1),
+        maxZoom: Some(6),
+        transform: Some((0.2, 0.0, 0.2, 0.0)),
+        coordinateRotation: Some(180.0),
+        bounds: Some(((515.0, -998.0), (-545.0, 725.0))),
+        svgPath: Some("https://assets.tarkov.dev/maps/svg/Lighthouse.svg"),
+        svgLayer: Some("Ground_Level"),
+        labels: Some([
+          Label(
+            position: (-30.0, -882.0),
+            text: "Train Yard",
+          ),
+          Label(
+            position: (-120.0, -841.0),
+            text: "Drug Lab",
+          ),
+          Label(
+            position: (-65.0, -600.0),
+            text: "Water Treatment",
+          ),
+          Label(
+            position: (40.0, -618.0),
+            text: "Plant 1",
+          ),
+          Label(
+            position: (-97.0, -737.0),
+            text: "Plant 2",
+          ),
+          Label(
+            position: (-189.0, -665.0),
+            text: "Plant 3",
+          ),
+          Label(
+            position: (-182.0, -552.0),
+            text: "Pipes",
+          ),
+          Label(
+            position: (18.0, -453.0),
+            text: "Gunner Nest",
+          ),
+          Label(
+            position: (-177.0, -356.0),
+            text: "Island",
+          ),
+          Label(
+            position: (-278.0, -323.0),
+            text: "Cabins",
+          ),
+          Label(
+            position: (-162.0, -225.0),
+            text: "Cottages",
+          ),
+          Label(
+            position: (-55.0, -288.0),
+            text: "Convenience",
+          ),
+          Label(
+            position: (-75.0, -284.0),
+            text: "Red Brick",
+          ),
+          Label(
+            position: (-151.0, -243.0),
+            text: "Hillside",
+          ),
+          Label(
+            position: (125.0, -153.0),
+            text: "Boathouses",
+          ),
+          Label(
+            position: (62.0, -60.0),
+            text: "Dead Tree",
+          ),
+          Label(
+            position: (0.0, -188.0),
+            text: "Construction",
+          ),
+          Label(
+            position: (-107.0, -53.0),
+            text: "Pikes Peak Resort",
+          ),
+          Label(
+            position: (-133.0, 100.0),
+            text: "Grand Chalet",
+          ),
+          Label(
+            position: (-70.0, 129.0),
+            text: "Tennis Court",
+          ),
+          Label(
+            position: (382.0, 496.0),
+            text: "Lightkeeper Island",
+          ),
+          Label(
+            position: (-125.0, 296.0),
+            text: "Crash Site",
+          ),
+        ]),
+      ),
+      Map(
+        key: "lighthouse-2d",
+        projection: "2D",
+        author: Some("Shebuka & Jindouz"),
+      ),
+      Map(
+        key: "lighthouse-2d-landscape",
+        projection: "2D",
+        author: Some("Jindouz"),
+        authorLink: Some("https://www.reddit.com/user/Jindouz"),
+      ),
+      Map(
+        key: "lighthouse-3d",
+        projection: "3D",
+        author: Some("re3mr"),
+        authorLink: Some("https://reemr.se"),
+      ),
+    ],
+  ),
+  MapGroup(
+    normalizedName: "reserve",
+    primaryPath: "/map/reserve-3d",
+    maps: [
+      Map(
+        key: "reserve",
+        projection: "interactive",
+        author: Some("Shebuka"),
+        authorLink: Some("https://github.com/the-hideout/tarkov-dev-svg-maps/"),
+        minZoom: Some(2),
+        maxZoom: Some(6),
+        transform: Some((0.395, 122.0, 0.395, 137.65)),
+        coordinateRotation: Some(180.0),
+        bounds: Some(((289.0, -293.0), (-303.0, 244.0))),
+        svgPath: Some("https://assets.tarkov.dev/maps/svg/Reserve.svg"),
+        svgLayer: Some("Ground_Level"),
+        tilePath: Some("https://assets.tarkov.dev/maps/reserve/main/{z}/{x}/{y}.png"),
+        heightRange: Some((-7.0, 10000.0)),
+        layers: Some([
+          Layer(
+            name: "Bunkers",
+            svgLayer: Some("Bunkers"),
+            tilePath: Some("https://assets.tarkov.dev/maps/reserve/bunkers/{z}/{x}/{y}.png"),
+            show: false,
+            extents: [
+              Extent(
+                height: (-10000.0, -7.27),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (128.0, -208.0),
+                    point2: (18.0, -33.0),
+                    name: "storage bunker",
+                  ),
+                  ExtentBound(
+                    point1: (-46.0, -42.0),
+                    point2: (-176.0, 127.0),
+                    name: "command bunkers",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (-10000.0, -12.0),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (-40.0, 124.0),
+                    point2: (-124.0, 189.0),
+                    name: "D2",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (-10000.0, 18.0),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (23.0, 173.0),
+                    point2: (-65.0, 189.0),
+                    name: "dome tunnels",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (-7.27, -3.2),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (74.0, -196.0),
+                    point2: (19.0, -149.0),
+                    name: "bunker hermetic door bunkers",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (-11.0, -4.6),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (-246.0, -79.0),
+                    point2: (-274.0, -53.0),
+                    name: "E1 bunkers",
+                  ),
+                  ExtentBound(
+                    point1: (238.0, -26.0),
+                    point2: (126.0, 45.0),
+                    name: "bunkers",
+                  ),
+                ]),
+              ),
+            ],
+          ),
+          Layer(
+            name: "2nd Floor",
+            tilePath: Some("https://assets.tarkov.dev/maps/reserve/2nd/{z}/{x}/{y}.png"),
+            show: false,
+            extents: [
+              Extent(
+                height: (22.1, 25.7),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (1.0, 164.0),
+                    point2: (-17.0, 199.0),
+                    name: "dome",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (-3.5, -0.64),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (-77.0, 26.0),
+                    point2: (-177.0, 106.0),
+                    name: "pawns",
+                  ),
+                  ExtentBound(
+                    point1: (62.0, 59.0),
+                    point2: (51.0, 108.0),
+                    name: "checkpoint fence tower",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (-3.5, -0.64),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (-104.0, -37.0),
+                    point2: (-177.0, 5.0),
+                    name: "black bishop",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (-3.9, -0.6),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (-47.0, -47.0),
+                    point2: (-85.0, -18.0),
+                    name: "white bishop",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (-4.3, -2.2),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (-19.91, -13.0),
+                    point2: (-78.0, 39.0),
+                    name: "white king",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (-3.8, -1.1),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (99.0, -50.0),
+                    point2: (-2.0, 7.0),
+                    name: "knights",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (-1.9, 11.3),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (191.0, -175.0),
+                    point2: (137.0, -120.0),
+                    name: "train depot",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (1.0, 8.0),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (-109.0, -156.0),
+                    point2: (-119.0, -147.0),
+                    name: "towers",
+                  ),
+                  ExtentBound(
+                    point1: (289.0, -92.0),
+                    point2: (299.0, -82.0),
+                    name: "towers",
+                  ),
+                  ExtentBound(
+                    point1: (3.0, -210.0),
+                    point2: (-7.0, -200.0),
+                    name: "towers",
+                  ),
+                  ExtentBound(
+                    point1: (195.0, -260.0),
+                    point2: (185.0, -250.0),
+                    name: "towers",
+                  ),
+                  ExtentBound(
+                    point1: (276.0, 17.0),
+                    point2: (266.0, 27.0),
+                    name: "towers",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (-4.1, -1.2),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (-128.0, -139.0),
+                    point2: (-146.0, -120.0),
+                    name: "scav lands",
+                  ),
+                ]),
+              ),
+            ],
+          ),
+          Layer(
+            name: "3rd Floor",
+            tilePath: Some("https://assets.tarkov.dev/maps/reserve/3rd/{z}/{x}/{y}.png"),
+            show: false,
+            extents: [
+              Extent(
+                height: (25.7, 29.3),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (1.0, 164.0),
+                    point2: (-17.0, 199.0),
+                    name: "dome",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (-0.64, 2.23),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (-77.0, 26.0),
+                    point2: (-177.0, 106.0),
+                    name: "pawns",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (-0.64, 2.23),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (-104.0, -37.0),
+                    point2: (-177.0, 5.0),
+                    name: "black bishop",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (-0.6, 10.0),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (-47.0, -47.0),
+                    point2: (-85.0, -18.0),
+                    name: "white bishop",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (-2.2, 2.14),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (-19.91, -13.0),
+                    point2: (-78.0, 39.0),
+                    name: "white king",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (-1.1, 1.6),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (99.0, -50.0),
+                    point2: (-2.0, 7.0),
+                    name: "knights",
+                  ),
+                ]),
+              ),
+            ],
+          ),
+          Layer(
+            name: "4th Floor",
+            tilePath: Some("https://assets.tarkov.dev/maps/reserve/4th/{z}/{x}/{y}.png"),
+            show: false,
+            extents: [
+              Extent(
+                height: (29.3, 36.0),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (1.0, 164.0),
+                    point2: (-17.0, 199.0),
+                    name: "dome",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (2.23, 5.0),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (-77.0, 26.0),
+                    point2: (-177.0, 106.0),
+                    name: "pawns",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (2.15, 6.6),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (-19.91, -13.0),
+                    point2: (-78.0, 39.0),
+                    name: "white king",
+                  ),
+                ]),
+              ),
+              Extent(
+                height: (1.6, 4.7),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (99.0, -50.0),
+                    point2: (-2.0, 7.0),
+                    name: "knights",
+                  ),
+                ]),
+              ),
+            ],
+          ),
+          Layer(
+            name: "5th Floor",
+            tilePath: Some("https://assets.tarkov.dev/maps/reserve/5th/{z}/{x}/{y}.png"),
+            show: false,
+            extents: [
+              Extent(
+                height: (5.0, 9.5),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (-77.0, 26.0),
+                    point2: (-177.0, 106.0),
+                    name: "pawns",
+                  ),
+                ]),
+              ),
+            ],
+          ),
+        ]),
+        labels: Some([
+          Label(
+            position: (28.0, -102.0),
+            text: "K Buildings",
+            bottom: Some(-6.0),
+          ),
+          Label(
+            position: (-25.0, 180.0),
+            text: "White Queen",
+            rotation: Some(-15.0),
+            bottom: Some(-6.0),
+          ),
+          Label(
+            position: (-104.0, 93.0),
+            text: "White Pawn",
+            rotation: Some(14.0),
+            bottom: Some(-6.0),
+          ),
+          Label(
+            position: (-140.0, -14.5),
+            text: "Black Bishop",
+            rotation: Some(14.0),
+            bottom: Some(-6.0),
+          ),
+          Label(
+            position: (-67.0, -30.0),
+            text: "White Bishop",
+            rotation: Some(14.0),
+            bottom: Some(-6.0),
+          ),
+          Label(
+            position: (-49.5, 15.5),
+            text: "White King",
+            rotation: Some(14.0),
+            bottom: Some(-6.0),
+          ),
+          Label(
+            position: (14.5, -10.8),
+            text: "Black Knight",
+            bottom: Some(-6.0),
+          ),
+          Label(
+            position: (82.2, -30.2),
+            text: "White Knight",
+            bottom: Some(-6.0),
+          ),
+          Label(
+            position: (149.0, -124.0),
+            text: "White Rook",
+            bottom: Some(-6.0),
+          ),
+          Label(
+            position: (161.0, -149.0),
+            text: "Train Station",
+            rotation: Some(14.0),
+            size: Some(80),
+            bottom: Some(-6.0),
+          ),
+          Label(
+            position: (-165.0, 57.0),
+            text: "Black Pawn",
+            rotation: Some(-75.0),
+            bottom: Some(-6.0),
+          ),
+          Label(
+            position: (167.0, -222.0),
+            text: "Barracks",
+            bottom: Some(-6.0),
+          ),
+          Label(
+            position: (-220.0, -13.0),
+            text: "E1 Bunkers",
+            bottom: Some(-6.0),
+          ),
+          Label(
+            position: (173.0, -3.0),
+            text: "E2 Bunkers",
+            bottom: Some(-6.0),
+          ),
+          Label(
+            position: (80.0, -167.0),
+            text: "д - Warehouse Bunkers",
+            rotation: Some(14.0),
+            bottom: Some(-6.0),
+          ),
+          Label(
+            position: (96.0, 30.0),
+            text: "Garage",
+            rotation: Some(-75.0),
+            size: Some(80),
+            bottom: Some(-6.0),
+          ),
+          Label(
+            position: (55.5, 60.6),
+            text: "Mechanic",
+            size: Some(80),
+            bottom: Some(-6.0),
+          ),
+          Label(
+            position: (29.7, 29.5),
+            text: "Gas Station",
+            rotation: Some(14.0),
+            size: Some(80),
+            bottom: Some(-6.0),
+          ),
+          Label(
+            position: (-31.0, -150.0),
+            text: "Shipping Yard",
+            rotation: Some(14.0),
+            size: Some(80),
+            bottom: Some(-6.0),
+          ),
+          Label(
+            position: (-1.0, -71.0),
+            text: "K1",
+            rotation: Some(14.0),
+            size: Some(80),
+            bottom: Some(-6.0),
+          ),
+          Label(
+            position: (66.0, -90.0),
+            text: "K2",
+            rotation: Some(14.0),
+            size: Some(80),
+            bottom: Some(-6.0),
+          ),
+          Label(
+            position: (-5.5, -94.0),
+            text: "K3",
+            rotation: Some(14.0),
+            size: Some(80),
+            bottom: Some(-6.0),
+          ),
+          Label(
+            position: (60.0, -112.0),
+            text: "K4",
+            rotation: Some(14.0),
+            size: Some(80),
+            bottom: Some(-6.0),
+          ),
+          Label(
+            position: (-10.5, -115.0),
+            text: "K5",
+            rotation: Some(14.0),
+            size: Some(80),
+            bottom: Some(-6.0),
+          ),
+          Label(
+            position: (54.0, -132.0),
+            text: "K6",
+            rotation: Some(14.0),
+            size: Some(80),
+            bottom: Some(-6.0),
+          ),
+          Label(
+            position: (-8.5, 175.0),
+            text: "Dome",
+            size: Some(80),
+            bottom: Some(-6.0),
+          ),
+          Label(
+            position: (-120.0, 37.0),
+            text: "Tarmac",
+            rotation: Some(14.0),
+            size: Some(80),
+            bottom: Some(-6.0),
+          ),
+        ]),
+      ),
+      Map(
+        key: "reserve-2d",
+        projection: "2D",
+        author: Some("Jindouz"),
+        authorLink: Some("https://www.reddit.com/user/Jindouz"),
+      ),
+      Map(
+        key: "reserve-3d",
+        projection: "3D",
+        author: Some("re3mr"),
+        authorLink: Some("https://reemr.se"),
+      ),
+      Map(
+        key: "reserve-3d-tunnels",
+        projection: "3D",
+        specific: Some("Tunnels"),
+        author: Some("re3mr"),
+        authorLink: Some("https://reemr.se"),
+      ),
+    ],
+  ),
+  MapGroup(
+    normalizedName: "shoreline",
+    primaryPath: "/map/shoreline-2d",
+    maps: [
+      Map(
+        key: "shoreline",
+        projection: "interactive",
+        author: Some("Shebuka"),
+        authorLink: Some("https://github.com/the-hideout/tarkov-dev-svg-maps/"),
+        minZoom: Some(2),
+        maxZoom: Some(6),
+        transform: Some((0.16, 83.2, 0.16, 111.1)),
+        coordinateRotation: Some(180.0),
+        bounds: Some(((508.0, -415.0), (-1060.0, 618.0))),
+        svgPath: Some("https://assets.tarkov.dev/maps/svg/Shoreline.svg"),
+        svgLayer: Some("Ground_Level"),
+        tilePath: Some("https://assets.tarkov.dev/maps/shoreline/main_summer/{z}/{x}/{y}.png"),
+        heightRange: Some((-1000.0, -1.0)),
+        layers: Some([
+          Layer(
+            name: "Underground",
+            svgLayer: Some("Underground_Level"),
+            show: false,
+            extents: [
+              Extent(
+                height: (-1000.0, -5.0),
+                bounds: Some([
+                  ExtentBound(
+                    point1: (-137.0, -68.0),
+                    point2: (-237.0, -104.0),
+                    name: "west wing",
+                  ),
+                  ExtentBound(
+                    point1: (-234.0, -134.0),
+                    point2: (-268.0, -163.0),
+                    name: "admin",
+                  ),
+                ]),
+              ),
+            ],
+          ),
+          Layer(
+            name: "2nd Floor",
+            svgLayer: Some("Second_Floor"),
+            show: false,
+            extents: [
+              Extent(
+                height: (-1.0, 2.0),
+              ),
+            ],
+          ),
+          Layer(
+            name: "3rd Floor",
+            svgLayer: Some("Third_Floor"),
+            show: false,
+            extents: [
+              Extent(
+                height: (2.0, 1000.0),
+              ),
+            ],
+          ),
+        ]),
+        labels: Some([
+          Label(
+            position: (-258.2, -71.2),
+            text: "Resort",
+            size: Some(100),
+            top: Some(-2.0),
+            bottom: Some(-4.0),
+          ),
+          Label(
+            position: (-215.8, 178.4),
+            text: "Power Station",
+            top: Some(-2.0),
+            bottom: Some(-4.0),
+          ),
+          Label(
+            position: (-189.3, 420.0),
+            text: "Gas Station",
+            top: Some(-2.0),
+            bottom: Some(-4.0),
+          ),
+          Label(
+            position: (-496.0, 257.0),
+            text: "Weather Station",
+            top: Some(-2.0),
+            bottom: Some(-4.0),
+          ),
+          Label(
+            position: (-708.9, 93.91),
+            text: "Radio Tower",
+            top: Some(-2.0),
+            bottom: Some(-4.0),
+          ),
+          Label(
+            position: (326.0, -118.5),
+            text: "Swamp",
+            top: Some(-2.0),
+            bottom: Some(-4.0),
+          ),
+          Label(
+            position: (418.4, 118.0),
+            text: "Village",
+            top: Some(-2.0),
+            bottom: Some(-4.0),
+          ),
+          Label(
+            position: (288.0, 144.0),
+            text: "Cabins",
+            top: Some(-2.0),
+            bottom: Some(-4.0),
+          ),
+          Label(
+            position: (128.0, 93.0),
+            text: "Cottages",
+            top: Some(-2.0),
+            bottom: Some(-4.0),
+          ),
+          Label(
+            position: (-355.0, 188.0),
+            text: "Tank Bridge",
+            top: Some(-2.0),
+            bottom: Some(-4.0),
+          ),
+          Label(
+            position: (-338.6, 525.0),
+            text: "Pier",
+            top: Some(-2.0),
+            bottom: Some(-4.0),
+          ),
+          Label(
+            position: (216.0, 424.0),
+            text: "Scav Island",
+            top: Some(-2.0),
+            bottom: Some(-4.0),
+          ),
+          Label(
+            position: (-96.0, -6.0),
+            text: "Bus Stop",
+            top: Some(-2.0),
+            bottom: Some(-4.0),
+          ),
+          Label(
+            position: (52.0, 134.0),
+            text: "Construction",
+            top: Some(-2.0),
+            bottom: Some(-4.0),
+          ),
+          Label(
+            position: (-153.0, -290.0),
+            text: "Bunker",
+            top: Some(-2.0),
+            bottom: Some(-4.0),
+          ),
+          Label(
+            position: (-625.0, 484.0),
+            text: "Crane",
+            top: Some(-2.0),
+            bottom: Some(-4.0),
+          ),
+          Label(
+            position: (-622.0, -202.0),
+            text: "Scav Farm",
+            top: Some(-2.0),
+            bottom: Some(-4.0),
+          ),
+          Label(
+            position: (-171.0, -83.0),
+            text: "West Wing",
+            top: Some(100.0),
+            bottom: Some(-100.0),
+          ),
+          Label(
+            position: (-329.0, -83.0),
+            text: "East Wing",
+            top: Some(100.0),
+            bottom: Some(-100.0),
+          ),
+          Label(
+            position: (-252.0, -146.0),
+            text: "Admin",
+            top: Some(100.0),
+            bottom: Some(-100.0),
+          ),
+        ]),
+      ),
+      Map(
+        key: "shoreline-2d",
+        projection: "2D",
+        author: Some("monkimonkimonk"),
+        authorLink: Some("https://www.reddit.com/user/monkimonkimonk/"),
+      ),
+      Map(
+        key: "shoreline-3d",
+        projection: "3D",
+        author: Some("re3mr"),
+        authorLink: Some("https://reemr.se"),
+      ),
+      Map(
+        key: "shoreline-3d-resort",
+        projection: "3D",
+        specific: Some("Resort"),
+        author: Some("re3mr"),
+        authorLink: Some("https://reemr.se"),
+      ),
+    ],
+  ),
+  MapGroup(
+    normalizedName: "terminal",
+    primaryPath: "/map/terminal-2d",
+    maps: [
+      Map(
+        key: "terminal-2d",
+        projection: "2D",
+        author: Some("Official"),
+        authorLink: Some("https://escapefromtarkov.fandom.com/wiki/Map:Terminal"),
+      ),
+    ],
+  ),
+  MapGroup(
+    normalizedName: "woods",
+    primaryPath: "/map/woods-2d",
+    maps: [
+      Map(
+        key: "woods",
+        projection: "interactive",
+        author: Some("Shebuka"),
+        authorLink: Some("https://github.com/the-hideout/tarkov-dev-svg-maps/"),
+        minZoom: Some(1),
+        maxZoom: Some(6),
+        transform: Some((0.1855, 113.1, 0.1855, 167.8)),
+        coordinateRotation: Some(180.0),
+        bounds: Some(((650.0, -945.0), (-762.0, 470.0))),
+        svgPath: Some("https://assets.tarkov.dev/maps/svg/Woods.svg"),
+        svgLayer: Some("Ground_Level"),
+        tilePath: Some("https://assets.tarkov.dev/maps/woods/main_0.16/{z}/{x}/{y}.png"),
+        labels: Some([
+          Label(
+            position: (10.0, -3.0),
+            text: "Sawmill",
+          ),
+          Label(
+            position: (-485.0, -390.0),
+            text: "Scav Town",
+          ),
+          Label(
+            position: (-517.0, -210.0),
+            text: "Old Sawmill",
+          ),
+          Label(
+            position: (-80.0, -680.0),
+            text: "Cultist Village",
+          ),
+          Label(
+            position: (290.0, -475.0),
+            text: "USEC Camp",
+          ),
+          Label(
+            position: (-188.0, 235.0),
+            text: "Military Camp",
+          ),
+          Label(
+            position: (-5.0, -515.0),
+            text: "Ponds",
+            size: Some(80),
+          ),
+          Label(
+            position: (-252.0, -37.0),
+            text: "Crash Site",
+            size: Some(80),
+          ),
+          Label(
+            position: (239.0, -65.0),
+            text: "Checkpoint",
+            size: Some(70),
+          ),
+          Label(
+            position: (244.0, 125.0),
+            text: "Shack",
+            size: Some(70),
+          ),
+          Label(
+            position: (-16.0, -122.0),
+            text: "Lumber",
+            size: Some(70),
+          ),
+          Label(
+            position: (-3.0, -74.0),
+            text: "Cabins",
+            size: Some(70),
+          ),
+          Label(
+            position: (-234.0, 357.0),
+            text: "Bus Stop",
+            size: Some(70),
+          ),
+          Label(
+            position: (-327.0, 19.0),
+            text: "Jaeger\'s Camp",
+            size: Some(70),
+          ),
+          Label(
+            position: (85.0, -147.0),
+            text: "Sniper Rock",
+            size: Some(70),
+          ),
+          Label(
+            position: (200.0, -606.0),
+            text: "Convoy",
+            size: Some(70),
+          ),
+        ]),
+      ),
+      Map(
+        key: "woods-2d",
+        projection: "2D",
+        author: Some("Jindouz"),
+        authorLink: Some("https://www.reddit.com/user/Jindouz"),
+      ),
+      Map(
+        key: "woods-3d",
+        projection: "3D",
+        author: Some("re3mr"),
+        authorLink: Some("https://reemr.se"),
+      ),
+    ],
+  ),
+  MapGroup(
+    normalizedName: "transits",
+    primaryPath: "/map/transits-2d",
+    maps: [
+      Map(
+        key: "transits-2d",
+        projection: "2D",
+        author: Some("re3mr"),
+        authorLink: Some("https://reemr.se"),
+      ),
+    ],
+  ),
+  MapGroup(
+    normalizedName: "openworld",
+    primaryPath: "/map/openworld-2d",
+    maps: [
+      Map(
+        key: "openworld-2d",
+        projection: "2D",
+        author: Some("LastNickLeft"),
+        authorLink: Some("https://www.reddit.com/user/LastNickLeft"),
+      ),
+    ],
+  ),
+]
