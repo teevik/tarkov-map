@@ -4,11 +4,11 @@
 use eframe::egui;
 use egui_extras::install_image_loaders;
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc;
-use tarkov_map::{Map, TarkovMaps};
+use tarkov_map::{Map, MapSource, TarkovMaps};
 
 const MAPS_RON_PATH: &str = "assets/maps.ron";
-const USER_AGENT: &str = "tarkov-map";
 
 enum AssetLoadState {
     Loading(mpsc::Receiver<Result<egui::load::Bytes, String>>),
@@ -25,7 +25,6 @@ struct TarkovMapApp {
     tile_zoom: i32,
 
     asset_cache: HashMap<String, AssetLoadState>,
-    http: reqwest::Client,
     runtime: tokio::runtime::Runtime,
 }
 
@@ -40,7 +39,7 @@ impl TarkovMapApp {
             Err(err) => (Vec::new(), Some(err)),
         };
 
-        let tile_zoom = maps.first().and_then(|map| map.min_zoom).unwrap_or(0);
+        let tile_zoom = 0;
 
         let runtime = tokio::runtime::Runtime::new().expect("create tokio runtime");
 
@@ -51,7 +50,6 @@ impl TarkovMapApp {
             scale: 1.0,
             tile_zoom,
             asset_cache: HashMap::new(),
-            http: reqwest::Client::new(),
             runtime,
         }
     }
@@ -68,12 +66,11 @@ impl TarkovMapApp {
         let (tx, rx) = mpsc::channel();
 
         let ctx = ctx.clone();
-        let client = self.http.clone();
-        let url = url.to_owned();
-        let url_for_task = url.clone();
+        let asset_id = url.to_owned();
+        let asset_path = asset_id.clone();
 
         self.runtime.spawn(async move {
-            let result = fetch_url_bytes(&client, &url_for_task)
+            let result = load_asset_bytes(&asset_path)
                 .await
                 .map(egui::load::Bytes::from);
             let _ = tx.send(result);
@@ -82,7 +79,8 @@ impl TarkovMapApp {
             ctx.request_repaint();
         });
 
-        self.asset_cache.insert(url, AssetLoadState::Loading(rx));
+        self.asset_cache
+            .insert(asset_id, AssetLoadState::Loading(rx));
     }
 
     fn poll_asset(&mut self, url: &str) {
@@ -221,11 +219,11 @@ impl eframe::App for TarkovMapApp {
 
                 let (use_tiles, min_zoom, max_zoom) = self
                     .selected_map()
-                    .map(|map| {
-                        let min_zoom = map.min_zoom.unwrap_or(0);
-                        let max_zoom = map.max_zoom.unwrap_or(min_zoom).max(min_zoom);
-                        let use_tiles = map.svg_path.is_none() && map.tile_path.is_some();
-                        (use_tiles, min_zoom, max_zoom)
+                    .map(|map| match &map.source {
+                        MapSource::Tiles {
+                            min_zoom, max_zoom, ..
+                        } => (true, *min_zoom, *max_zoom),
+                        _ => (false, 0, 0),
                     })
                     .unwrap_or((false, 0, 0));
 
@@ -270,9 +268,7 @@ impl eframe::App for TarkovMapApp {
             let normalized_name = map.normalized_name.clone();
             let author = map.author.clone();
             let author_link = map.author_link.clone();
-            let svg_url = map.svg_path.clone();
-            let tile_path = map.tile_path.clone();
-            let tile_size = map.tile_size.unwrap_or(256) as f32;
+            let source = map.source.clone();
 
             ui.heading(name);
 
@@ -290,36 +286,37 @@ impl eframe::App for TarkovMapApp {
 
             ui.separator();
 
-            if let Some(svg_url) = svg_url.as_deref() {
-                self.show_single_image(ui, ctx, svg_url);
-            } else if let Some(tile_path) = tile_path.as_deref() {
-                self.show_tile_map(ui, ctx, tile_path, self.tile_zoom, tile_size);
-            } else {
-                ui.label("No SVG or tile map available for this map.");
+            match source {
+                MapSource::Svg { path, .. } => {
+                    self.show_single_image(ui, ctx, &path);
+                }
+                MapSource::Tiles {
+                    template,
+                    tile_size,
+                    ..
+                } => {
+                    self.show_tile_map(ui, ctx, &template, self.tile_zoom, tile_size as f32);
+                }
             }
         });
     }
 }
 
-async fn fetch_url_bytes(client: &reqwest::Client, url: &str) -> Result<Vec<u8>, String> {
-    let response = client
-        .get(url)
-        .header(reqwest::header::USER_AGENT, USER_AGENT)
-        .send()
-        .await
-        .map_err(|err| format!("fetch {url}: {err}"))?;
-
-    let status = response.status();
-    if !status.is_success() {
-        return Err(format!("fetch {url}: HTTP {status}"));
+fn resolve_asset_path(path: &str) -> PathBuf {
+    let path = Path::new(path);
+    if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(path)
     }
+}
 
-    let bytes = response
-        .bytes()
+async fn load_asset_bytes(path: &str) -> Result<Vec<u8>, String> {
+    let resolved = resolve_asset_path(path);
+
+    tokio::fs::read(&resolved)
         .await
-        .map_err(|err| format!("read {url}: {err}"))?;
-
-    Ok(bytes.to_vec())
+        .map_err(|err| format!("read {}: {err}", resolved.display()))
 }
 
 fn tile_url(template: &str, z: i32, x: i32, y: i32) -> String {

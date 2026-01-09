@@ -20,15 +20,6 @@ pub struct Map {
     /// Link to author's page.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub author_link: Option<String>,
-    /// Tile size for tile-based maps.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tile_size: Option<i32>,
-    /// Minimum zoom level.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub min_zoom: Option<i32>,
-    /// Maximum zoom level.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub max_zoom: Option<i32>,
     /// Transform matrix [scaleX, translateX, scaleY, translateY].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub transform: Option<[f64; 4]>,
@@ -38,15 +29,8 @@ pub struct Map {
     /// Map bounds [[maxX, minY], [minX, maxY]].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bounds: Option<[[f64; 2]; 2]>,
-    /// URL to SVG map file.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub svg_path: Option<String>,
-    /// Default SVG layer to display.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub svg_layer: Option<String>,
-    /// URL pattern for tile-based maps.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tile_path: Option<String>,
+    /// Map image source (either a local SVG or a local tile set).
+    pub source: MapSource,
     /// Height range for the default layer [min, max].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub height_range: Option<[f64; 2]>,
@@ -56,6 +40,27 @@ pub struct Map {
     /// Map labels/annotations.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub labels: Option<Vec<Label>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum MapSource {
+    #[serde(rename = "Svg")]
+    Svg {
+        /// Local path to the SVG file.
+        path: String,
+        /// Default SVG layer to display.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        svg_layer: Option<String>,
+    },
+    #[serde(rename = "Tiles")]
+    Tiles {
+        /// Local tile path template (e.g. `assets/maps/tiles/customs/{z}/{x}/{y}.png`).
+        template: String,
+        tile_size: i32,
+        min_zoom: i32,
+        max_zoom: i32,
+    },
 }
 
 /// A map layer (floor level).

@@ -2,7 +2,12 @@ use ron::ser::PrettyConfig;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;
-use tarkov_map::{Extent, ExtentBound, Label, Layer, Map, TarkovMaps};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use tarkov_map::{Extent, ExtentBound, Label, Layer, Map, MapSource, TarkovMaps};
+use tokio::fs as tokio_fs;
+use tokio::sync::Semaphore;
+use tokio::task::JoinSet;
 
 /// GitHub raw content URL for maps.json
 const MAPS_JSON_URL: &str =
@@ -12,6 +17,15 @@ const MAPS_JSON_URL: &str =
 const TARKOV_DEV_GRAPHQL_URL: &str = "https://api.tarkov.dev/graphql";
 
 const USER_AGENT: &str = "tarkov-map";
+
+const MAPS_RON_PATH: &str = "assets/maps.ron";
+
+// Map assets are stored locally under `assets/maps/`.
+const MAP_ASSETS_DIR: &str = "assets/maps";
+const SVG_DIR: &str = "assets/maps/svg";
+const TILES_DIR: &str = "assets/maps/tiles";
+
+const TILE_DOWNLOAD_CONCURRENCY: usize = 32;
 
 // ============================================================================
 // Fetched types - match the JSON structure exactly
@@ -238,10 +252,125 @@ async fn fetch_map_names(client: &reqwest::Client) -> color_eyre::Result<HashMap
 }
 
 // ============================================================================
+// Asset download
+// ============================================================================
+
+fn repo_path(path: &str) -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(path)
+}
+
+async fn download_url_to_path(
+    client: &reqwest::Client,
+    url: &str,
+    output_path: &Path,
+) -> color_eyre::Result<()> {
+    if tokio_fs::try_exists(output_path).await.unwrap_or(false) {
+        return Ok(());
+    }
+
+    if let Some(parent) = output_path.parent() {
+        tokio_fs::create_dir_all(parent).await?;
+    }
+
+    let response = client
+        .get(url)
+        .header(reqwest::header::USER_AGENT, USER_AGENT)
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        return Err(color_eyre::eyre::eyre!(
+            "Failed to fetch {}: {}",
+            url,
+            response.status()
+        ));
+    }
+
+    let bytes = response.bytes().await?;
+    tokio_fs::write(output_path, &bytes).await?;
+
+    Ok(())
+}
+
+async fn ensure_svg_asset(
+    client: &reqwest::Client,
+    normalized_name: &str,
+    svg_url: &str,
+) -> color_eyre::Result<String> {
+    let relative_path = format!("{}/{}.svg", SVG_DIR, normalized_name);
+    let output_path = repo_path(&relative_path);
+
+    download_url_to_path(client, svg_url, &output_path).await?;
+
+    Ok(relative_path)
+}
+
+fn apply_tile_template(template: &str, z: i32, x: u32, y: u32) -> String {
+    template
+        .replace("{z}", &z.to_string())
+        .replace("{x}", &x.to_string())
+        .replace("{y}", &y.to_string())
+}
+
+async fn ensure_tile_assets(
+    client: &reqwest::Client,
+    normalized_name: &str,
+    remote_template: &str,
+    min_zoom: i32,
+    max_zoom: i32,
+) -> color_eyre::Result<String> {
+    let relative_template = format!("{}/{}/{{z}}/{{x}}/{{y}}.png", TILES_DIR, normalized_name);
+
+    let output_root = repo_path(TILES_DIR).join(normalized_name);
+
+    let semaphore = Arc::new(Semaphore::new(TILE_DOWNLOAD_CONCURRENCY));
+    let mut join_set: JoinSet<color_eyre::Result<()>> = JoinSet::new();
+
+    for z in min_zoom..=max_zoom {
+        let tiles_per_axis = 1u32
+            .checked_shl(z.try_into()?)
+            .ok_or_else(|| color_eyre::eyre::eyre!("Invalid zoom level: {}", z))?;
+
+        for x in 0..tiles_per_axis {
+            for y in 0..tiles_per_axis {
+                let remote_url = apply_tile_template(remote_template, z, x, y);
+                let output_path = output_root
+                    .join(z.to_string())
+                    .join(x.to_string())
+                    .join(format!("{}.png", y));
+
+                if output_path.exists() {
+                    continue;
+                }
+
+                let client = client.clone();
+                let semaphore = semaphore.clone();
+
+                join_set.spawn(async move {
+                    let _permit = semaphore
+                        .acquire_owned()
+                        .await
+                        .map_err(|err| color_eyre::eyre::eyre!(err))?;
+
+                    download_url_to_path(&client, &remote_url, &output_path).await
+                });
+            }
+        }
+    }
+
+    while let Some(result) = join_set.join_next().await {
+        result??;
+    }
+
+    Ok(relative_template)
+}
+
+// ============================================================================
 // Conversion from Fetched types to lib types
 // ============================================================================
 
-fn convert_group(
+async fn convert_group(
+    client: &reqwest::Client,
     fetched: FetchedMapGroup,
     map_names: &HashMap<String, String>,
 ) -> color_eyre::Result<Option<Map>> {
@@ -259,21 +388,46 @@ fn convert_group(
         color_eyre::eyre::eyre!("No human-readable name found for '{normalized_name}'")
     })?;
 
+    let source = if let Some(svg_url) = interactive.svg_path.as_deref() {
+        let local_svg = ensure_svg_asset(client, &normalized_name, svg_url).await?;
+        MapSource::Svg {
+            path: local_svg,
+            svg_layer: interactive.svg_layer,
+        }
+    } else if let Some(tile_template) = interactive.tile_path.as_deref() {
+        let min_zoom = interactive
+            .min_zoom
+            .ok_or_else(|| color_eyre::eyre::eyre!("Missing minZoom for '{normalized_name}'"))?;
+        let max_zoom = interactive
+            .max_zoom
+            .ok_or_else(|| color_eyre::eyre::eyre!("Missing maxZoom for '{normalized_name}'"))?;
+        let tile_size = interactive.tile_size.unwrap_or(256);
+
+        let local_template =
+            ensure_tile_assets(client, &normalized_name, tile_template, min_zoom, max_zoom).await?;
+
+        MapSource::Tiles {
+            template: local_template,
+            tile_size,
+            min_zoom,
+            max_zoom,
+        }
+    } else {
+        return Err(color_eyre::eyre::eyre!(
+            "Interactive map '{normalized_name}' has no svgPath or tilePath"
+        ));
+    };
+
     Ok(Some(Map {
         normalized_name,
         name,
         alt_maps: interactive.alt_maps,
         author: interactive.author,
         author_link: interactive.author_link,
-        tile_size: interactive.tile_size,
-        min_zoom: interactive.min_zoom,
-        max_zoom: interactive.max_zoom,
         transform: interactive.transform,
         coordinate_rotation: interactive.coordinate_rotation,
         bounds: interactive.bounds,
-        svg_path: interactive.svg_path,
-        svg_layer: interactive.svg_layer,
-        tile_path: interactive.tile_path,
+        source,
         height_range: interactive.height_range,
         layers: interactive
             .layers
@@ -373,7 +527,7 @@ async fn main() -> color_eyre::Result<()> {
     let mut maps: TarkovMaps = Vec::new();
 
     for group in fetched_maps {
-        match convert_group(group, &map_names)? {
+        match convert_group(&client, group, &map_names).await? {
             Some(map) => maps.push(map),
             None => skipped += 1,
         }
@@ -396,12 +550,12 @@ async fn main() -> color_eyre::Result<()> {
     println!("Serialized to {} bytes of RON", ron_string.len());
 
     // Ensure assets directory exists
-    fs::create_dir_all("assets")?;
+    fs::create_dir_all(repo_path(MAP_ASSETS_DIR))?;
 
     // Write to file
-    let output_path = "assets/maps.ron";
-    fs::write(output_path, &ron_string)?;
-    println!("Wrote maps to {}", output_path);
+    let output_path = repo_path(MAPS_RON_PATH);
+    fs::write(&output_path, &ron_string)?;
+    println!("Wrote maps to {}", output_path.display());
 
     // Print summary
     println!("\nInteractive maps:");
