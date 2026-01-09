@@ -587,23 +587,68 @@ impl TarkovMapApp {
 // Label rendering
 // ============================================================================
 
+/// Apply 2D rotation to a point.
+fn rotate_point(x: f64, y: f64, angle_deg: f64) -> (f64, f64) {
+    if angle_deg == 0.0 {
+        return (x, y);
+    }
+    let angle_rad = angle_deg.to_radians();
+    let cos_angle = angle_rad.cos();
+    let sin_angle = angle_rad.sin();
+    (x * cos_angle - y * sin_angle, x * sin_angle + y * cos_angle)
+}
+
 /// Convert game coordinates to display position.
 ///
-/// Maps game coordinates to the display rect using the map bounds.
-/// bounds format: [[maxX, minY], [minX, maxY]]
+/// The coordinate system transformation follows the official tarkov-dev implementation:
+/// 1. Apply coordinate rotation (rotate game coords by coordinateRotation degrees)
+/// 2. Map the rotated coordinates to the image using the rotated bounds
+///
+/// The bounds define the world coordinate extent that maps to the image.
+/// After rotation, we find the new extent and normalize coordinates within it.
 fn game_to_display(map: &Map, map_rect: egui::Rect, game_pos: [f64; 2]) -> Option<egui::Pos2> {
     let bounds = map.bounds?;
+    let rotation = map.coordinate_rotation.unwrap_or(0.0);
 
-    // Extract bounds: [[maxX, minY], [minX, maxY]]
-    let min_x = bounds[1][0];
-    let max_x = bounds[0][0];
-    let min_y = bounds[0][1];
-    let max_y = bounds[1][1];
+    // Apply rotation to the game coordinates
+    let (rotated_x, rotated_y) = rotate_point(game_pos[0], game_pos[1], rotation);
 
-    // Calculate position as fraction within bounds (0.0 to 1.0)
-    // X axis is flipped (game coords increase right, but map image has left = max_x)
-    let frac_x = (max_x - game_pos[0]) / (max_x - min_x);
-    let frac_y = (game_pos[1] - min_y) / (max_y - min_y);
+    // Rotate all four corners of the bounds to find the rotated extent
+    // bounds format: [[maxX, minY], [minX, maxY]]
+    let corners = [
+        (bounds[0][0], bounds[0][1]), // (maxX, minY)
+        (bounds[0][0], bounds[1][1]), // (maxX, maxY)
+        (bounds[1][0], bounds[0][1]), // (minX, minY)
+        (bounds[1][0], bounds[1][1]), // (minX, maxY)
+    ];
+
+    let rotated_corners: Vec<(f64, f64)> = corners
+        .iter()
+        .map(|(x, y)| rotate_point(*x, *y, rotation))
+        .collect();
+
+    // Find the bounding box of rotated corners
+    let rotated_min_x = rotated_corners
+        .iter()
+        .map(|(x, _)| *x)
+        .fold(f64::INFINITY, f64::min);
+    let rotated_max_x = rotated_corners
+        .iter()
+        .map(|(x, _)| *x)
+        .fold(f64::NEG_INFINITY, f64::max);
+    let rotated_min_y = rotated_corners
+        .iter()
+        .map(|(_, y)| *y)
+        .fold(f64::INFINITY, f64::min);
+    let rotated_max_y = rotated_corners
+        .iter()
+        .map(|(_, y)| *y)
+        .fold(f64::NEG_INFINITY, f64::max);
+
+    // Normalize the rotated point within the rotated bounds to [0, 1]
+    let frac_x = (rotated_x - rotated_min_x) / (rotated_max_x - rotated_min_x);
+    // Y axis is inverted (as per Leaflet's negated scaleY in the official implementation)
+    let frac_y = (rotated_max_y - rotated_y) / (rotated_max_y - rotated_min_y);
 
     // Map to display coordinates
     let display_x = map_rect.min.x + (frac_x as f32) * map_rect.width();
