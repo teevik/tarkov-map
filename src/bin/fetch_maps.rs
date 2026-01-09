@@ -1,28 +1,29 @@
+//! Fetches and processes Tarkov map assets from the tarkov-dev repository.
+//!
+//! Downloads map metadata, SVG files, and tile pyramids, then generates a local
+//! `maps.ron` file for the viewer application.
+
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::Arc;
+
 use clap::Parser;
+use color_eyre::eyre::{Context, Result, eyre};
 use image::{ImageBuffer, RgbaImage};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use resvg::tiny_skia::Pixmap;
 use resvg::usvg::{Options, Transform, Tree};
 use ron::ser::PrettyConfig;
 use serde::Deserialize;
-use std::collections::HashMap;
-use std::fs;
-use std::path::PathBuf;
-use std::sync::Arc;
-use tarkov_map::{Extent, ExtentBound, Extract, Label, Layer, Map, Spawn, TarkovMaps};
-use tokio::fs as tokio_fs;
+use tokio::fs as async_fs;
 use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
 
-// Pull in the tarkov graphql schema from build.rs
+use tarkov_map::{Extent, ExtentBound, Extract, Label, Layer, Map, Spawn, TarkovMaps};
+
 #[cynic::schema("tarkov")]
 pub mod schema {}
 
-// ============================================================================
-// Cynic GraphQL query types
-// ============================================================================
-
-/// Query to fetch map names: `{ maps { normalizedName name } }`
 #[derive(cynic::QueryFragment, Debug)]
 #[cynic(graphql_type = "Query")]
 struct MapNamesQuery {
@@ -37,7 +38,6 @@ struct MapNameFragment {
     name: String,
 }
 
-/// Query to fetch map spawns: `{ maps { normalizedName spawns { position { x y z } sides categories } } }`
 #[derive(cynic::QueryFragment, Debug)]
 #[cynic(graphql_type = "Query")]
 struct MapSpawnsQuery {
@@ -71,7 +71,6 @@ struct MapPositionFragment {
     z: f64,
 }
 
-/// Query to fetch map extracts: `{ maps { normalizedName extracts { name faction position { x y z } } } }`
 #[derive(cynic::QueryFragment, Debug)]
 #[cynic(graphql_type = "Query")]
 struct MapExtractsQuery {
@@ -103,34 +102,19 @@ struct Args {
     #[arg(short, long)]
     force: bool,
 
-    /// Reduce tile map zoom level by this amount from max (0 = max quality, 1 = half, 2 = quarter, etc.)
-    /// Default is 2 for reasonable file sizes. Use 0 for highest quality (warning: very large files).
+    /// Reduce tile map zoom level from max (0 = max quality, higher = smaller files)
     #[arg(long, default_value = "2")]
     tile_zoom_offset: i32,
 }
 
-/// GitHub raw content URL for maps.json
 const MAPS_JSON_URL: &str =
     "https://raw.githubusercontent.com/the-hideout/tarkov-dev/main/src/data/maps.json";
-
-/// tarkov.dev GraphQL API endpoint
 const TARKOV_DEV_GRAPHQL_URL: &str = "https://api.tarkov.dev/graphql";
-
 const USER_AGENT: &str = "tarkov-map";
-
 const MAPS_RON_PATH: &str = "assets/maps.ron";
-
-// Map images are stored under `assets/maps/`.
 const MAPS_DIR: &str = "assets/maps";
-
 const TILE_DOWNLOAD_CONCURRENCY: usize = 32;
-
-/// Scale factor for rendering SVGs to high-res PNGs
 const SVG_RENDER_SCALE: f32 = 2.0;
-
-// ============================================================================
-// Fetched types - match the JSON structure exactly
-// ============================================================================
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -208,38 +192,27 @@ struct FetchedExtentBound {
 
 impl From<Vec<serde_json::Value>> for FetchedExtentBound {
     fn from(values: Vec<serde_json::Value>) -> Self {
-        let point1 = values
-            .first()
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                [
-                    arr.first().and_then(|v| v.as_f64()).unwrap_or(0.0),
-                    arr.get(1).and_then(|v| v.as_f64()).unwrap_or(0.0),
-                ]
-            })
-            .unwrap_or([0.0, 0.0]);
-
-        let point2 = values
-            .get(1)
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                [
-                    arr.first().and_then(|v| v.as_f64()).unwrap_or(0.0),
-                    arr.get(1).and_then(|v| v.as_f64()).unwrap_or(0.0),
-                ]
-            })
-            .unwrap_or([0.0, 0.0]);
-
-        let name = values
-            .get(2)
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
+        let parse_point = |idx: usize| -> [f64; 2] {
+            values
+                .get(idx)
+                .and_then(|v| v.as_array())
+                .map(|arr| {
+                    [
+                        arr.first().and_then(|v| v.as_f64()).unwrap_or(0.0),
+                        arr.get(1).and_then(|v| v.as_f64()).unwrap_or(0.0),
+                    ]
+                })
+                .unwrap_or([0.0, 0.0])
+        };
 
         Self {
-            point1,
-            point2,
-            name,
+            point1: parse_point(0),
+            point2: parse_point(1),
+            name: values
+                .get(2)
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_owned(),
         }
     }
 }
@@ -259,98 +232,115 @@ struct FetchedLabel {
     bottom: Option<f64>,
 }
 
-fn deserialize_rotation<'de, D>(deserializer: D) -> Result<Option<f64>, D::Error>
+fn deserialize_rotation<'de, D>(deserializer: D) -> std::result::Result<Option<f64>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
     use serde::de::Error;
 
-    let value: Option<serde_json::Value> = Option::deserialize(deserializer)?;
-
-    match value {
+    match Option::<serde_json::Value>::deserialize(deserializer)? {
         None => Ok(None),
         Some(serde_json::Value::Number(n)) => Ok(n.as_f64()),
         Some(serde_json::Value::String(s)) => s
-            .parse::<f64>()
+            .parse()
             .map(Some)
-            .map_err(|_| D::Error::custom(format!("invalid rotation string: {}", s))),
+            .map_err(|_| D::Error::custom(format!("invalid rotation string: {s}"))),
         Some(other) => Err(D::Error::custom(format!(
-            "expected number or string for rotation, got: {:?}",
-            other
+            "expected number or string for rotation, got: {other:?}"
         ))),
     }
 }
 
-// ============================================================================
-// tarkov.dev GraphQL fetch functions
-// ============================================================================
+impl From<FetchedLayer> for Layer {
+    fn from(f: FetchedLayer) -> Self {
+        Self {
+            name: f.name,
+            svg_layer: f.svg_layer,
+            tile_path: f.tile_path,
+            show: f.show,
+            extents: f.extents.into_iter().map(Into::into).collect(),
+        }
+    }
+}
 
-async fn fetch_map_names(client: &reqwest::Client) -> color_eyre::Result<HashMap<String, String>> {
-    use cynic::QueryBuilder;
+impl From<FetchedExtent> for Extent {
+    fn from(f: FetchedExtent) -> Self {
+        Self {
+            height: f.height,
+            bounds: f.bounds.map(|b| b.into_iter().map(Into::into).collect()),
+        }
+    }
+}
 
-    let operation = MapNamesQuery::build(());
+impl From<FetchedExtentBound> for ExtentBound {
+    fn from(f: FetchedExtentBound) -> Self {
+        Self {
+            point1: f.point1,
+            point2: f.point2,
+            name: f.name,
+        }
+    }
+}
 
-    let response: cynic::GraphQlResponse<MapNamesQuery> = client
+impl From<FetchedLabel> for Label {
+    fn from(f: FetchedLabel) -> Self {
+        Self {
+            position: f.position,
+            text: f.text,
+            rotation: f.rotation,
+            size: f.size,
+            top: f.top,
+            bottom: f.bottom,
+        }
+    }
+}
+
+async fn fetch_graphql<Q, T>(
+    client: &reqwest::Client,
+    operation: cynic::Operation<Q, ()>,
+) -> Result<T>
+where
+    Q: serde::de::DeserializeOwned,
+    T: From<Q>,
+{
+    let response: cynic::GraphQlResponse<Q> = client
         .post(TARKOV_DEV_GRAPHQL_URL)
         .header(reqwest::header::USER_AGENT, USER_AGENT)
         .json(&operation)
         .send()
-        .await?
+        .await
+        .context("Failed to send GraphQL request")?
         .json()
-        .await?;
+        .await
+        .context("Failed to parse GraphQL response")?;
 
-    if let Some(errors) = response.errors {
-        if !errors.is_empty() {
-            let messages = errors
-                .into_iter()
-                .map(|err| err.message)
-                .collect::<Vec<_>>()
-                .join("; ");
-            return Err(color_eyre::eyre::eyre!("GraphQL errors: {}", messages));
-        }
+    if let Some(errors) = response.errors.filter(|e| !e.is_empty()) {
+        let messages: Vec<_> = errors.into_iter().map(|e| e.message).collect();
+        return Err(eyre!("GraphQL errors: {}", messages.join("; ")));
     }
 
-    let data = response
+    response
         .data
-        .ok_or_else(|| color_eyre::eyre::eyre!("GraphQL response missing data"))?;
+        .map(Into::into)
+        .ok_or_else(|| eyre!("GraphQL response missing data"))
+}
+
+async fn fetch_map_names(client: &reqwest::Client) -> Result<HashMap<String, String>> {
+    use cynic::QueryBuilder;
+
+    let data: MapNamesQuery = fetch_graphql(client, MapNamesQuery::build(())).await?;
 
     Ok(data
         .maps
         .into_iter()
-        .map(|map| (map.normalized_name, map.name))
+        .map(|m| (m.normalized_name, m.name))
         .collect())
 }
 
-async fn fetch_map_spawns(
-    client: &reqwest::Client,
-) -> color_eyre::Result<HashMap<String, Vec<Spawn>>> {
+async fn fetch_map_spawns(client: &reqwest::Client) -> Result<HashMap<String, Vec<Spawn>>> {
     use cynic::QueryBuilder;
 
-    let operation = MapSpawnsQuery::build(());
-
-    let response: cynic::GraphQlResponse<MapSpawnsQuery> = client
-        .post(TARKOV_DEV_GRAPHQL_URL)
-        .header(reqwest::header::USER_AGENT, USER_AGENT)
-        .json(&operation)
-        .send()
-        .await?
-        .json()
-        .await?;
-
-    if let Some(errors) = response.errors {
-        if !errors.is_empty() {
-            let messages = errors
-                .into_iter()
-                .map(|err| err.message)
-                .collect::<Vec<_>>()
-                .join("; ");
-            return Err(color_eyre::eyre::eyre!("GraphQL errors: {}", messages));
-        }
-    }
-
-    let data = response
-        .data
-        .ok_or_else(|| color_eyre::eyre::eyre!("GraphQL response missing data"))?;
+    let data: MapSpawnsQuery = fetch_graphql(client, MapSpawnsQuery::build(())).await?;
 
     Ok(data
         .maps
@@ -359,9 +349,8 @@ async fn fetch_map_spawns(
             let spawns = map
                 .spawns
                 .into_iter()
-                // Filter to only PMC spawns (sides contains "pmc" or "all", categories contains "player")
                 .filter(|s| {
-                    (s.sides.iter().any(|side| side == "pmc" || side == "all"))
+                    s.sides.iter().any(|side| side == "pmc" || side == "all")
                         && s.categories.iter().any(|cat| cat == "player")
                 })
                 .map(|s| Spawn {
@@ -375,36 +364,10 @@ async fn fetch_map_spawns(
         .collect())
 }
 
-async fn fetch_map_extracts(
-    client: &reqwest::Client,
-) -> color_eyre::Result<HashMap<String, Vec<Extract>>> {
+async fn fetch_map_extracts(client: &reqwest::Client) -> Result<HashMap<String, Vec<Extract>>> {
     use cynic::QueryBuilder;
 
-    let operation = MapExtractsQuery::build(());
-
-    let response: cynic::GraphQlResponse<MapExtractsQuery> = client
-        .post(TARKOV_DEV_GRAPHQL_URL)
-        .header(reqwest::header::USER_AGENT, USER_AGENT)
-        .json(&operation)
-        .send()
-        .await?
-        .json()
-        .await?;
-
-    if let Some(errors) = response.errors {
-        if !errors.is_empty() {
-            let messages = errors
-                .into_iter()
-                .map(|err| err.message)
-                .collect::<Vec<_>>()
-                .join("; ");
-            return Err(color_eyre::eyre::eyre!("GraphQL errors: {}", messages));
-        }
-    }
-
-    let data = response
-        .data
-        .ok_or_else(|| color_eyre::eyre::eyre!("GraphQL response missing data"))?;
+    let data: MapExtractsQuery = fetch_graphql(client, MapExtractsQuery::build(())).await?;
 
     Ok(data
         .maps
@@ -414,12 +377,9 @@ async fn fetch_map_extracts(
                 .extracts
                 .into_iter()
                 .filter_map(|e| {
-                    // Skip extracts without name or faction
-                    let name = e.name?;
-                    let faction = e.faction?;
                     Some(Extract {
-                        name,
-                        faction,
+                        name: e.name?,
+                        faction: e.faction?,
                         position: e.position.map(|p| [p.x, p.y, p.z]),
                     })
                 })
@@ -429,34 +389,26 @@ async fn fetch_map_extracts(
         .collect())
 }
 
-// ============================================================================
-// Asset processing
-// ============================================================================
-
 fn repo_path(path: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(path)
 }
 
-/// Result of processing a map image
 struct ImageResult {
     image_path: String,
     image_size: [f32; 2],
 }
 
-/// Download SVG, render to high-res PNG
 async fn process_svg_map(
     client: &reqwest::Client,
     normalized_name: &str,
     svg_url: &str,
     force: bool,
-) -> color_eyre::Result<ImageResult> {
-    let image_relative = format!("{}/{}.png", MAPS_DIR, normalized_name);
+) -> Result<ImageResult> {
+    let image_relative = format!("{MAPS_DIR}/{normalized_name}.png");
     let image_path = repo_path(&image_relative);
 
-    // Check if already processed
     if !force && image_path.exists() {
-        // Read dimensions from existing PNG
-        let img = image::open(&image_path)?;
+        let img = image::open(&image_path).context("Failed to open existing PNG")?;
         let source_size = [
             img.width() as f32 / SVG_RENDER_SCALE,
             img.height() as f32 / SVG_RENDER_SCALE,
@@ -467,34 +419,27 @@ async fn process_svg_map(
         });
     }
 
-    // Download SVG
     let response = client
         .get(svg_url)
         .header(reqwest::header::USER_AGENT, USER_AGENT)
         .send()
-        .await?;
+        .await
+        .context("Failed to fetch SVG")?;
 
     if !response.status().is_success() {
-        return Err(color_eyre::eyre::eyre!(
-            "Failed to fetch SVG: {}",
-            response.status()
-        ));
+        return Err(eyre!("Failed to fetch SVG: {}", response.status()));
     }
 
     let svg_bytes = response.bytes().await?;
-
-    // Parse SVG
-    let options = Options::default();
-    let tree = Tree::from_data(&svg_bytes, &options)
-        .map_err(|e| color_eyre::eyre::eyre!("Failed to parse SVG: {}", e))?;
+    let tree = Tree::from_data(&svg_bytes, &Options::default())
+        .map_err(|e| eyre!("SVG parse error: {e}"))?;
 
     let source_size = [tree.size().width(), tree.size().height()];
     let render_w = (source_size[0] * SVG_RENDER_SCALE) as u32;
     let render_h = (source_size[1] * SVG_RENDER_SCALE) as u32;
 
-    // Render to pixmap
-    let mut pixmap = Pixmap::new(render_w, render_h)
-        .ok_or_else(|| color_eyre::eyre::eyre!("Failed to create pixmap"))?;
+    let mut pixmap =
+        Pixmap::new(render_w, render_h).ok_or_else(|| eyre!("Failed to create pixmap"))?;
 
     resvg::render(
         &tree,
@@ -502,11 +447,10 @@ async fn process_svg_map(
         &mut pixmap.as_mut(),
     );
 
-    // Save as PNG
-    tokio_fs::create_dir_all(image_path.parent().unwrap()).await?;
+    async_fs::create_dir_all(image_path.parent().unwrap()).await?;
     pixmap
         .save_png(&image_path)
-        .map_err(|e| color_eyre::eyre::eyre!("Failed to save PNG: {}", e))?;
+        .map_err(|e| eyre!("Failed to save PNG: {e}"))?;
 
     Ok(ImageResult {
         image_path: image_relative,
@@ -514,7 +458,7 @@ async fn process_svg_map(
     })
 }
 
-/// Download tiles and compose into single high-res PNG
+#[allow(clippy::too_many_arguments)]
 async fn process_tile_map(
     client: &reqwest::Client,
     normalized_name: &str,
@@ -525,19 +469,15 @@ async fn process_tile_map(
     zoom_offset: i32,
     multi_progress: &MultiProgress,
     force: bool,
-) -> color_eyre::Result<ImageResult> {
-    let image_relative = format!("{}/{}.png", MAPS_DIR, normalized_name);
+) -> Result<ImageResult> {
+    let image_relative = format!("{MAPS_DIR}/{normalized_name}.png");
     let image_path = repo_path(&image_relative);
 
-    // Use max_zoom minus offset, but not below min_zoom
     let zoom = (max_zoom - zoom_offset).max(min_zoom);
     let tiles_per_axis = 1u32 << zoom;
     let full_size = tiles_per_axis * tile_size as u32;
-
-    // Source size at zoom 0 (1 tile)
     let source_size = [tile_size as f32, tile_size as f32];
 
-    // Check if already processed
     if !force && image_path.exists() {
         return Ok(ImageResult {
             image_path: image_relative,
@@ -545,18 +485,16 @@ async fn process_tile_map(
         });
     }
 
-    // Download tiles directly into memory and compose
     let tile_pb = multi_progress.add(ProgressBar::new((tiles_per_axis * tiles_per_axis) as u64));
     tile_pb.set_style(
         ProgressStyle::default_bar()
-            .template("    {spinner:.green} [{bar:30.cyan/blue}] {pos}/{len} tiles ({eta})")
-            .unwrap()
+            .template("    {spinner:.green} [{bar:30.cyan/blue}] {pos}/{len} tiles ({eta})")?
             .progress_chars("=>-"),
     );
 
     let semaphore = Arc::new(Semaphore::new(TILE_DOWNLOAD_CONCURRENCY));
     let tile_pb = Arc::new(tile_pb);
-    let mut join_set: JoinSet<color_eyre::Result<(u32, u32, Vec<u8>)>> = JoinSet::new();
+    let mut join_set: JoinSet<Result<(u32, u32, Vec<u8>)>> = JoinSet::new();
 
     for x in 0..tiles_per_axis {
         for y in 0..tiles_per_axis {
@@ -576,13 +514,11 @@ async fn process_tile_map(
                     .get(&remote_url)
                     .header(reqwest::header::USER_AGENT, USER_AGENT)
                     .send()
-                    .await?;
+                    .await
+                    .context("Failed to fetch tile")?;
 
                 if !response.status().is_success() {
-                    return Err(color_eyre::eyre::eyre!(
-                        "Failed to fetch tile: {}",
-                        response.status()
-                    ));
+                    return Err(eyre!("Failed to fetch tile: {}", response.status()));
                 }
 
                 let bytes = response.bytes().await?.to_vec();
@@ -592,19 +528,16 @@ async fn process_tile_map(
         }
     }
 
-    // Collect all tiles
-    let mut tiles: Vec<(u32, u32, Vec<u8>)> = Vec::new();
+    let mut tiles = Vec::new();
     while let Some(result) = join_set.join_next().await {
         tiles.push(result??);
     }
     tile_pb.finish_and_clear();
 
-    // Compose tiles into single image
     let compose_pb = multi_progress.add(ProgressBar::new(tiles.len() as u64));
     compose_pb.set_style(
         ProgressStyle::default_bar()
-            .template("    {spinner:.green} [{bar:30.cyan/blue}] {pos}/{len} composing")
-            .unwrap()
+            .template("    {spinner:.green} [{bar:30.cyan/blue}] {pos}/{len} composing")?
             .progress_chars("=>-"),
     );
 
@@ -629,8 +562,7 @@ async fn process_tile_map(
 
     compose_pb.finish_and_clear();
 
-    // Save composed image
-    tokio_fs::create_dir_all(image_path.parent().unwrap()).await?;
+    async_fs::create_dir_all(image_path.parent().unwrap()).await?;
     full_image.save(&image_path)?;
 
     Ok(ImageResult {
@@ -639,10 +571,7 @@ async fn process_tile_map(
     })
 }
 
-// ============================================================================
-// Conversion from Fetched types to lib types
-// ============================================================================
-
+#[allow(clippy::too_many_arguments)]
 async fn convert_group(
     client: &reqwest::Client,
     fetched: FetchedMapGroup,
@@ -652,68 +581,63 @@ async fn convert_group(
     multi_progress: &MultiProgress,
     force: bool,
     tile_zoom_offset: i32,
-) -> color_eyre::Result<Option<Map>> {
+) -> Result<Option<Map>> {
     let FetchedMapGroup {
         normalized_name,
         maps,
     } = fetched;
 
-    let Some(interactive) = maps.into_iter().find(|map| map.projection == "interactive") else {
+    let Some(interactive) = maps.into_iter().find(|m| m.projection == "interactive") else {
         return Ok(None);
     };
 
-    let name = map_names.get(&normalized_name).cloned().ok_or_else(|| {
-        color_eyre::eyre::eyre!("No human-readable name found for '{normalized_name}'")
-    })?;
+    let name = map_names
+        .get(&normalized_name)
+        .cloned()
+        .ok_or_else(|| eyre!("No human-readable name found for '{normalized_name}'"))?;
 
-    let result = if let Some(svg_url) = interactive.svg_path.as_deref() {
-        process_svg_map(client, &normalized_name, svg_url, force).await?
-    } else if let Some(tile_template) = interactive.tile_path.as_deref() {
-        let min_zoom = interactive
-            .min_zoom
-            .ok_or_else(|| color_eyre::eyre::eyre!("Missing minZoom for '{normalized_name}'"))?;
-        let max_zoom = interactive
-            .max_zoom
-            .ok_or_else(|| color_eyre::eyre::eyre!("Missing maxZoom for '{normalized_name}'"))?;
-        let tile_size = interactive.tile_size.unwrap_or(256);
+    let result = match (&interactive.svg_path, &interactive.tile_path) {
+        (Some(svg_url), _) => process_svg_map(client, &normalized_name, svg_url, force).await?,
+        (_, Some(tile_template)) => {
+            let min_zoom = interactive
+                .min_zoom
+                .ok_or_else(|| eyre!("Missing minZoom for '{normalized_name}'"))?;
+            let max_zoom = interactive
+                .max_zoom
+                .ok_or_else(|| eyre!("Missing maxZoom for '{normalized_name}'"))?;
+            let tile_size = interactive.tile_size.unwrap_or(256);
 
-        process_tile_map(
-            client,
-            &normalized_name,
-            tile_template,
-            tile_size,
-            min_zoom,
-            max_zoom,
-            tile_zoom_offset,
-            multi_progress,
-            force,
-        )
-        .await?
-    } else {
-        return Err(color_eyre::eyre::eyre!(
-            "Interactive map '{normalized_name}' has no svgPath or tilePath"
-        ));
+            process_tile_map(
+                client,
+                &normalized_name,
+                tile_template,
+                tile_size,
+                min_zoom,
+                max_zoom,
+                tile_zoom_offset,
+                multi_progress,
+                force,
+            )
+            .await?
+        }
+        _ => {
+            return Err(eyre!(
+                "Interactive map '{normalized_name}' has no svgPath or tilePath"
+            ));
+        }
     };
 
-    // Calculate logical size from bounds (in game units/meters)
-    // bounds format: [[maxX, minY], [minX, maxY]]
-    let logical_size = if let Some(bounds) = &interactive.bounds {
-        let width = (bounds[0][0] - bounds[1][0]).abs() as f32;
-        let height = (bounds[1][1] - bounds[0][1]).abs() as f32;
-        [width, height]
-    } else {
-        // Fallback to image size if no bounds
-        result.image_size
-    };
-
-    // Get spawns for this map
-    let spawns = map_spawns.get(&normalized_name).cloned();
-
-    // Get extracts for this map
-    let extracts = map_extracts.get(&normalized_name).cloned();
+    let logical_size = interactive
+        .bounds
+        .map(|bounds| {
+            let width = (bounds[0][0] - bounds[1][0]).abs() as f32;
+            let height = (bounds[1][1] - bounds[0][1]).abs() as f32;
+            [width, height]
+        })
+        .unwrap_or(result.image_size);
 
     Ok(Some(Map {
-        normalized_name,
+        normalized_name: normalized_name.clone(),
         name,
         image_path: result.image_path,
         image_size: result.image_size,
@@ -727,67 +651,17 @@ async fn convert_group(
         height_range: interactive.height_range,
         layers: interactive
             .layers
-            .map(|layers| layers.into_iter().map(Layer::from).collect()),
+            .map(|l| l.into_iter().map(Into::into).collect()),
         labels: interactive
             .labels
-            .map(|labels| labels.into_iter().map(Label::from).collect()),
-        spawns,
-        extracts,
+            .map(|l| l.into_iter().map(Into::into).collect()),
+        spawns: map_spawns.get(&normalized_name).cloned(),
+        extracts: map_extracts.get(&normalized_name).cloned(),
     }))
 }
 
-impl From<FetchedLayer> for Layer {
-    fn from(fetched: FetchedLayer) -> Self {
-        Self {
-            name: fetched.name,
-            svg_layer: fetched.svg_layer,
-            tile_path: fetched.tile_path,
-            show: fetched.show,
-            extents: fetched.extents.into_iter().map(Extent::from).collect(),
-        }
-    }
-}
-
-impl From<FetchedExtent> for Extent {
-    fn from(fetched: FetchedExtent) -> Self {
-        Self {
-            height: fetched.height,
-            bounds: fetched
-                .bounds
-                .map(|bounds| bounds.into_iter().map(ExtentBound::from).collect()),
-        }
-    }
-}
-
-impl From<FetchedExtentBound> for ExtentBound {
-    fn from(fetched: FetchedExtentBound) -> Self {
-        Self {
-            point1: fetched.point1,
-            point2: fetched.point2,
-            name: fetched.name,
-        }
-    }
-}
-
-impl From<FetchedLabel> for Label {
-    fn from(fetched: FetchedLabel) -> Self {
-        Self {
-            position: fetched.position,
-            text: fetched.text,
-            rotation: fetched.rotation,
-            size: fetched.size,
-            top: fetched.top,
-            bottom: fetched.bottom,
-        }
-    }
-}
-
-// ============================================================================
-// Main
-// ============================================================================
-
 #[tokio::main]
-async fn main() -> color_eyre::Result<()> {
+async fn main() -> Result<()> {
     env_logger::init();
     color_eyre::install()?;
 
@@ -805,13 +679,13 @@ async fn main() -> color_eyre::Result<()> {
 
     println!("Fetching PMC spawns from tarkov.dev...");
     let map_spawns = fetch_map_spawns(&client).await?;
-    let total_spawns: usize = map_spawns.values().map(|v| v.len()).sum();
-    println!("Fetched {} PMC spawns", total_spawns);
+    let total_spawns: usize = map_spawns.values().map(Vec::len).sum();
+    println!("Fetched {total_spawns} PMC spawns");
 
     println!("Fetching extracts from tarkov.dev...");
     let map_extracts = fetch_map_extracts(&client).await?;
-    let total_extracts: usize = map_extracts.values().map(|v| v.len()).sum();
-    println!("Fetched {} extracts", total_extracts);
+    let total_extracts: usize = map_extracts.values().map(Vec::len).sum();
+    println!("Fetched {total_extracts} extracts");
 
     println!("Fetching maps from tarkov-dev...");
 
@@ -819,13 +693,11 @@ async fn main() -> color_eyre::Result<()> {
         .get(MAPS_JSON_URL)
         .header(reqwest::header::USER_AGENT, USER_AGENT)
         .send()
-        .await?;
+        .await
+        .context("Failed to fetch maps.json")?;
 
     if !response.status().is_success() {
-        return Err(color_eyre::eyre::eyre!(
-            "Failed to fetch maps: {}",
-            response.status()
-        ));
+        return Err(eyre!("Failed to fetch maps: {}", response.status()));
     }
 
     let json_text = response.text().await?;
@@ -835,12 +707,10 @@ async fn main() -> color_eyre::Result<()> {
     println!("Parsed {} map groups\n", fetched_maps.len());
 
     let multi_progress = MultiProgress::new();
-
     let maps_pb = multi_progress.add(ProgressBar::new(fetched_maps.len() as u64));
     maps_pb.set_style(
         ProgressStyle::default_bar()
-            .template("{spinner:.green} [{bar:40.cyan/blue}] {pos}/{len} maps - {msg}")
-            .unwrap()
+            .template("{spinner:.green} [{bar:40.cyan/blue}] {pos}/{len} maps - {msg}")?
             .progress_chars("=>-"),
     );
 
@@ -873,24 +743,23 @@ async fn main() -> color_eyre::Result<()> {
     maps_pb.finish_with_message("Done");
 
     println!(
-        "\nProcessed {} interactive maps (skipped {})",
-        maps.len(),
-        skipped
+        "\nProcessed {} interactive maps (skipped {skipped})",
+        maps.len()
     );
 
     let pretty_config = PrettyConfig::new()
         .depth_limit(10)
-        .indentor("  ".to_string())
+        .indentor("  ".to_owned())
         .struct_names(true)
         .enumerate_arrays(false);
 
     let ron_string = ron::ser::to_string_pretty(&maps, pretty_config)?;
     println!("Serialized to {} bytes of RON", ron_string.len());
 
-    fs::create_dir_all(repo_path(MAPS_DIR))?;
+    std::fs::create_dir_all(repo_path(MAPS_DIR))?;
 
     let output_path = repo_path(MAPS_RON_PATH);
-    fs::write(&output_path, &ron_string)?;
+    std::fs::write(&output_path, &ron_string)?;
     println!("Wrote maps to {}", output_path.display());
 
     println!("\nMaps:");
