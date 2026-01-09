@@ -10,7 +10,7 @@ use tarkov_map::{MapGroup, TarkovMaps};
 const MAPS_RON_PATH: &str = "assets/maps.ron";
 const USER_AGENT: &str = "tarkov-map";
 
-enum SvgLoadState {
+enum AssetLoadState {
     Loading(mpsc::Receiver<Result<egui::load::Bytes, String>>),
     Ready(egui::load::Bytes),
     Error(String),
@@ -21,9 +21,10 @@ struct TarkovMapApp {
     load_error: Option<String>,
 
     selected_group: usize,
-    zoom: f32,
+    scale: f32,
+    tile_zoom: i32,
 
-    svg_cache: HashMap<String, SvgLoadState>,
+    asset_cache: HashMap<String, AssetLoadState>,
     http: reqwest::Client,
     runtime: tokio::runtime::Runtime,
 }
@@ -39,14 +40,20 @@ impl TarkovMapApp {
             Err(err) => (Vec::new(), Some(err)),
         };
 
+        let tile_zoom = maps
+            .first()
+            .and_then(|group| group.map.min_zoom)
+            .unwrap_or(0);
+
         let runtime = tokio::runtime::Runtime::new().expect("create tokio runtime");
 
         Self {
             maps,
             load_error,
             selected_group: 0,
-            zoom: 1.0,
-            svg_cache: HashMap::new(),
+            scale: 1.0,
+            tile_zoom,
+            asset_cache: HashMap::new(),
             http: reqwest::Client::new(),
             runtime,
         }
@@ -56,8 +63,8 @@ impl TarkovMapApp {
         self.maps.get(self.selected_group)
     }
 
-    fn request_svg(&mut self, ctx: &egui::Context, url: &str) {
-        if self.svg_cache.contains_key(url) {
+    fn request_asset(&mut self, ctx: &egui::Context, url: &str) {
+        if self.asset_cache.contains_key(url) {
             return;
         }
 
@@ -78,19 +85,19 @@ impl TarkovMapApp {
             ctx.request_repaint();
         });
 
-        self.svg_cache.insert(url, SvgLoadState::Loading(rx));
+        self.asset_cache.insert(url, AssetLoadState::Loading(rx));
     }
 
-    fn poll_svg(&mut self, url: &str) {
-        let mut done: Option<SvgLoadState> = None;
+    fn poll_asset(&mut self, url: &str) {
+        let mut done: Option<AssetLoadState> = None;
 
-        if let Some(SvgLoadState::Loading(rx)) = self.svg_cache.get_mut(url) {
+        if let Some(AssetLoadState::Loading(rx)) = self.asset_cache.get_mut(url) {
             match rx.try_recv() {
-                Ok(Ok(bytes)) => done = Some(SvgLoadState::Ready(bytes)),
-                Ok(Err(err)) => done = Some(SvgLoadState::Error(err)),
+                Ok(Ok(bytes)) => done = Some(AssetLoadState::Ready(bytes)),
+                Ok(Err(err)) => done = Some(AssetLoadState::Error(err)),
                 Err(mpsc::TryRecvError::Empty) => {}
                 Err(mpsc::TryRecvError::Disconnected) => {
-                    done = Some(SvgLoadState::Error(
+                    done = Some(AssetLoadState::Error(
                         "download channel disconnected unexpectedly".to_owned(),
                     ));
                 }
@@ -98,38 +105,93 @@ impl TarkovMapApp {
         }
 
         if let Some(new_state) = done {
-            self.svg_cache.insert(url.to_owned(), new_state);
+            self.asset_cache.insert(url.to_owned(), new_state);
         }
     }
 
-    fn show_svg(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, url: &str) {
-        self.request_svg(ctx, url);
-        self.poll_svg(url);
+    fn show_single_image(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, url: &str) {
+        self.request_asset(ctx, url);
+        self.poll_asset(url);
 
-        match self.svg_cache.get(url) {
-            Some(SvgLoadState::Ready(bytes)) => {
+        match self.asset_cache.get(url) {
+            Some(AssetLoadState::Ready(bytes)) => {
                 egui::ScrollArea::both()
                     .auto_shrink([false, false])
                     .show(ui, |ui| {
                         let uri = format!("bytes://{}", url);
                         let image = egui::Image::from_bytes(uri, bytes.clone())
-                            .fit_to_original_size(self.zoom);
+                            .fit_to_original_size(self.scale);
                         ui.add(image);
                     });
             }
-            Some(SvgLoadState::Error(err)) => {
+            Some(AssetLoadState::Error(err)) => {
                 ui.colored_label(egui::Color32::RED, err);
             }
-            Some(SvgLoadState::Loading(_)) => {
+            Some(AssetLoadState::Loading(_)) => {
                 ui.horizontal(|ui| {
                     ui.add(egui::Spinner::new());
-                    ui.label("Loading SVG…");
+                    ui.label("Loading image…");
                 });
             }
             None => {
                 ui.label("Preparing download…");
             }
         }
+    }
+
+    fn paint_asset_at(&mut self, ui: &egui::Ui, ctx: &egui::Context, url: &str, rect: egui::Rect) {
+        self.request_asset(ctx, url);
+        self.poll_asset(url);
+
+        let Some(AssetLoadState::Ready(bytes)) = self.asset_cache.get(url) else {
+            return;
+        };
+
+        let uri = format!("bytes://{}", url);
+        egui::Image::from_bytes(uri, bytes.clone()).paint_at(ui, rect);
+    }
+
+    fn show_tile_map(
+        &mut self,
+        ui: &mut egui::Ui,
+        ctx: &egui::Context,
+        tile_path: &str,
+        tile_zoom: i32,
+        tile_size: f32,
+    ) {
+        let tile_zoom = tile_zoom.max(0) as u32;
+        let tiles_per_axis = 1usize << tile_zoom;
+
+        let tile_size = (tile_size * self.scale).max(1.0);
+        let content_size = egui::vec2(
+            tile_size * tiles_per_axis as f32,
+            tile_size * tiles_per_axis as f32,
+        );
+
+        egui::ScrollArea::both()
+            .auto_shrink([false, false])
+            .show_viewport(ui, |ui, viewport| {
+                ui.set_min_size(content_size);
+
+                let max_index = tiles_per_axis.saturating_sub(1) as i32;
+
+                let min_x = ((viewport.min.x / tile_size).floor() as i32 - 1).clamp(0, max_index);
+                let max_x = ((viewport.max.x / tile_size).ceil() as i32 + 1).clamp(0, max_index);
+                let min_y = ((viewport.min.y / tile_size).floor() as i32 - 1).clamp(0, max_index);
+                let max_y = ((viewport.max.y / tile_size).ceil() as i32 + 1).clamp(0, max_index);
+
+                let origin = ui.max_rect().min;
+                for y in min_y..=max_y {
+                    for x in min_x..=max_x {
+                        let url = tile_url(tile_path, tile_zoom as i32, x, y);
+                        let rect = egui::Rect::from_min_size(
+                            origin + egui::vec2(x as f32 * tile_size, y as f32 * tile_size),
+                            egui::vec2(tile_size, tile_size),
+                        );
+                        self.paint_asset_at(ui, ctx, &url, rect);
+                    }
+                }
+            });
     }
 }
 
@@ -143,6 +205,8 @@ impl eframe::App for TarkovMapApp {
                     ui.label("(no maps loaded)");
                     return;
                 }
+
+                let prev_group = self.selected_group;
 
                 let selected_group_name = self
                     .maps
@@ -162,11 +226,36 @@ impl eframe::App for TarkovMapApp {
                         }
                     });
 
+                let (use_tiles, min_zoom, max_zoom) = self
+                    .selected_group()
+                    .map(|group| {
+                        let map = &group.map;
+                        let min_zoom = map.min_zoom.unwrap_or(0);
+                        let max_zoom = map.max_zoom.unwrap_or(min_zoom).max(min_zoom);
+                        let use_tiles = map.svg_path.is_none() && map.tile_path.is_some();
+                        (use_tiles, min_zoom, max_zoom)
+                    })
+                    .unwrap_or((false, 0, 0));
+
+                if self.selected_group != prev_group {
+                    self.tile_zoom = min_zoom;
+                } else {
+                    self.tile_zoom = self.tile_zoom.clamp(min_zoom, max_zoom);
+                }
+
+                if use_tiles {
+                    ui.separator();
+                    ui.add(
+                        egui::Slider::new(&mut self.tile_zoom, min_zoom..=max_zoom)
+                            .text("Tile zoom"),
+                    );
+                }
+
                 ui.separator();
                 ui.add(
-                    egui::Slider::new(&mut self.zoom, 0.1..=3.0)
+                    egui::Slider::new(&mut self.scale, 0.1..=3.0)
                         .logarithmic(true)
-                        .text("Zoom"),
+                        .text("Scale"),
                 );
             });
         });
@@ -192,6 +281,8 @@ impl eframe::App for TarkovMapApp {
             let author = map.author.clone();
             let author_link = map.author_link.clone();
             let svg_url = map.svg_path.clone();
+            let tile_path = map.tile_path.clone();
+            let tile_size = map.tile_size.unwrap_or(256) as f32;
 
             ui.heading(group_name);
 
@@ -210,9 +301,11 @@ impl eframe::App for TarkovMapApp {
             ui.separator();
 
             if let Some(svg_url) = svg_url.as_deref() {
-                self.show_svg(ui, ctx, svg_url);
+                self.show_single_image(ui, ctx, svg_url);
+            } else if let Some(tile_path) = tile_path.as_deref() {
+                self.show_tile_map(ui, ctx, tile_path, self.tile_zoom, tile_size);
             } else {
-                ui.label("No SVG available for this map.");
+                ui.label("No SVG or tile map available for this map.");
             }
         });
     }
@@ -237,6 +330,13 @@ async fn fetch_url_bytes(client: &reqwest::Client, url: &str) -> Result<Vec<u8>,
         .map_err(|err| format!("read {url}: {err}"))?;
 
     Ok(bytes.to_vec())
+}
+
+fn tile_url(template: &str, z: i32, x: i32, y: i32) -> String {
+    template
+        .replace("{z}", &z.to_string())
+        .replace("{x}", &x.to_string())
+        .replace("{y}", &y.to_string())
 }
 
 fn load_maps(path: &str) -> Result<TarkovMaps, String> {
