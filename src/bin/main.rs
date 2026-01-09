@@ -420,36 +420,39 @@ impl eframe::App for TarkovMapApp {
 // Label rendering
 // ============================================================================
 
-/// Convert game coordinates to pixel position on the map image.
+/// Convert game coordinates to display position.
 ///
-/// The map has a transform [scaleX, translateX, scaleY, translateY] that converts
-/// game coordinates to SVG/image coordinates:
-///   pixel_x = game_x * scaleX + translateX
-///   pixel_y = game_y * scaleY + translateY
-fn game_to_pixel(map: &Map, game_pos: [f64; 2]) -> egui::Pos2 {
-    let (scale_x, translate_x, scale_y, translate_y) = match map.transform {
-        Some([sx, tx, sy, ty]) => (sx, tx, sy, ty),
-        None => (1.0, 0.0, 1.0, 0.0),
-    };
+/// Maps game coordinates to the display rect using the map bounds.
+/// bounds format: [[maxX, minY], [minX, maxY]]
+fn game_to_display(map: &Map, map_rect: egui::Rect, game_pos: [f64; 2]) -> Option<egui::Pos2> {
+    let bounds = map.bounds?;
 
-    let pixel_x = game_pos[0] * scale_x + translate_x;
-    let pixel_y = game_pos[1] * scale_y + translate_y;
+    // Extract bounds: [[maxX, minY], [minX, maxY]]
+    let min_x = bounds[1][0];
+    let max_x = bounds[0][0];
+    let min_y = bounds[0][1];
+    let max_y = bounds[1][1];
 
-    egui::pos2(pixel_x as f32, pixel_y as f32)
+    // Calculate position as fraction within bounds (0.0 to 1.0)
+    // X axis is flipped (game coords increase right, but map image has left = max_x)
+    let frac_x = (max_x - game_pos[0]) / (max_x - min_x);
+    let frac_y = (game_pos[1] - min_y) / (max_y - min_y);
+
+    // Map to display coordinates
+    let display_x = map_rect.min.x + (frac_x as f32) * map_rect.width();
+    let display_y = map_rect.min.y + (frac_y as f32) * map_rect.height();
+
+    Some(egui::pos2(display_x, display_y))
 }
 
 fn draw_labels(ui: &mut egui::Ui, map_rect: egui::Rect, map: &Map, labels: &[Label], zoom: f32) {
     let painter = ui.painter();
-    let image_size = egui::vec2(map.image_size[0], map.image_size[1]);
 
     for label in labels {
-        // Convert game coordinates to pixel position
-        let pixel_pos = game_to_pixel(map, label.position);
-
-        // Scale to current display size
-        let display_x = map_rect.min.x + (pixel_pos.x / image_size.x) * map_rect.width();
-        let display_y = map_rect.min.y + (pixel_pos.y / image_size.y) * map_rect.height();
-        let pos = egui::pos2(display_x, display_y);
+        // Convert game coordinates to display position
+        let Some(pos) = game_to_display(map, map_rect, label.position) else {
+            continue;
+        };
 
         // Skip if outside visible area (with margin)
         if !map_rect.expand(50.0).contains(pos) {
@@ -465,41 +468,19 @@ fn draw_labels(ui: &mut egui::Ui, map_rect: egui::Rect, map: &Map, labels: &[Lab
         let text_color = egui::Color32::from_rgba_unmultiplied(255, 255, 255, 220);
         let shadow_color = egui::Color32::from_rgba_unmultiplied(0, 0, 0, 180);
 
-        let galley = painter.layout_no_wrap(label.text.clone(), font_id.clone(), text_color);
+        let anchor = egui::Align2::CENTER_CENTER;
+        let shadow_offset = egui::vec2(1.0, 1.0);
 
-        // Handle rotation if present
-        let rotation = label.rotation.unwrap_or(0.0) as f32;
-
-        if rotation.abs() > 0.1 {
-            // For rotated text, we need to use a different approach
-            // Draw at anchor point with rotation
-            let anchor = egui::Align2::CENTER_CENTER;
-            let shadow_offset = egui::vec2(1.0, 1.0);
-
-            // Shadow
-            painter.text(
-                pos + shadow_offset,
-                anchor,
-                &label.text,
-                font_id.clone(),
-                shadow_color,
-            );
-            // Main text
-            painter.text(pos, anchor, &label.text, font_id, text_color);
-        } else {
-            // Non-rotated text - center it
-            let text_offset = egui::vec2(galley.size().x / 2.0, galley.size().y / 2.0);
-            let shadow_offset = egui::vec2(1.0, 1.0);
-
-            // Shadow
-            painter.galley(
-                pos - text_offset + shadow_offset,
-                painter.layout_no_wrap(label.text.clone(), font_id.clone(), shadow_color),
-                shadow_color,
-            );
-            // Main text
-            painter.galley(pos - text_offset, galley, text_color);
-        }
+        // Shadow
+        painter.text(
+            pos + shadow_offset,
+            anchor,
+            &label.text,
+            font_id.clone(),
+            shadow_color,
+        );
+        // Main text
+        painter.text(pos, anchor, &label.text, font_id, text_color);
     }
 }
 
