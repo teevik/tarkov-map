@@ -2,15 +2,13 @@
   Map(
     normalizedName: "streets-of-tarkov",
     name: "Streets of Tarkov",
+    imagePath: "assets/maps/streets-of-tarkov.png",
+    imageSize: (605.324, 831.5775),
     author: Some("Shebuka"),
     authorLink: Some("https://github.com/the-hideout/tarkov-dev-svg-maps/"),
     transform: Some((0.38, 0.0, 0.38, 0.0)),
     coordinateRotation: Some(180.0),
     bounds: Some(((323.0, -317.0), (-280.0, 554.0))),
-    source: Svg(
-      path: "assets/maps/svg/streets-of-tarkov.svg",
-      svg_layer: Some("Ground_Level"),
-    ),
     heightRange: Some((-6.0, 10.0)),
     layers: Some([
       Layer(
@@ -309,6 +307,8 @@
   Map(
     normalizedName: "ground-zero",
     name: "Ground Zero",
+    imagePath: "assets/maps/ground-zero.png",
+    imageSize: (348.9254, 488.4479),
     altMaps: Some([
       "ground-zero-21",
     ]),
@@ -317,10 +317,6 @@
     transform: Some((0.524, 167.3, 0.524, 65.1)),
     coordinateRotation: Some(180.0),
     bounds: Some(((249.0, -124.0), (-99.0, 364.0))),
-    source: Svg(
-      path: "assets/maps/svg/ground-zero.svg",
-      svg_layer: Some("Ground_Level"),
-    ),
     heightRange: Some((-1000.0, 28.0)),
     layers: Some([
       Layer(
@@ -449,15 +445,13 @@
   Map(
     normalizedName: "customs",
     name: "Customs",
+    imagePath: "assets/maps/customs.png",
+    imageSize: (1062.4827, 535.174),
     author: Some("Shebuka"),
     authorLink: Some("https://github.com/the-hideout/tarkov-dev-svg-maps/"),
     transform: Some((0.239, 168.65, 0.239, 136.35)),
     coordinateRotation: Some(180.0),
     bounds: Some(((698.0, -307.0), (-372.0, 237.0))),
-    source: Svg(
-      path: "assets/maps/svg/customs.svg",
-      svg_layer: Some("Ground_Level"),
-    ),
     heightRange: Some((-1000.0, 1000.0)),
     layers: Some([
       Layer(
@@ -807,6 +801,8 @@
   Map(
     normalizedName: "factory",
     name: "Factory",
+    imagePath: "assets/maps/factory.png",
+    imageSize: (130.81831, 141.23242),
     altMaps: Some([
       "night-factory",
     ]),
@@ -815,10 +811,6 @@
     transform: Some((1.629, 119.9, 1.629, 139.3)),
     coordinateRotation: Some(90.0),
     bounds: Some(((79.0, -64.5), (-66.5, 67.4))),
-    source: Svg(
-      path: "assets/maps/svg/factory.svg",
-      svg_layer: Some("Ground_Floor"),
-    ),
     heightRange: Some((-1.0, 3.0)),
     layers: Some([
       Layer(
@@ -1047,15 +1039,13 @@
   Map(
     normalizedName: "interchange",
     name: "Interchange",
+    imagePath: "assets/maps/interchange.png",
+    imageSize: (977.1, 977.1),
     author: Some("Shebuka"),
     authorLink: Some("https://github.com/the-hideout/tarkov-dev-svg-maps/"),
     transform: Some((0.265, 150.6, 0.265, 134.6)),
     coordinateRotation: Some(180.0),
     bounds: Some(((532.75, -442.75), (-364.0, 453.5))),
-    source: Svg(
-      path: "assets/maps/svg/interchange.svg",
-      svg_layer: Some("Ground_Level"),
-    ),
     layers: Some([
       Layer(
         name: "2nd Floor",
@@ -1636,17 +1626,13 @@
   Map(
     normalizedName: "the-lab",
     name: "The Lab",
+    imagePath: "assets/maps/the-lab.png",
+    imageSize: (175.0, 175.0),
     author: Some("Tarkov.dev"),
     authorLink: Some("https://tarkov.dev"),
     transform: Some((0.575, 281.2, 0.575, 193.7)),
     coordinateRotation: Some(270.0),
     bounds: Some(((-80.0, -477.0), (-287.0, -193.0))),
-    source: Tiles(
-      template: "assets/maps/tiles/the-lab/{z}/{x}/{y}.png",
-      tile_size: 175,
-      min_zoom: 2,
-      max_zoom: 6,
-    ),
     heightRange: Some((-0.9, 3.0)),
     layers: Some([
       Layer(
@@ -1900,31 +1886,25 @@
   Map(
     normalizedName: "the-labyrinth",
     name: "The Labyrinth",
+    imagePath: "assets/maps/the-labyrinth.png",
+    imageSize: (256.0, 256.0),
     author: Some("Tarkov.dev"),
     authorLink: Some("https://tarkov.dev"),
     transform: Some((2.115, 85.5, 2.115, 128.0)),
     coordinateRotation: Some(270.0),
     bounds: Some(((-52.0, -37.0), (53.0, 76.0))),
-    source: Tiles(
-      template: "assets/maps/tiles/the-labyrinth/{z}/{x}/{y}.png",
-      tile_size: 256,
-      min_zoom: 1,
-      max_zoom: 6,
-    ),
     labels: Some([]),
   ),
   Map(
     normalizedName: "lighthouse",
     name: "Lighthouse",
+    imagePath: "assets/maps/lighthouse.png",
+    imageSize: (1059.3752, 1722.95),
     author: Some("Shebuka"),
     authorLink: Some("https://github.com/the-hideout/tarkov-dev-svg-maps/"),
     transform: Some((0.2, 0.0, 0.2, 0.0)),
     coordinateRotation: Some(180.0),
     bounds: Some(((515.0, -998.0), (-545.0, 725.0))),
-    source: Svg(
-      path: "assets/maps/svg/lighthouse.svg",
-      svg_layer: Some("Ground_Level"),
-    ),
     labels: Some([
       Label(
         position: (-30.0, -882.0),
@@ -2019,15 +1999,13 @@
   Map(
     normalizedName: "reserve",
     name: "Reserve",
+    imagePath: "assets/maps/reserve.png",
+    imageSize: (827.2874, 761.16437),
     author: Some("Shebuka"),
     authorLink: Some("https://github.com/the-hideout/tarkov-dev-svg-maps/"),
     transform: Some((0.395, 122.0, 0.395, 137.65)),
     coordinateRotation: Some(180.0),
     bounds: Some(((289.0, -293.0), (-303.0, 244.0))),
-    source: Svg(
-      path: "assets/maps/svg/reserve.svg",
-      svg_layer: Some("Ground_Level"),
-    ),
     heightRange: Some((-7.0, 10000.0)),
     layers: Some([
       Layer(
@@ -2524,15 +2502,13 @@
   Map(
     normalizedName: "shoreline",
     name: "Shoreline",
+    imagePath: "assets/maps/shoreline.png",
+    imageSize: (1559.5717, 1032.4935),
     author: Some("Shebuka"),
     authorLink: Some("https://github.com/the-hideout/tarkov-dev-svg-maps/"),
     transform: Some((0.16, 83.2, 0.16, 111.1)),
     coordinateRotation: Some(180.0),
     bounds: Some(((508.0, -415.0), (-1060.0, 618.0))),
-    source: Svg(
-      path: "assets/maps/svg/shoreline.svg",
-      svg_layer: Some("Ground_Level"),
-    ),
     heightRange: Some((-1000.0, -1.0)),
     layers: Some([
       Layer(
@@ -2705,15 +2681,13 @@
   Map(
     normalizedName: "woods",
     name: "Woods",
+    imagePath: "assets/maps/woods.png",
+    imageSize: (1401.8693, 1420.5972),
     author: Some("Shebuka"),
     authorLink: Some("https://github.com/the-hideout/tarkov-dev-svg-maps/"),
     transform: Some((0.1855, 113.1, 0.1855, 167.8)),
     coordinateRotation: Some(180.0),
     bounds: Some(((650.0, -945.0), (-762.0, 470.0))),
-    source: Svg(
-      path: "assets/maps/svg/woods.svg",
-      svg_layer: Some("Ground_Level"),
-    ),
     labels: Some([
       Label(
         position: (10.0, -3.0),

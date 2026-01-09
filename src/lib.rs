@@ -11,6 +11,10 @@ pub struct Map {
     pub normalized_name: String,
     /// Human-readable map name (e.g., "Customs").
     pub name: String,
+    /// Path to the pre-rendered high-resolution PNG image.
+    pub image_path: String,
+    /// Original image size [width, height] at 1x scale.
+    pub image_size: [f32; 2],
     /// Alternative map keys that use this same map.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub alt_maps: Option<Vec<String>>,
@@ -29,8 +33,6 @@ pub struct Map {
     /// Map bounds [[maxX, minY], [minX, maxY]].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bounds: Option<[[f64; 2]; 2]>,
-    /// Map image source (either a local SVG or a local tile set).
-    pub source: MapSource,
     /// Height range for the default layer [min, max].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub height_range: Option<[f64; 2]>,
@@ -40,27 +42,6 @@ pub struct Map {
     /// Map labels/annotations.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub labels: Option<Vec<Label>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum MapSource {
-    #[serde(rename = "Svg")]
-    Svg {
-        /// Local path to the SVG file.
-        path: String,
-        /// Default SVG layer to display.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        svg_layer: Option<String>,
-    },
-    #[serde(rename = "Tiles")]
-    Tiles {
-        /// Local tile path template (e.g. `assets/maps/tiles/customs/{z}/{x}/{y}.png`).
-        template: String,
-        tile_size: i32,
-        min_zoom: i32,
-        max_zoom: i32,
-    },
 }
 
 /// A map layer (floor level).

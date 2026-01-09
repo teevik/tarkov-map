@@ -18,3 +18,5 @@ tokio = { version = "1.49.0", features = ["full"] }
 ron = "0.12"
 indicatif = "0.18.3"
 clap = { version = "4.5.54", features = ["derive"] }
+resvg = "0.45.1"
+log = "0.4.29"

@@ -1,12 +1,15 @@
 use clap::Parser;
+use image::{ImageBuffer, RgbaImage};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use resvg::tiny_skia::Pixmap;
+use resvg::usvg::{Options, Transform, Tree};
 use ron::ser::PrettyConfig;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
-use tarkov_map::{Extent, ExtentBound, Label, Layer, Map, MapSource, TarkovMaps};
+use tarkov_map::{Extent, ExtentBound, Label, Layer, Map, TarkovMaps};
 use tokio::fs as tokio_fs;
 use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
@@ -18,6 +21,11 @@ struct Args {
     /// Force re-download of all assets, ignoring cached files
     #[arg(short, long)]
     force: bool,
+
+    /// Reduce tile map zoom level by this amount from max (0 = max quality, 1 = half, 2 = quarter, etc.)
+    /// Default is 2 for reasonable file sizes. Use 0 for highest quality (warning: very large files).
+    #[arg(long, default_value = "2")]
+    tile_zoom_offset: i32,
 }
 
 /// GitHub raw content URL for maps.json
@@ -31,12 +39,13 @@ const USER_AGENT: &str = "tarkov-map";
 
 const MAPS_RON_PATH: &str = "assets/maps.ron";
 
-// Map assets are stored locally under `assets/maps/`.
-const MAP_ASSETS_DIR: &str = "assets/maps";
-const SVG_DIR: &str = "assets/maps/svg";
-const TILES_DIR: &str = "assets/maps/tiles";
+// Map images are stored under `assets/maps/`.
+const MAPS_DIR: &str = "assets/maps";
 
 const TILE_DOWNLOAD_CONCURRENCY: usize = 32;
+
+/// Scale factor for rendering SVGs to high-res PNGs
+const SVG_RENDER_SCALE: f32 = 2.0;
 
 // ============================================================================
 // Fetched types - match the JSON structure exactly
@@ -51,6 +60,7 @@ struct FetchedMapGroup {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 struct FetchedMap {
     #[serde(default)]
     alt_maps: Option<Vec<String>>,
@@ -103,12 +113,10 @@ struct FetchedLayer {
 #[serde(rename_all = "camelCase")]
 struct FetchedExtent {
     height: [f64; 2],
-    /// Bounds are arrays like [[x1, y1], [x2, y2], "name"]
     #[serde(default)]
     bounds: Option<Vec<FetchedExtentBound>>,
 }
 
-/// Custom deserializer for extent bounds which are heterogeneous arrays
 #[derive(Debug, Deserialize)]
 #[serde(from = "Vec<serde_json::Value>")]
 struct FetchedExtentBound {
@@ -160,7 +168,6 @@ impl From<Vec<serde_json::Value>> for FetchedExtentBound {
 struct FetchedLabel {
     position: [f64; 2],
     text: String,
-    /// Rotation can be a number or a string in the JSON
     #[serde(default, deserialize_with = "deserialize_rotation")]
     rotation: Option<f64>,
     #[serde(default)]
@@ -171,7 +178,6 @@ struct FetchedLabel {
     bottom: Option<f64>,
 }
 
-/// Deserialize rotation which can be either a number or a string
 fn deserialize_rotation<'de, D>(deserializer: D) -> Result<Option<f64>, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -263,148 +269,213 @@ async fn fetch_map_names(client: &reqwest::Client) -> color_eyre::Result<HashMap
 }
 
 // ============================================================================
-// Asset download
+// Asset processing
 // ============================================================================
 
 fn repo_path(path: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(path)
 }
 
-async fn download_url_to_path(
+/// Result of processing a map image
+struct ImageResult {
+    image_path: String,
+    image_size: [f32; 2],
+}
+
+/// Download SVG, render to high-res PNG
+async fn process_svg_map(
     client: &reqwest::Client,
-    url: &str,
-    output_path: &Path,
+    normalized_name: &str,
+    svg_url: &str,
     force: bool,
-) -> color_eyre::Result<()> {
-    if !force && tokio_fs::try_exists(output_path).await.unwrap_or(false) {
-        return Ok(());
+) -> color_eyre::Result<ImageResult> {
+    let image_relative = format!("{}/{}.png", MAPS_DIR, normalized_name);
+    let image_path = repo_path(&image_relative);
+
+    // Check if already processed
+    if !force && image_path.exists() {
+        // Read dimensions from existing PNG
+        let img = image::open(&image_path)?;
+        let source_size = [
+            img.width() as f32 / SVG_RENDER_SCALE,
+            img.height() as f32 / SVG_RENDER_SCALE,
+        ];
+        return Ok(ImageResult {
+            image_path: image_relative,
+            image_size: source_size,
+        });
     }
 
-    if let Some(parent) = output_path.parent() {
-        tokio_fs::create_dir_all(parent).await?;
-    }
-
+    // Download SVG
     let response = client
-        .get(url)
+        .get(svg_url)
         .header(reqwest::header::USER_AGENT, USER_AGENT)
         .send()
         .await?;
 
     if !response.status().is_success() {
         return Err(color_eyre::eyre::eyre!(
-            "Failed to fetch {}: {}",
-            url,
+            "Failed to fetch SVG: {}",
             response.status()
         ));
     }
 
-    let bytes = response.bytes().await?;
-    tokio_fs::write(output_path, &bytes).await?;
+    let svg_bytes = response.bytes().await?;
 
-    Ok(())
+    // Parse SVG
+    let options = Options::default();
+    let tree = Tree::from_data(&svg_bytes, &options)
+        .map_err(|e| color_eyre::eyre::eyre!("Failed to parse SVG: {}", e))?;
+
+    let source_size = [tree.size().width(), tree.size().height()];
+    let render_w = (source_size[0] * SVG_RENDER_SCALE) as u32;
+    let render_h = (source_size[1] * SVG_RENDER_SCALE) as u32;
+
+    // Render to pixmap
+    let mut pixmap = Pixmap::new(render_w, render_h)
+        .ok_or_else(|| color_eyre::eyre::eyre!("Failed to create pixmap"))?;
+
+    resvg::render(
+        &tree,
+        Transform::from_scale(SVG_RENDER_SCALE, SVG_RENDER_SCALE),
+        &mut pixmap.as_mut(),
+    );
+
+    // Save as PNG
+    tokio_fs::create_dir_all(image_path.parent().unwrap()).await?;
+    pixmap
+        .save_png(&image_path)
+        .map_err(|e| color_eyre::eyre::eyre!("Failed to save PNG: {}", e))?;
+
+    Ok(ImageResult {
+        image_path: image_relative,
+        image_size: source_size,
+    })
 }
 
-async fn ensure_svg_asset(
-    client: &reqwest::Client,
-    normalized_name: &str,
-    svg_url: &str,
-    force: bool,
-) -> color_eyre::Result<String> {
-    let relative_path = format!("{}/{}.svg", SVG_DIR, normalized_name);
-    let output_path = repo_path(&relative_path);
-
-    download_url_to_path(client, svg_url, &output_path, force).await?;
-
-    Ok(relative_path)
-}
-
-fn apply_tile_template(template: &str, z: i32, x: u32, y: u32) -> String {
-    template
-        .replace("{z}", &z.to_string())
-        .replace("{x}", &x.to_string())
-        .replace("{y}", &y.to_string())
-}
-
-async fn ensure_tile_assets(
+/// Download tiles and compose into single high-res PNG
+async fn process_tile_map(
     client: &reqwest::Client,
     normalized_name: &str,
     remote_template: &str,
+    tile_size: i32,
     min_zoom: i32,
     max_zoom: i32,
+    zoom_offset: i32,
     multi_progress: &MultiProgress,
     force: bool,
-) -> color_eyre::Result<String> {
-    let relative_template = format!("{}/{}/{{z}}/{{x}}/{{y}}.png", TILES_DIR, normalized_name);
+) -> color_eyre::Result<ImageResult> {
+    let image_relative = format!("{}/{}.png", MAPS_DIR, normalized_name);
+    let image_path = repo_path(&image_relative);
 
-    let output_root = repo_path(TILES_DIR).join(normalized_name);
+    // Use max_zoom minus offset, but not below min_zoom
+    let zoom = (max_zoom - zoom_offset).max(min_zoom);
+    let tiles_per_axis = 1u32 << zoom;
+    let full_size = tiles_per_axis * tile_size as u32;
 
-    // Collect tiles that need to be downloaded
-    let mut tiles_to_download: Vec<(String, PathBuf)> = Vec::new();
+    // Source size at zoom 0 (1 tile)
+    let source_size = [tile_size as f32, tile_size as f32];
 
-    for z in min_zoom..=max_zoom {
-        let tiles_per_axis = 1u32
-            .checked_shl(z.try_into()?)
-            .ok_or_else(|| color_eyre::eyre::eyre!("Invalid zoom level: {}", z))?;
-
-        for x in 0..tiles_per_axis {
-            for y in 0..tiles_per_axis {
-                let output_path = output_root
-                    .join(z.to_string())
-                    .join(x.to_string())
-                    .join(format!("{}.png", y));
-
-                if force || !output_path.exists() {
-                    let remote_url = apply_tile_template(remote_template, z, x, y);
-                    tiles_to_download.push((remote_url, output_path));
-                }
-            }
-        }
+    // Check if already processed
+    if !force && image_path.exists() {
+        return Ok(ImageResult {
+            image_path: image_relative,
+            image_size: source_size,
+        });
     }
 
-    // If all tiles already exist, skip download
-    if tiles_to_download.is_empty() {
-        return Ok(relative_template);
-    }
-
-    // Create progress bar for tile downloads
-    let tile_pb = multi_progress.add(ProgressBar::new(tiles_to_download.len() as u64));
+    // Download tiles directly into memory and compose
+    let tile_pb = multi_progress.add(ProgressBar::new((tiles_per_axis * tiles_per_axis) as u64));
     tile_pb.set_style(
         ProgressStyle::default_bar()
             .template("    {spinner:.green} [{bar:30.cyan/blue}] {pos}/{len} tiles ({eta})")
             .unwrap()
             .progress_chars("=>-"),
     );
-    tile_pb.set_message(format!("Downloading {} tiles", normalized_name));
 
     let semaphore = Arc::new(Semaphore::new(TILE_DOWNLOAD_CONCURRENCY));
     let tile_pb = Arc::new(tile_pb);
-    let mut join_set: JoinSet<color_eyre::Result<()>> = JoinSet::new();
+    let mut join_set: JoinSet<color_eyre::Result<(u32, u32, Vec<u8>)>> = JoinSet::new();
 
-    for (remote_url, output_path) in tiles_to_download {
-        let client = client.clone();
-        let semaphore = semaphore.clone();
-        let tile_pb = tile_pb.clone();
+    for x in 0..tiles_per_axis {
+        for y in 0..tiles_per_axis {
+            let remote_url = remote_template
+                .replace("{z}", &zoom.to_string())
+                .replace("{x}", &x.to_string())
+                .replace("{y}", &y.to_string());
 
-        join_set.spawn(async move {
-            let _permit = semaphore
-                .acquire_owned()
-                .await
-                .map_err(|err| color_eyre::eyre::eyre!(err))?;
+            let client = client.clone();
+            let semaphore = semaphore.clone();
+            let tile_pb = tile_pb.clone();
 
-            // Always force here since we already filtered what needs downloading
-            let result = download_url_to_path(&client, &remote_url, &output_path, true).await;
-            tile_pb.inc(1);
-            result
-        });
+            join_set.spawn(async move {
+                let _permit = semaphore.acquire_owned().await?;
+
+                let response = client
+                    .get(&remote_url)
+                    .header(reqwest::header::USER_AGENT, USER_AGENT)
+                    .send()
+                    .await?;
+
+                if !response.status().is_success() {
+                    return Err(color_eyre::eyre::eyre!(
+                        "Failed to fetch tile: {}",
+                        response.status()
+                    ));
+                }
+
+                let bytes = response.bytes().await?.to_vec();
+                tile_pb.inc(1);
+                Ok((x, y, bytes))
+            });
+        }
     }
 
+    // Collect all tiles
+    let mut tiles: Vec<(u32, u32, Vec<u8>)> = Vec::new();
     while let Some(result) = join_set.join_next().await {
-        result??;
+        tiles.push(result??);
     }
-
     tile_pb.finish_and_clear();
 
-    Ok(relative_template)
+    // Compose tiles into single image
+    let compose_pb = multi_progress.add(ProgressBar::new(tiles.len() as u64));
+    compose_pb.set_style(
+        ProgressStyle::default_bar()
+            .template("    {spinner:.green} [{bar:30.cyan/blue}] {pos}/{len} composing")
+            .unwrap()
+            .progress_chars("=>-"),
+    );
+
+    let mut full_image: RgbaImage = ImageBuffer::new(full_size, full_size);
+
+    for (x, y, bytes) in tiles {
+        if let Ok(tile) = image::load_from_memory(&bytes) {
+            let tile_rgba = tile.to_rgba8();
+            let offset_x = x * tile_size as u32;
+            let offset_y = y * tile_size as u32;
+
+            for (tx, ty, pixel) in tile_rgba.enumerate_pixels() {
+                let fx = offset_x + tx;
+                let fy = offset_y + ty;
+                if fx < full_size && fy < full_size {
+                    full_image.put_pixel(fx, fy, *pixel);
+                }
+            }
+        }
+        compose_pb.inc(1);
+    }
+
+    compose_pb.finish_and_clear();
+
+    // Save composed image
+    tokio_fs::create_dir_all(image_path.parent().unwrap()).await?;
+    full_image.save(&image_path)?;
+
+    Ok(ImageResult {
+        image_path: image_relative,
+        image_size: source_size,
+    })
 }
 
 // ============================================================================
@@ -417,6 +488,7 @@ async fn convert_group(
     map_names: &HashMap<String, String>,
     multi_progress: &MultiProgress,
     force: bool,
+    tile_zoom_offset: i32,
 ) -> color_eyre::Result<Option<Map>> {
     let FetchedMapGroup {
         normalized_name,
@@ -431,12 +503,8 @@ async fn convert_group(
         color_eyre::eyre::eyre!("No human-readable name found for '{normalized_name}'")
     })?;
 
-    let source = if let Some(svg_url) = interactive.svg_path.as_deref() {
-        let local_svg = ensure_svg_asset(client, &normalized_name, svg_url, force).await?;
-        MapSource::Svg {
-            path: local_svg,
-            svg_layer: interactive.svg_layer,
-        }
+    let result = if let Some(svg_url) = interactive.svg_path.as_deref() {
+        process_svg_map(client, &normalized_name, svg_url, force).await?
     } else if let Some(tile_template) = interactive.tile_path.as_deref() {
         let min_zoom = interactive
             .min_zoom
@@ -446,23 +514,18 @@ async fn convert_group(
             .ok_or_else(|| color_eyre::eyre::eyre!("Missing maxZoom for '{normalized_name}'"))?;
         let tile_size = interactive.tile_size.unwrap_or(256);
 
-        let local_template = ensure_tile_assets(
+        process_tile_map(
             client,
             &normalized_name,
             tile_template,
-            min_zoom,
-            max_zoom,
-            multi_progress,
-            force,
-        )
-        .await?;
-
-        MapSource::Tiles {
-            template: local_template,
             tile_size,
             min_zoom,
             max_zoom,
-        }
+            tile_zoom_offset,
+            multi_progress,
+            force,
+        )
+        .await?
     } else {
         return Err(color_eyre::eyre::eyre!(
             "Interactive map '{normalized_name}' has no svgPath or tilePath"
@@ -472,13 +535,14 @@ async fn convert_group(
     Ok(Some(Map {
         normalized_name,
         name,
+        image_path: result.image_path,
+        image_size: result.image_size,
         alt_maps: interactive.alt_maps,
         author: interactive.author,
         author_link: interactive.author_link,
         transform: interactive.transform,
         coordinate_rotation: interactive.coordinate_rotation,
         bounds: interactive.bounds,
-        source,
         height_range: interactive.height_range,
         layers: interactive
             .layers
@@ -547,7 +611,7 @@ async fn main() -> color_eyre::Result<()> {
     let args = Args::parse();
 
     if args.force {
-        println!("Force mode enabled - re-downloading all assets");
+        println!("Force mode enabled - re-processing all assets");
     }
 
     let client = reqwest::Client::new();
@@ -558,7 +622,6 @@ async fn main() -> color_eyre::Result<()> {
 
     println!("Fetching maps from tarkov-dev...");
 
-    // Fetch the maps JSON from GitHub
     let response = client
         .get(MAPS_JSON_URL)
         .header(reqwest::header::USER_AGENT, USER_AGENT)
@@ -575,14 +638,11 @@ async fn main() -> color_eyre::Result<()> {
     let json_text = response.text().await?;
     println!("Fetched {} bytes of JSON", json_text.len());
 
-    // Parse the JSON into our fetched types
     let fetched_maps: Vec<FetchedMapGroup> = serde_json::from_str(&json_text)?;
     println!("Parsed {} map groups\n", fetched_maps.len());
 
-    // Set up multi-progress for concurrent progress bars
     let multi_progress = MultiProgress::new();
 
-    // Create main progress bar for map processing
     let maps_pb = multi_progress.add(ProgressBar::new(fetched_maps.len() as u64));
     maps_pb.set_style(
         ProgressStyle::default_bar()
@@ -591,7 +651,6 @@ async fn main() -> color_eyre::Result<()> {
             .progress_chars("=>-"),
     );
 
-    // Convert to the library types (one interactive map per group)
     let mut skipped = 0usize;
     let mut maps: TarkovMaps = Vec::new();
 
@@ -599,7 +658,16 @@ async fn main() -> color_eyre::Result<()> {
         let group_name = group.normalized_name.clone();
         maps_pb.set_message(group_name.clone());
 
-        match convert_group(&client, group, &map_names, &multi_progress, args.force).await? {
+        match convert_group(
+            &client,
+            group,
+            &map_names,
+            &multi_progress,
+            args.force,
+            args.tile_zoom_offset,
+        )
+        .await?
+        {
             Some(map) => maps.push(map),
             None => skipped += 1,
         }
@@ -610,12 +678,11 @@ async fn main() -> color_eyre::Result<()> {
     maps_pb.finish_with_message("Done");
 
     println!(
-        "\nSelected {} interactive maps (skipped {})",
+        "\nProcessed {} interactive maps (skipped {})",
         maps.len(),
         skipped
     );
 
-    // Serialize to RON with pretty formatting
     let pretty_config = PrettyConfig::new()
         .depth_limit(10)
         .indentor("  ".to_string())
@@ -625,16 +692,13 @@ async fn main() -> color_eyre::Result<()> {
     let ron_string = ron::ser::to_string_pretty(&maps, pretty_config)?;
     println!("Serialized to {} bytes of RON", ron_string.len());
 
-    // Ensure assets directory exists
-    fs::create_dir_all(repo_path(MAP_ASSETS_DIR))?;
+    fs::create_dir_all(repo_path(MAPS_DIR))?;
 
-    // Write to file
     let output_path = repo_path(MAPS_RON_PATH);
     fs::write(&output_path, &ron_string)?;
     println!("Wrote maps to {}", output_path.display());
 
-    // Print summary
-    println!("\nInteractive maps:");
+    println!("\nMaps:");
     for map in &maps {
         println!("  - {} ({})", map.name, map.normalized_name);
     }
