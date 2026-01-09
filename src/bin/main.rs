@@ -38,6 +38,9 @@ struct TarkovMapApp {
     zoom: f32,
     prev_zoom: f32,
 
+    /// Pan offset in display coordinates
+    pan_offset: egui::Vec2,
+
     /// Whether to show map labels
     show_labels: bool,
 
@@ -66,6 +69,7 @@ impl TarkovMapApp {
             selected_map: 0,
             zoom: 1.0,
             prev_zoom: 1.0,
+            pan_offset: egui::Vec2::ZERO,
             show_labels: true,
             asset_cache: HashMap::new(),
             texture_cache: HashMap::new(),
@@ -144,12 +148,12 @@ impl TarkovMapApp {
         }
     }
 
-    fn show_map(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, map: &Map) {
+    fn show_map(&mut self, ui: &mut egui::Ui, _ctx: &egui::Context, map: &Map) {
         let image_path = &map.image_path;
         let logical_size = egui::vec2(map.logical_size[0], map.logical_size[1]);
 
         // Request and poll the image
-        self.request_asset(ctx, image_path);
+        self.request_asset(_ctx, image_path);
         self.poll_asset(image_path);
 
         // Check loading state
@@ -169,15 +173,16 @@ impl TarkovMapApp {
         }
 
         // Get texture
-        let Some(texture) = self.get_texture(ctx, image_path) else {
+        let Some(texture) = self.get_texture(_ctx, image_path) else {
             ui.label("Failed to create texture");
             return;
         };
         let texture_id = texture.id();
 
-        let scroll_id = egui::Id::new("map_scroll");
-        let available_rect = ui.available_rect_before_wrap();
-        let viewport_size = available_rect.size();
+        // Allocate the full available area for interaction
+        let (viewport_rect, response) =
+            ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
+        let viewport_size = viewport_rect.size();
 
         // Calculate base scale to fit map in viewport at zoom 1.0
         let scale_x = viewport_size.x / logical_size.x;
@@ -187,11 +192,11 @@ impl TarkovMapApp {
         // Display size: fit to viewport, then apply zoom
         let display_size = logical_size * fit_scale * self.zoom;
 
-        // Handle mouse wheel zoom (before scroll area consumes the events)
+        // Handle mouse wheel zoom
         let hover_pos = ui.input(|i| i.pointer.hover_pos());
         let scroll_delta = ui.input(|i| i.raw_scroll_delta.y);
 
-        if scroll_delta != 0.0 && hover_pos.map_or(false, |p| available_rect.contains(p)) {
+        if scroll_delta != 0.0 && hover_pos.map_or(false, |p| viewport_rect.contains(p)) {
             let zoom_factor = if scroll_delta > 0.0 {
                 ZOOM_SPEED
             } else {
@@ -200,113 +205,64 @@ impl TarkovMapApp {
             let new_zoom = (self.zoom * zoom_factor).clamp(ZOOM_MIN, ZOOM_MAX);
 
             // Zoom towards mouse position
-            if let (Some(hover), Some(scroll_state)) =
-                (hover_pos, egui::scroll_area::State::load(ctx, scroll_id))
-            {
-                let old_offset = scroll_state.offset;
+            if let Some(hover) = hover_pos {
+                // Mouse position relative to viewport center
+                let viewport_center = viewport_rect.center();
+                let mouse_from_center = hover - viewport_center;
 
-                // Mouse position relative to viewport
-                let mouse_in_viewport = hover - available_rect.min;
-                // Mouse position in map coordinates (old zoom)
-                let mouse_in_map = old_offset + mouse_in_viewport;
+                // Current point on map under mouse (in display coords from center)
+                let map_point = mouse_from_center - self.pan_offset;
 
                 // Scale to new zoom
                 let zoom_ratio = new_zoom / self.zoom;
-                let new_mouse_in_map = mouse_in_map * zoom_ratio;
+                let new_map_point = map_point * zoom_ratio;
 
-                // New offset to keep mouse at same position
-                let new_offset = new_mouse_in_map - mouse_in_viewport;
-                let new_display_size = logical_size * fit_scale * new_zoom;
-                let max_offset = (new_display_size - viewport_size).max(egui::Vec2::ZERO);
-                let new_offset = egui::vec2(
-                    new_offset.x.clamp(0.0, max_offset.x),
-                    new_offset.y.clamp(0.0, max_offset.y),
-                );
-
-                let mut new_state = scroll_state;
-                new_state.offset = new_offset;
-                new_state.store(ctx, scroll_id);
+                // Adjust pan to keep mouse over same map point
+                self.pan_offset = mouse_from_center - new_map_point;
             }
 
             self.zoom = new_zoom;
         }
 
-        // Center-based zoom adjustment (for slider zoom)
+        // Handle slider zoom (center-based)
         let zoom_ratio = self.zoom / self.prev_zoom;
-        let needs_adjustment = (zoom_ratio - 1.0).abs() > 0.001 && scroll_delta == 0.0;
-
-        if needs_adjustment {
-            if let Some(scroll_state) = egui::scroll_area::State::load(ctx, scroll_id) {
-                let old_offset = scroll_state.offset;
-                let old_center = old_offset + viewport_size * 0.5;
-                let new_center = old_center * zoom_ratio;
-                let new_offset = new_center - viewport_size * 0.5;
-                let max_offset = (display_size - viewport_size).max(egui::Vec2::ZERO);
-                let new_offset = egui::vec2(
-                    new_offset.x.clamp(0.0, max_offset.x),
-                    new_offset.y.clamp(0.0, max_offset.y),
-                );
-
-                let mut new_state = scroll_state;
-                new_state.offset = new_offset;
-                new_state.store(ctx, scroll_id);
-            }
+        if (zoom_ratio - 1.0).abs() > 0.001 && scroll_delta == 0.0 {
+            self.pan_offset = self.pan_offset * zoom_ratio;
         }
 
-        egui::ScrollArea::both()
-            .id_salt(scroll_id)
-            .auto_shrink([false, false])
-            .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
-            .show(ui, |ui| {
-                // Center horizontally if map is narrower than viewport
-                let h_padding = ((viewport_size.x - display_size.x) / 2.0).max(0.0);
+        // Handle drag panning
+        if response.dragged() {
+            self.pan_offset += response.drag_delta();
+        }
 
-                ui.horizontal(|ui| {
-                    if h_padding > 0.0 {
-                        ui.add_space(h_padding);
-                    }
+        // Clamp pan offset to keep map in view
+        let max_pan = ((display_size - viewport_size) / 2.0).max(egui::Vec2::ZERO);
+        self.pan_offset = egui::vec2(
+            self.pan_offset.x.clamp(-max_pan.x, max_pan.x),
+            self.pan_offset.y.clamp(-max_pan.y, max_pan.y),
+        );
 
-                    ui.vertical(|ui| {
-                        let (rect, response) =
-                            ui.allocate_exact_size(display_size, egui::Sense::drag());
+        // Calculate map rect (centered in viewport, offset by pan)
+        let map_center = viewport_rect.center() + self.pan_offset;
+        let map_rect = egui::Rect::from_center_size(map_center, display_size);
 
-                        // Handle drag panning
-                        if response.dragged() {
-                            if let Some(mut scroll_state) =
-                                egui::scroll_area::State::load(ctx, scroll_id)
-                            {
-                                let delta = response.drag_delta();
-                                scroll_state.offset -= delta;
+        // Clip to viewport
+        ui.set_clip_rect(viewport_rect);
 
-                                // Clamp to valid range
-                                let max_offset =
-                                    (display_size - viewport_size).max(egui::Vec2::ZERO);
-                                scroll_state.offset = egui::vec2(
-                                    scroll_state.offset.x.clamp(0.0, max_offset.x),
-                                    scroll_state.offset.y.clamp(0.0, max_offset.y),
-                                );
+        // Draw the map image
+        ui.painter().image(
+            texture_id,
+            map_rect,
+            egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+            egui::Color32::WHITE,
+        );
 
-                                scroll_state.store(ctx, scroll_id);
-                            }
-                        }
-
-                        // Draw the map image
-                        ui.painter().image(
-                            texture_id,
-                            rect,
-                            egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
-                            egui::Color32::WHITE,
-                        );
-
-                        // Draw labels
-                        if self.show_labels {
-                            if let Some(labels) = &map.labels {
-                                draw_labels(ui, rect, map, labels, self.zoom);
-                            }
-                        }
-                    });
-                });
-            });
+        // Draw labels
+        if self.show_labels {
+            if let Some(labels) = &map.labels {
+                draw_labels(ui, map_rect, map, labels, self.zoom);
+            }
+        }
     }
 }
 
@@ -322,9 +278,10 @@ impl eframe::App for TarkovMapApp {
             if i.key_pressed(egui::Key::Minus) {
                 self.zoom = (self.zoom / ZOOM_SPEED).clamp(ZOOM_MIN, ZOOM_MAX);
             }
-            // 0 to reset zoom
+            // 0 to reset zoom and pan
             if i.key_pressed(egui::Key::Num0) {
                 self.zoom = 1.0;
+                self.pan_offset = egui::Vec2::ZERO;
             }
             // L to toggle labels
             if i.key_pressed(egui::Key::L) {
@@ -347,6 +304,7 @@ impl eframe::App for TarkovMapApp {
                     .map(|map| map.name.as_str())
                     .unwrap_or("(unknown)");
 
+                let prev_selected = self.selected_map;
                 egui::ComboBox::from_id_salt("map")
                     .selected_text(selected_map_name)
                     .show_ui(ui, |ui| {
@@ -354,6 +312,12 @@ impl eframe::App for TarkovMapApp {
                             ui.selectable_value(&mut self.selected_map, idx, &map.name);
                         }
                     });
+
+                // Reset view when map changes
+                if self.selected_map != prev_selected {
+                    self.zoom = 1.0;
+                    self.pan_offset = egui::Vec2::ZERO;
+                }
 
                 ui.separator();
 
@@ -365,6 +329,7 @@ impl eframe::App for TarkovMapApp {
 
                 if ui.button("Fit").clicked() {
                     self.zoom = 1.0;
+                    self.pan_offset = egui::Vec2::ZERO;
                 }
 
                 ui.label(format!("{:.0}x", self.zoom));
