@@ -2,7 +2,7 @@
   Map(
     normalizedName: "streets-of-tarkov",
     name: "Streets of Tarkov",
-    imagePath: "assets/maps/streets-of-tarkov.png",
+    imagePath: "maps/streets-of-tarkov.png",
     imageSize: (605.0, 831.5),
     logicalSize: (603.0, 871.0),
     author: Some("Shebuka"),
@@ -2161,7 +2161,7 @@
   Map(
     normalizedName: "ground-zero",
     name: "Ground Zero",
-    imagePath: "assets/maps/ground-zero.png",
+    imagePath: "maps/ground-zero.png",
     imageSize: (348.5, 488.0),
     logicalSize: (348.0, 488.0),
     altMaps: Some([
@@ -3234,7 +3234,7 @@
   Map(
     normalizedName: "customs",
     name: "Customs",
-    imagePath: "assets/maps/customs.png",
+    imagePath: "maps/customs.png",
     imageSize: (1062.0, 535.0),
     logicalSize: (1070.0, 544.0),
     author: Some("Shebuka"),
@@ -4810,7 +4810,7 @@
   Map(
     normalizedName: "factory",
     name: "Factory",
-    imagePath: "assets/maps/factory.png",
+    imagePath: "maps/factory.png",
     imageSize: (130.5, 141.0),
     logicalSize: (145.5, 131.9),
     altMaps: Some([
@@ -5863,7 +5863,7 @@
   Map(
     normalizedName: "interchange",
     name: "Interchange",
-    imagePath: "assets/maps/interchange.png",
+    imagePath: "maps/interchange.png",
     imageSize: (977.0, 977.0),
     logicalSize: (896.75, 896.25),
     author: Some("Shebuka"),
@@ -7655,7 +7655,7 @@
   Map(
     normalizedName: "the-lab",
     name: "The Lab",
-    imagePath: "assets/maps/the-lab.png",
+    imagePath: "maps/the-lab.png",
     imageSize: (175.0, 175.0),
     logicalSize: (207.0, 284.0),
     author: Some("Tarkov.dev"),
@@ -8630,7 +8630,7 @@
   Map(
     normalizedName: "the-labyrinth",
     name: "The Labyrinth",
-    imagePath: "assets/maps/the-labyrinth.png",
+    imagePath: "maps/the-labyrinth.png",
     imageSize: (256.0, 256.0),
     logicalSize: (105.0, 113.0),
     author: Some("Tarkov.dev"),
@@ -8702,7 +8702,7 @@
   Map(
     normalizedName: "lighthouse",
     name: "Lighthouse",
-    imagePath: "assets/maps/lighthouse.png",
+    imagePath: "maps/lighthouse.png",
     imageSize: (1059.0, 1722.5),
     logicalSize: (1060.0, 1723.0),
     author: Some("Shebuka"),
@@ -9413,7 +9413,7 @@
   Map(
     normalizedName: "reserve",
     name: "Reserve",
-    imagePath: "assets/maps/reserve.png",
+    imagePath: "maps/reserve.png",
     imageSize: (827.0, 761.0),
     logicalSize: (592.0, 537.0),
     author: Some("Shebuka"),
@@ -10687,7 +10687,7 @@
   Map(
     normalizedName: "shoreline",
     name: "Shoreline",
-    imagePath: "assets/maps/shoreline.png",
+    imagePath: "maps/shoreline.png",
     imageSize: (1559.5, 1032.0),
     logicalSize: (1568.0, 1033.0),
     author: Some("Shebuka"),
@@ -12111,7 +12111,7 @@
   Map(
     normalizedName: "woods",
     name: "Woods",
-    imagePath: "assets/maps/woods.png",
+    imagePath: "maps/woods.png",
     imageSize: (1401.5, 1420.5),
     logicalSize: (1412.0, 1415.0),
     author: Some("Shebuka"),

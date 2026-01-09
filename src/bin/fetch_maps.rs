@@ -112,7 +112,10 @@ const MAPS_JSON_URL: &str =
 const TARKOV_DEV_GRAPHQL_URL: &str = "https://api.tarkov.dev/graphql";
 const USER_AGENT: &str = "tarkov-map";
 const MAPS_RON_PATH: &str = "assets/maps.ron";
+/// Physical directory for storing map images on disk
 const MAPS_DIR: &str = "assets/maps";
+/// Path prefix for maps.ron (relative to assets/ for rust-embed)
+const MAPS_PATH_PREFIX: &str = "maps";
 const TILE_DOWNLOAD_CONCURRENCY: usize = 32;
 const SVG_RENDER_SCALE: f32 = 2.0;
 
@@ -404,11 +407,11 @@ async fn process_svg_map(
     svg_url: &str,
     force: bool,
 ) -> Result<ImageResult> {
-    let image_relative = format!("{MAPS_DIR}/{normalized_name}.png");
-    let image_path = repo_path(&image_relative);
+    let image_relative = format!("{MAPS_PATH_PREFIX}/{normalized_name}.png");
+    let image_disk_path = repo_path(&format!("{MAPS_DIR}/{normalized_name}.png"));
 
-    if !force && image_path.exists() {
-        let img = image::open(&image_path).context("Failed to open existing PNG")?;
+    if !force && image_disk_path.exists() {
+        let img = image::open(&image_disk_path).context("Failed to open existing PNG")?;
         let source_size = [
             img.width() as f32 / SVG_RENDER_SCALE,
             img.height() as f32 / SVG_RENDER_SCALE,
@@ -447,9 +450,9 @@ async fn process_svg_map(
         &mut pixmap.as_mut(),
     );
 
-    async_fs::create_dir_all(image_path.parent().unwrap()).await?;
+    async_fs::create_dir_all(image_disk_path.parent().unwrap()).await?;
     pixmap
-        .save_png(&image_path)
+        .save_png(&image_disk_path)
         .map_err(|e| eyre!("Failed to save PNG: {e}"))?;
 
     Ok(ImageResult {
@@ -470,15 +473,15 @@ async fn process_tile_map(
     multi_progress: &MultiProgress,
     force: bool,
 ) -> Result<ImageResult> {
-    let image_relative = format!("{MAPS_DIR}/{normalized_name}.png");
-    let image_path = repo_path(&image_relative);
+    let image_relative = format!("{MAPS_PATH_PREFIX}/{normalized_name}.png");
+    let image_disk_path = repo_path(&format!("{MAPS_DIR}/{normalized_name}.png"));
 
     let zoom = (max_zoom - zoom_offset).max(min_zoom);
     let tiles_per_axis = 1u32 << zoom;
     let full_size = tiles_per_axis * tile_size as u32;
     let source_size = [tile_size as f32, tile_size as f32];
 
-    if !force && image_path.exists() {
+    if !force && image_disk_path.exists() {
         return Ok(ImageResult {
             image_path: image_relative,
             image_size: source_size,
@@ -562,8 +565,8 @@ async fn process_tile_map(
 
     compose_pb.finish_and_clear();
 
-    async_fs::create_dir_all(image_path.parent().unwrap()).await?;
-    full_image.save(&image_path)?;
+    async_fs::create_dir_all(image_disk_path.parent().unwrap()).await?;
+    full_image.save(&image_disk_path)?;
 
     Ok(ImageResult {
         image_path: image_relative,

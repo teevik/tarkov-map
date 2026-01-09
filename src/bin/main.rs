@@ -1,12 +1,17 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use eframe::egui::{self, ColorImage, TextureHandle, TextureOptions};
+use rust_embed::RustEmbed;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use tarkov_map::{Extract, Label, Map, Spawn, TarkovMaps};
 
-const MAPS_RON_PATH: &str = "assets/maps.ron";
+/// Embeds all assets from the assets/ directory into the binary.
+/// In debug mode, assets are loaded from the filesystem for faster iteration.
+/// In release mode, assets are compressed and embedded in the binary.
+#[derive(RustEmbed)]
+#[folder = "assets/"]
+struct Assets;
 const SIDEBAR_WIDTH: f32 = 200.0;
 const ZOOM_MIN: f32 = 1.0;
 const ZOOM_MAX: f32 = 10.0;
@@ -82,9 +87,7 @@ struct TarkovMapApp {
 
 impl TarkovMapApp {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let maps_path = format!("{}/{}", env!("CARGO_MANIFEST_DIR"), MAPS_RON_PATH);
-
-        let (maps, load_error) = match load_maps(&maps_path) {
+        let (maps, load_error) = match load_maps() {
             Ok(maps) => (maps, None),
             Err(err) => (Vec::new(), Some(err)),
         };
@@ -92,14 +95,18 @@ impl TarkovMapApp {
         let runtime = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
         let mut asset_cache = HashMap::new();
 
-        // Preload all map images in background
+        // Preload all map images in background using blocking tasks for image decoding
         for map in &maps {
             let (tx, rx) = mpsc::channel();
             let ctx = cc.egui_ctx.clone();
             let asset_path = map.image_path.clone();
 
             runtime.spawn(async move {
-                let result = load_and_decode_image(&asset_path).await;
+                let result =
+                    tokio::task::spawn_blocking(move || load_and_decode_image(&asset_path))
+                        .await
+                        .map_err(|e| format!("Task join error: {e}"))
+                        .and_then(|r| r);
                 let _ = tx.send(result);
                 ctx.request_repaint();
             });
@@ -410,10 +417,7 @@ impl TarkovMapApp {
 
             let Some(map) = selected_map else {
                 ui.centered_and_justified(|ui| {
-                    ui.label(format!(
-                        "No map data.\nRun `cargo run --bin fetch_maps` to generate {}.",
-                        MAPS_RON_PATH
-                    ));
+                    ui.label("No map data.\nRun `cargo run --bin fetch_maps` to generate assets.");
                 });
                 return;
             };
@@ -746,39 +750,26 @@ fn draw_extracts(
     }
 }
 
-fn resolve_asset_path(path: &str) -> PathBuf {
-    let path = Path::new(path);
-    if path.is_absolute() {
-        path.to_path_buf()
-    } else {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(path)
-    }
-}
+fn load_and_decode_image(path: &str) -> Result<DecodedImage, String> {
+    let file = Assets::get(path).ok_or_else(|| format!("Asset not found: {path}"))?;
 
-async fn load_and_decode_image(path: &str) -> Result<DecodedImage, String> {
-    let resolved = resolve_asset_path(path);
-    let bytes = tokio::fs::read(&resolved)
-        .await
-        .map_err(|err| format!("Failed to read {}: {err}", resolved.display()))?;
+    let img = image::load_from_memory(&file.data)
+        .map_err(|err| format!("Decode error for {path}: {err}"))?;
+    let rgba = img.to_rgba8();
+    let (width, height) = rgba.dimensions();
 
-    tokio::task::spawn_blocking(move || {
-        let img = image::load_from_memory(&bytes).map_err(|err| format!("Decode error: {err}"))?;
-        let rgba = img.to_rgba8();
-        let (width, height) = rgba.dimensions();
-        Ok(DecodedImage {
-            pixels: rgba.into_raw(),
-            width,
-            height,
-        })
+    Ok(DecodedImage {
+        pixels: rgba.into_raw(),
+        width,
+        height,
     })
-    .await
-    .map_err(|err| format!("Task join error: {err}"))?
 }
 
-fn load_maps(path: &str) -> Result<TarkovMaps, String> {
-    let ron_string = std::fs::read_to_string(path)
-        .map_err(|err| format!("Failed to read maps file {path}: {err}"))?;
-    ron::from_str(&ron_string).map_err(|err| format!("Failed to parse maps file {path}: {err}"))
+fn load_maps() -> Result<TarkovMaps, String> {
+    let file = Assets::get("maps.ron").ok_or("maps.ron not found in embedded assets")?;
+    let ron_string =
+        std::str::from_utf8(&file.data).map_err(|e| format!("Invalid UTF-8 in maps.ron: {e}"))?;
+    ron::from_str(ron_string).map_err(|err| format!("Failed to parse maps.ron: {err}"))
 }
 
 fn main() -> eframe::Result {
