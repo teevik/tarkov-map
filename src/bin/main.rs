@@ -446,8 +446,8 @@ impl TarkovMapApp {
     fn show_sidebar(&mut self, ui: &mut egui::Ui) {
         ui.add_space(4.0);
 
-        // ===== MAPS SECTION =====
-        ui.strong("MAPS");
+        // ===== Maps Section =====
+        ui.strong("Maps");
         ui.separator();
 
         if self.maps.is_empty() {
@@ -471,7 +471,7 @@ impl TarkovMapApp {
         ui.add_space(12.0);
 
         // ===== OVERLAYS SECTION =====
-        ui.strong("OVERLAYS");
+        ui.strong("Overlays");
         ui.separator();
 
         // Labels toggle with white circle indicator
