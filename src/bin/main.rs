@@ -235,13 +235,6 @@ impl TarkovMapApp {
             self.pan_offset += response.drag_delta();
         }
 
-        // Clamp pan offset to keep map in view
-        let max_pan = ((display_size - viewport_size) / 2.0).max(egui::Vec2::ZERO);
-        self.pan_offset = egui::vec2(
-            self.pan_offset.x.clamp(-max_pan.x, max_pan.x),
-            self.pan_offset.y.clamp(-max_pan.y, max_pan.y),
-        );
-
         // Calculate map rect (centered in viewport, offset by pan)
         let map_center = viewport_rect.center() + self.pan_offset;
         let map_rect = egui::Rect::from_center_size(map_center, display_size);
@@ -331,8 +324,6 @@ impl eframe::App for TarkovMapApp {
                     self.zoom = 1.0;
                     self.pan_offset = egui::Vec2::ZERO;
                 }
-
-                ui.label(format!("{:.0}x", self.zoom));
 
                 ui.separator();
 
