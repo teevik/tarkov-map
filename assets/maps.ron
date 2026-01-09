@@ -2070,6 +2070,93 @@
         ],
       ),
     ]),
+    extracts: Some([
+      Extract(
+        name: "Entrance to Catacombs",
+        faction: "scav",
+        position: Some((-249.008026, 2.566, 243.797)),
+      ),
+      Extract(
+        name: "Ventilation Shaft",
+        faction: "scav",
+        position: Some((-124.127106, 3.114, 423.93)),
+      ),
+      Extract(
+        name: "Sewer Manhole",
+        faction: "scav",
+        position: Some((276.113, 5.356, 345.389984)),
+      ),
+      Extract(
+        name: "Near Kamchatskaya Arch",
+        faction: "scav",
+        position: Some((259.57, -3.929, 48.72)),
+      ),
+      Extract(
+        name: "Cardinal Apartment Complex Parking",
+        faction: "scav",
+        position: Some((104.84, 0.130000114, -161.170013)),
+      ),
+      Extract(
+        name: "Klimov Shopping Mall Exfil",
+        faction: "scav",
+        position: Some((-163.821014, 1.59100008, -5.65802)),
+      ),
+      Extract(
+        name: "Courtyard",
+        faction: "pmc",
+        position: Some((-148.947, 1.78600025, 500.151978)),
+      ),
+      Extract(
+        name: "Primorsky Ave Taxi V-Ex",
+        faction: "pmc",
+        position: Some((-2.191315, 3.2, 461.232971)),
+      ),
+      Extract(
+        name: "Stylobate Building Elevator",
+        faction: "pmc",
+        position: Some((-44.7435, 11.04, -72.15)),
+      ),
+      Extract(
+        name: "Crash Site",
+        faction: "pmc",
+        position: Some((312.74, 6.8, 405.96)),
+      ),
+      Extract(
+        name: "Sewer River",
+        faction: "pmc",
+        position: Some((-267.04, -1.535, 219.48)),
+      ),
+      Extract(
+        name: "Damaged House",
+        faction: "pmc",
+        position: Some((-248.971, 7.195, 344.275)),
+      ),
+      Extract(
+        name: "Collapsed Crane",
+        faction: "pmc",
+        position: Some((216.12, 3.44, 272.7)),
+      ),
+      Extract(
+        name: "Klimov Street (Flare)",
+        faction: "pmc",
+        position: Some((-263.41, 2.9, 43.19)),
+      ),
+      Extract(
+        name: "Pinewood Basement (Co-Op)",
+        faction: "shared",
+        position: Some((-114.28, -2.05, 64.88)),
+      ),
+      Extract(
+        name: "Expo Checkpoint",
+        faction: "pmc",
+        position: Some((213.12, 0.09, -104.96)),
+      ),
+      Extract(
+        name: "Smugglers\' Basement",
+        faction: "pmc",
+        position: Some((75.99, -0.6029999, 50.0100021)),
+      ),
+    ]),
   ),
   Map(
     normalizedName: "ground-zero",
@@ -3109,6 +3196,38 @@
         categories: [
           "player",
         ],
+      ),
+    ]),
+    extracts: Some([
+      Extract(
+        name: "Police Cordon V-Ex",
+        faction: "pmc",
+        position: Some((-19.5134068, 23.7110023, 114.942139)),
+      ),
+      Extract(
+        name: "Emercom Checkpoint",
+        faction: "shared",
+        position: Some((151.625, 24.662056, -97.45658)),
+      ),
+      Extract(
+        name: "Scav Checkpoint (Co-op)",
+        faction: "shared",
+        position: Some((25.2195644, 24.5091858, -79.5413742)),
+      ),
+      Extract(
+        name: "Nakatani Basement Stairs",
+        faction: "shared",
+        position: Some((-16.1249924, 14.7620564, 335.063416)),
+      ),
+      Extract(
+        name: "Mira Ave (Flare)",
+        faction: "pmc",
+        position: Some((218.225, 17.9920559, -38.5065842)),
+      ),
+      Extract(
+        name: "Tartowers Sales Office",
+        faction: "pmc",
+        position: Some((190.804, 17.6449986, 133.388992)),
       ),
     ]),
   ),
@@ -4550,6 +4669,143 @@
         ],
       ),
     ]),
+    extracts: Some([
+      Extract(
+        name: "ZB-013",
+        faction: "pmc",
+        position: Some((200.9755, -1.1484108, -153.086456)),
+      ),
+      Extract(
+        name: "Dorms V-Ex",
+        faction: "pmc",
+        position: Some((181.08, -0.71, 213.25)),
+      ),
+      Extract(
+        name: "ZB-1011",
+        faction: "pmc",
+        position: Some((621.4962, -2.07000017, -128.604919)),
+      ),
+      Extract(
+        name: "Crossroads",
+        faction: "shared",
+        position: Some((-334.804016, 2.19002676, -87.97917)),
+      ),
+      Extract(
+        name: "Old Gas Station",
+        faction: "pmc",
+        position: Some((309.499634, -2.182013, -174.320175)),
+      ),
+      Extract(
+        name: "Trailer Park",
+        faction: "pmc",
+        position: Some((-313.720276, -1.72000742, -233.280121)),
+      ),
+      Extract(
+        name: "RUAF Roadblock",
+        faction: "pmc",
+        position: Some((-10.250061, 1.92000723, -138.450043)),
+      ),
+      Extract(
+        name: "Military Base CP",
+        faction: "scav",
+        position: Some((644.87915, 2.400003, 126.867371)),
+      ),
+      Extract(
+        name: "Passage Between Rocks",
+        faction: "scav",
+        position: Some((539.394, 11.8200016, 200.3388)),
+      ),
+      Extract(
+        name: "Railroad to Military Base",
+        faction: "scav",
+        position: Some((489.058228, 3.950006, 221.391266)),
+      ),
+      Extract(
+        name: "Old Road Gate",
+        faction: "scav",
+        position: Some((181.769958, 1.4999938, 214.01001)),
+      ),
+      Extract(
+        name: "Sniper Roadblock",
+        faction: "scav",
+        position: Some((15.0805054, 0.139977932, 126.291855)),
+      ),
+      Extract(
+        name: "Railroad to Port",
+        faction: "scav",
+        position: Some((-149.109558, -0.629980564, 46.68419)),
+      ),
+      Extract(
+        name: "Trailer Park Workers\' Shack",
+        faction: "scav",
+        position: Some((-248.543152, 2.550012, -232.991119)),
+      ),
+      Extract(
+        name: "Railroad to Tarkov",
+        faction: "scav",
+        position: Some((-163.4682, 3.389978, -217.452026)),
+      ),
+      Extract(
+        name: "RUAF Roadblock",
+        faction: "scav",
+        position: Some((-9.436584, 1.6499877, -138.743988)),
+      ),
+      Extract(
+        name: "Warehouse 17",
+        faction: "scav",
+        position: Some((50.7402344, 2.13601065, -69.8183746)),
+      ),
+      Extract(
+        name: "Factory Shacks",
+        faction: "scav",
+        position: Some((205.5899, 3.719995, 3.31001282)),
+      ),
+      Extract(
+        name: "Warehouse 4",
+        faction: "scav",
+        position: Some((341.569946, 3.550012, -25.84999)),
+      ),
+      Extract(
+        name: "Old Gas Station Gate",
+        faction: "scav",
+        position: Some((300.509, 3.469995, -198.522247)),
+      ),
+      Extract(
+        name: "Factory Far Corner",
+        faction: "scav",
+        position: Some((652.454834, 3.19999838, -160.48848)),
+      ),
+      Extract(
+        name: "Administration Gate",
+        faction: "scav",
+        position: Some((671.13, 3.19999838, -54.6699753)),
+      ),
+      Extract(
+        name: "Railroad Passage (Flare)",
+        faction: "pmc",
+        position: Some((139.592712, 3.800012, -324.7145)),
+      ),
+      Extract(
+        name: "Scav Checkpoint",
+        faction: "scav",
+        position: Some((652.24, 1.00499988, -27.1200027)),
+      ),
+      Extract(
+        name: "Boiler Room Basement (Co-op)",
+        faction: "shared",
+        position: Some((100.56, -4.98, -44.42)),
+      ),
+      Extract(
+        name: "Smugglers\' Boat",
+        faction: "pmc",
+        position: Some((-41.5100021, -12.633, 122.67)),
+      ),
+      Extract(
+        name: "Smugglers\' Bunker (ZB-1012)",
+        faction: "pmc",
+        position: Some((463.18, -1.46, -112.36)),
+      ),
+    ]),
   ),
   Map(
     normalizedName: "factory",
@@ -5554,6 +5810,53 @@
         categories: [
           "player",
         ],
+      ),
+    ]),
+    extracts: Some([
+      Extract(
+        name: "Cellars",
+        faction: "pmc",
+        position: Some((73.89422, -3.2876668, -29.0818882)),
+      ),
+      Extract(
+        name: "Gate 3",
+        faction: "scav",
+        position: Some((58.709, 1.59233332, 60.86811)),
+      ),
+      Extract(
+        name: "Gate 3",
+        faction: "pmc",
+        position: Some((58.43222, 3.17233324, 63.29811)),
+      ),
+      Extract(
+        name: "Camera Bunker Door",
+        faction: "scav",
+        position: Some((-15.71578, -1.64766669, 40.1081123)),
+      ),
+      Extract(
+        name: "Office Window",
+        faction: "scav",
+        position: Some((17.8332214, 8.730333, 39.8851128)),
+      ),
+      Extract(
+        name: "Gate 0",
+        faction: "pmc",
+        position: Some((-63.66578, 2.85233331, 55.8781128)),
+      ),
+      Extract(
+        name: "Med Tent Gate",
+        faction: "pmc",
+        position: Some((-17.5257778, 1.99233329, -61.27189)),
+      ),
+      Extract(
+        name: "Courtyard Gate",
+        faction: "pmc",
+        position: Some((23.7642212, 1.3623333, 68.93811)),
+      ),
+      Extract(
+        name: "Smugglers\' Passage",
+        faction: "pmc",
+        position: Some((48.026, -1.61300015, -28.8580017)),
       ),
     ]),
   ),
@@ -7316,6 +7619,38 @@
         ],
       ),
     ]),
+    extracts: Some([
+      Extract(
+        name: "Emercom Checkpoint",
+        faction: "shared",
+        position: Some((-321.56, 24.18, 266.74)),
+      ),
+      Extract(
+        name: "Railway Exfil",
+        faction: "shared",
+        position: Some((472.32, 20.92, -429.74)),
+      ),
+      Extract(
+        name: "Power Station V-Ex",
+        faction: "pmc",
+        position: Some((-251.92, 21.72, -367.13)),
+      ),
+      Extract(
+        name: "Scav Camp (Co-Op)",
+        faction: "shared",
+        position: Some((278.69, 21.94955, -30.97)),
+      ),
+      Extract(
+        name: "Hole in the Fence",
+        faction: "pmc",
+        position: Some((-219.92, 22.79, -37.02)),
+      ),
+      Extract(
+        name: "Saferoom Exfil",
+        faction: "pmc",
+        position: Some((-47.73, 22.97, 44.055)),
+      ),
+    ]),
   ),
   Map(
     normalizedName: "the-lab",
@@ -8254,6 +8589,43 @@
         ],
       ),
     ]),
+    extracts: Some([
+      Extract(
+        name: "Medical Block Elevator",
+        faction: "shared",
+        position: Some((-112.423, -3.10999966, -343.986)),
+      ),
+      Extract(
+        name: "Cargo Elevator",
+        faction: "shared",
+        position: Some((-112.152, 5.376, -408.64)),
+      ),
+      Extract(
+        name: "Main Elevator",
+        faction: "shared",
+        position: Some((-282.304016, -3.631999, -334.896)),
+      ),
+      Extract(
+        name: "Ventilation Shaft",
+        faction: "pmc",
+        position: Some((-144.94, -2.37, -396.826)),
+      ),
+      Extract(
+        name: "Sewage Conduit",
+        faction: "pmc",
+        position: Some((-122.889992, -3.65600014, -258.3245)),
+      ),
+      Extract(
+        name: "Parking Gate",
+        faction: "pmc",
+        position: Some((-231.73, 0.77356863, -434.816376)),
+      ),
+      Extract(
+        name: "Hangar Gate",
+        faction: "pmc",
+        position: Some((-170.66, 1.54, -245.94)),
+      ),
+    ]),
   ),
   Map(
     normalizedName: "the-labyrinth",
@@ -8312,6 +8684,18 @@
         categories: [
           "player",
         ],
+      ),
+    ]),
+    extracts: Some([
+      Extract(
+        name: "The Way Up",
+        faction: "pmc",
+        position: Some((-7.31, -0.0119999647, 40.127)),
+      ),
+      Extract(
+        name: "Ariadne\'s Path",
+        faction: "pmc",
+        position: Some((19.443, 1.07, 0.495)),
       ),
     ]),
   ),
@@ -8956,6 +9340,73 @@
         categories: [
           "player",
         ],
+      ),
+    ]),
+    extracts: Some([
+      Extract(
+        name: "Armored Train",
+        faction: "shared",
+        position: Some((6.27001953, 14.1133, -873.78)),
+      ),
+      Extract(
+        name: "Road to Military Base V-Ex",
+        faction: "pmc",
+        position: Some((-328.951263, 16.73, -784.3581)),
+      ),
+      Extract(
+        name: "Side Tunnel (Co-Op)",
+        faction: "shared",
+        position: Some((-68.3, 6.83, 318.11)),
+      ),
+      Extract(
+        name: "Mountain Pass",
+        faction: "pmc",
+        position: Some((-172.35, 41.89, -6.39)),
+      ),
+      Extract(
+        name: "Path to Shoreline",
+        faction: "pmc",
+        position: Some((-364.4, 28.758, -121.4)),
+      ),
+      Extract(
+        name: "Path to Shoreline",
+        faction: "scav",
+        position: Some((-364.4, 28.758, -121.4)),
+      ),
+      Extract(
+        name: "Northern Checkpoint",
+        faction: "pmc",
+        position: Some((113.22, 11.86, -989.23)),
+      ),
+      Extract(
+        name: "Southern Road",
+        faction: "pmc",
+        position: Some((-295.8, 11.86, 420.6)),
+      ),
+      Extract(
+        name: "Southern Road Landslide",
+        faction: "scav",
+        position: Some((-281.3, 11.86, 420.8)),
+      ),
+      Extract(
+        name: "Hideout Under the Landing Stage",
+        faction: "scav",
+        position: Some((133.068, -0.467, 286.842)),
+      ),
+      Extract(
+        name: "Scav Hideout at the Grotto",
+        faction: "scav",
+        position: Some((180.66, 1.18, -485.94)),
+      ),
+      Extract(
+        name: "Industrial Zone Gates",
+        faction: "scav",
+        position: Some((-152.56, 12.25, -794.1)),
+      ),
+      Extract(
+        name: "Passage by the Lake",
+        faction: "pmc",
+        position: Some((-360.0, 27.19, -564.87)),
       ),
     ]),
   ),
@@ -10173,6 +10624,63 @@
         categories: [
           "player",
         ],
+      ),
+    ]),
+    extracts: Some([
+      Extract(
+        name: "Armored Train",
+        faction: "shared",
+        position: Some((144.986, -3.92, -147.352)),
+      ),
+      Extract(
+        name: "D-2",
+        faction: "pmc",
+        position: Some((-121.479065, -17.0010071, 172.24913)),
+      ),
+      Extract(
+        name: "Bunker Hermetic Door",
+        faction: "shared",
+        position: Some((61.9206619, -5.257, -190.541931)),
+      ),
+      Extract(
+        name: "Cliff Descent",
+        faction: "pmc",
+        position: Some((-9.24, 20.93, 208.43)),
+      ),
+      Extract(
+        name: "Scav Lands (Co-Op)",
+        faction: "shared",
+        position: Some((-127.9, -3.28, -142.59)),
+      ),
+      Extract(
+        name: "Sewer Manhole",
+        faction: "shared",
+        position: Some((40.18, -5.12, 76.45)),
+      ),
+      Extract(
+        name: "Hole in the Wall by the Mountains",
+        faction: "scav",
+        position: Some((-261.43, -6.34, 48.52)),
+      ),
+      Extract(
+        name: "Heating Pipe",
+        faction: "scav",
+        position: Some((-35.26, -5.15, -180.12)),
+      ),
+      Extract(
+        name: "Depot Hermetic Door",
+        faction: "scav",
+        position: Some((120.78, -10.27, -120.352)),
+      ),
+      Extract(
+        name: "Checkpoint Fence",
+        faction: "scav",
+        position: Some((61.97, -4.43, 134.31)),
+      ),
+      Extract(
+        name: "Exit to Woods",
+        faction: "pmc",
+        position: Some((36.53, -5.97000027, -221.56)),
       ),
     ]),
   ),
@@ -11527,6 +12035,78 @@
         ],
       ),
     ]),
+    extracts: Some([
+      Extract(
+        name: "Road to North V-Ex",
+        faction: "pmc",
+        position: Some((-543.264038, -16.8420162, -379.651367)),
+      ),
+      Extract(
+        name: "Road to Customs",
+        faction: "pmc",
+        position: Some((-859.05, -42.07, 0.49)),
+      ),
+      Extract(
+        name: "Railway Bridge",
+        faction: "pmc",
+        position: Some((-1029.29, -60.79, 307.59)),
+      ),
+      Extract(
+        name: "Tunnel",
+        faction: "pmc",
+        position: Some((376.36, -55.9399757, 319.25)),
+      ),
+      Extract(
+        name: "Path to Lighthouse",
+        faction: "pmc",
+        position: Some((448.9, -44.7, -254.6)),
+      ),
+      Extract(
+        name: "Road to Customs",
+        faction: "scav",
+        position: Some((-859.05, -42.07, 0.49)),
+      ),
+      Extract(
+        name: "Lighthouse",
+        faction: "scav",
+        position: Some((-458.1507, -54.289978, 567.2876)),
+      ),
+      Extract(
+        name: "Ruined Road",
+        faction: "scav",
+        position: Some((366.62, -61.12998, 332.51)),
+      ),
+      Extract(
+        name: "East Wing Gym Entrance",
+        faction: "scav",
+        position: Some((-296.9457, -6.629977, -100.892)),
+      ),
+      Extract(
+        name: "Admin Basement",
+        faction: "scav",
+        position: Some((-256.87, -7.70797729, -149.782379)),
+      ),
+      Extract(
+        name: "Smugglers\' Path (Co-op)",
+        faction: "shared",
+        position: Some((-729.4, -26.0, -255.1)),
+      ),
+      Extract(
+        name: "Pier Boat",
+        faction: "pmc",
+        position: Some((-332.5907, -66.11997, 561.2576)),
+      ),
+      Extract(
+        name: "Climber\'s Trail",
+        faction: "pmc",
+        position: Some((-214.3, -1.0, -361.8)),
+      ),
+      Extract(
+        name: "Mountain Bunker",
+        faction: "pmc",
+        position: Some((-390.956024, -2.55000019, -385.721)),
+      ),
+    ]),
   ),
   Map(
     normalizedName: "woods",
@@ -12875,6 +13455,108 @@
         categories: [
           "player",
         ],
+      ),
+    ]),
+    extracts: Some([
+      Extract(
+        name: "Friendship Bridge (Co-Op)",
+        faction: "shared",
+        position: Some((93.17, 16.57, -843.98)),
+      ),
+      Extract(
+        name: "RUAF Gate",
+        faction: "pmc",
+        position: Some((-141.730011, -2.37, 446.8)),
+      ),
+      Extract(
+        name: "ZB-016",
+        faction: "pmc",
+        position: Some((-389.159973, 4.147001, 11.0449905)),
+      ),
+      Extract(
+        name: "ZB-014",
+        faction: "pmc",
+        position: Some((447.24, -13.46346, 57.46)),
+      ),
+      Extract(
+        name: "UN Roadblock",
+        faction: "pmc",
+        position: Some((-536.1243, 1.68126917, 286.7704)),
+      ),
+      Extract(
+        name: "Bridge V-Ex",
+        faction: "pmc",
+        position: Some((-485.325745, 15.5812693, -504.061432)),
+      ),
+      Extract(
+        name: "Outskirts",
+        faction: "scav",
+        position: Some((347.15567, -11.15, 360.0704)),
+      ),
+      Extract(
+        name: "Dead Man\'s Place",
+        faction: "scav",
+        position: Some((195.550049, -16.6887321, 259.210022)),
+      ),
+      Extract(
+        name: "Boat",
+        faction: "scav",
+        position: Some((176.640015, -20.72, 215.859985)),
+      ),
+      Extract(
+        name: "Scav House",
+        faction: "scav",
+        position: Some((413.685669, -12.5587311, 242.17038)),
+      ),
+      Extract(
+        name: "Scav Bunker",
+        faction: "scav",
+        position: Some((220.426651, 20.538269, -705.7956)),
+      ),
+      Extract(
+        name: "Mountain Stash",
+        faction: "scav",
+        position: Some((-210.334351, 31.47127, -213.4996)),
+      ),
+      Extract(
+        name: "Eastern Rocks",
+        faction: "scav",
+        position: Some((-509.364319, 23.9912682, -35.3295975)),
+      ),
+      Extract(
+        name: "Old Railway Depot",
+        faction: "scav",
+        position: Some((-517.93, 10.67, 149.19)),
+      ),
+      Extract(
+        name: "UN Roadblock",
+        faction: "scav",
+        position: Some((-535.2443, 1.43126917, 287.050385)),
+      ),
+      Extract(
+        name: "RUAF Roadblock",
+        faction: "scav",
+        position: Some((-135.774353, 0.971269131, 416.2604)),
+      ),
+      Extract(
+        name: "Outskirts",
+        faction: "pmc",
+        position: Some((349.035645, -9.148731, 358.580383)),
+      ),
+      Extract(
+        name: "Northern UN Roadblock",
+        faction: "pmc",
+        position: Some((-557.324341, 9.321269, -67.0496)),
+      ),
+      Extract(
+        name: "Power Line Passage (Flare)",
+        faction: "pmc",
+        position: Some((573.985657, -1.7487309, -85.2596)),
+      ),
+      Extract(
+        name: "Railway Bridge to Tarkov",
+        faction: "pmc",
+        position: Some((-730.43, 8.7, 129.32)),
       ),
     ]),
   ),

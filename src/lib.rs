@@ -48,6 +48,9 @@ pub struct Map {
     /// PMC spawn points.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub spawns: Option<Vec<Spawn>>,
+    /// Extraction points.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub extracts: Option<Vec<Extract>>,
 }
 
 /// A map layer (floor level).
@@ -126,6 +129,19 @@ pub struct Spawn {
     pub sides: Vec<String>,
     /// Spawn categories (e.g., "player", "bot").
     pub categories: Vec<String>,
+}
+
+/// An extraction point on the map.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Extract {
+    /// Extract name (e.g., "ZB-1011", "Crossroads").
+    pub name: String,
+    /// Faction that can use this extract (e.g., "pmc", "scav", "shared").
+    pub faction: String,
+    /// Position [x, y, z] in game coordinates (center point).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position: Option<[f64; 3]>,
 }
 
 /// Root type for the maps data file.

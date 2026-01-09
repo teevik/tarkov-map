@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tarkov_map::{Extent, ExtentBound, Label, Layer, Map, Spawn, TarkovMaps};
+use tarkov_map::{Extent, ExtentBound, Extract, Label, Layer, Map, Spawn, TarkovMaps};
 use tokio::fs as tokio_fs;
 use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
@@ -69,6 +69,30 @@ struct MapPositionFragment {
     x: f64,
     y: f64,
     z: f64,
+}
+
+/// Query to fetch map extracts: `{ maps { normalizedName extracts { name faction position { x y z } } } }`
+#[derive(cynic::QueryFragment, Debug)]
+#[cynic(graphql_type = "Query")]
+struct MapExtractsQuery {
+    #[cynic(flatten)]
+    maps: Vec<MapExtractsFragment>,
+}
+
+#[derive(cynic::QueryFragment, Debug)]
+#[cynic(graphql_type = "Map")]
+struct MapExtractsFragment {
+    normalized_name: String,
+    #[cynic(flatten)]
+    extracts: Vec<MapExtractFragment>,
+}
+
+#[derive(cynic::QueryFragment, Debug)]
+#[cynic(graphql_type = "MapExtract")]
+struct MapExtractFragment {
+    name: Option<String>,
+    faction: Option<String>,
+    position: Option<MapPositionFragment>,
 }
 
 /// Fetch Tarkov map assets from tarkov-dev
@@ -351,6 +375,60 @@ async fn fetch_map_spawns(
         .collect())
 }
 
+async fn fetch_map_extracts(
+    client: &reqwest::Client,
+) -> color_eyre::Result<HashMap<String, Vec<Extract>>> {
+    use cynic::QueryBuilder;
+
+    let operation = MapExtractsQuery::build(());
+
+    let response: cynic::GraphQlResponse<MapExtractsQuery> = client
+        .post(TARKOV_DEV_GRAPHQL_URL)
+        .header(reqwest::header::USER_AGENT, USER_AGENT)
+        .json(&operation)
+        .send()
+        .await?
+        .json()
+        .await?;
+
+    if let Some(errors) = response.errors {
+        if !errors.is_empty() {
+            let messages = errors
+                .into_iter()
+                .map(|err| err.message)
+                .collect::<Vec<_>>()
+                .join("; ");
+            return Err(color_eyre::eyre::eyre!("GraphQL errors: {}", messages));
+        }
+    }
+
+    let data = response
+        .data
+        .ok_or_else(|| color_eyre::eyre::eyre!("GraphQL response missing data"))?;
+
+    Ok(data
+        .maps
+        .into_iter()
+        .map(|map| {
+            let extracts = map
+                .extracts
+                .into_iter()
+                .filter_map(|e| {
+                    // Skip extracts without name or faction
+                    let name = e.name?;
+                    let faction = e.faction?;
+                    Some(Extract {
+                        name,
+                        faction,
+                        position: e.position.map(|p| [p.x, p.y, p.z]),
+                    })
+                })
+                .collect();
+            (map.normalized_name, extracts)
+        })
+        .collect())
+}
+
 // ============================================================================
 // Asset processing
 // ============================================================================
@@ -570,6 +648,7 @@ async fn convert_group(
     fetched: FetchedMapGroup,
     map_names: &HashMap<String, String>,
     map_spawns: &HashMap<String, Vec<Spawn>>,
+    map_extracts: &HashMap<String, Vec<Extract>>,
     multi_progress: &MultiProgress,
     force: bool,
     tile_zoom_offset: i32,
@@ -630,6 +709,9 @@ async fn convert_group(
     // Get spawns for this map
     let spawns = map_spawns.get(&normalized_name).cloned();
 
+    // Get extracts for this map
+    let extracts = map_extracts.get(&normalized_name).cloned();
+
     Ok(Some(Map {
         normalized_name,
         name,
@@ -650,6 +732,7 @@ async fn convert_group(
             .labels
             .map(|labels| labels.into_iter().map(Label::from).collect()),
         spawns,
+        extracts,
     }))
 }
 
@@ -725,6 +808,11 @@ async fn main() -> color_eyre::Result<()> {
     let total_spawns: usize = map_spawns.values().map(|v| v.len()).sum();
     println!("Fetched {} PMC spawns", total_spawns);
 
+    println!("Fetching extracts from tarkov.dev...");
+    let map_extracts = fetch_map_extracts(&client).await?;
+    let total_extracts: usize = map_extracts.values().map(|v| v.len()).sum();
+    println!("Fetched {} extracts", total_extracts);
+
     println!("Fetching maps from tarkov-dev...");
 
     let response = client
@@ -768,6 +856,7 @@ async fn main() -> color_eyre::Result<()> {
             group,
             &map_names,
             &map_spawns,
+            &map_extracts,
             &multi_progress,
             args.force,
             args.tile_zoom_offset,

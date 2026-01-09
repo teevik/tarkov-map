@@ -5,7 +5,7 @@ use log::error;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
-use tarkov_map::{Label, Map, Spawn, TarkovMaps};
+use tarkov_map::{Extract, Label, Map, Spawn, TarkovMaps};
 
 const MAPS_RON_PATH: &str = "assets/maps.ron";
 
@@ -47,6 +47,12 @@ struct TarkovMapApp {
     /// Whether to show PMC spawns
     show_spawns: bool,
 
+    /// Whether to show PMC extracts
+    show_pmc_extracts: bool,
+
+    /// Whether to show Scav extracts
+    show_scav_extracts: bool,
+
     /// Raw asset bytes cache
     asset_cache: HashMap<String, AssetLoadState>,
     /// PNG texture cache
@@ -73,8 +79,10 @@ impl TarkovMapApp {
             zoom: 1.0,
             prev_zoom: 1.0,
             pan_offset: egui::Vec2::ZERO,
-            show_labels: true,
+            show_labels: false,
             show_spawns: true,
+            show_pmc_extracts: true,
+            show_scav_extracts: true,
             asset_cache: HashMap::new(),
             texture_cache: HashMap::new(),
             runtime,
@@ -271,6 +279,19 @@ impl TarkovMapApp {
                 draw_spawns(ui, map_rect, map, spawns, self.zoom);
             }
         }
+
+        // Draw extracts
+        if let Some(extracts) = &map.extracts {
+            draw_extracts(
+                ui,
+                map_rect,
+                map,
+                extracts,
+                self.zoom,
+                self.show_pmc_extracts,
+                self.show_scav_extracts,
+            );
+        }
     }
 }
 
@@ -344,6 +365,8 @@ impl eframe::App for TarkovMapApp {
 
                 ui.checkbox(&mut self.show_labels, "Labels");
                 ui.checkbox(&mut self.show_spawns, "Spawns");
+                ui.checkbox(&mut self.show_pmc_extracts, "PMC Extracts");
+                ui.checkbox(&mut self.show_scav_extracts, "Scav Extracts");
             });
         });
 
@@ -481,6 +504,106 @@ fn draw_spawns(ui: &mut egui::Ui, map_rect: egui::Rect, map: &Map, spawns: &[Spa
             radius,
             fill_color,
             egui::Stroke::new(1.5, stroke_color),
+        );
+    }
+}
+
+fn draw_extracts(
+    ui: &mut egui::Ui,
+    map_rect: egui::Rect,
+    map: &Map,
+    extracts: &[Extract],
+    zoom: f32,
+    show_pmc: bool,
+    show_scav: bool,
+) {
+    let painter = ui.painter();
+
+    for extract in extracts {
+        // Determine if this extract should be shown based on faction
+        let faction = extract.faction.to_lowercase();
+        let is_pmc = faction == "pmc";
+        let is_scav = faction == "scav";
+        let is_shared = faction == "shared";
+
+        // Skip if not matching current filter
+        if is_pmc && !show_pmc {
+            continue;
+        }
+        if is_scav && !show_scav {
+            continue;
+        }
+        if is_shared && !show_pmc && !show_scav {
+            continue;
+        }
+
+        // Get position (skip if no position data)
+        let Some(position) = extract.position else {
+            continue;
+        };
+
+        // Convert game coordinates to display position (use x, z for 2D position, y is height)
+        let game_pos = [position[0], position[2]];
+        let Some(pos) = game_to_display(map, map_rect, game_pos) else {
+            continue;
+        };
+
+        // Skip if outside visible area
+        if !map_rect.expand(20.0).contains(pos) {
+            continue;
+        }
+
+        // Choose colors based on faction
+        let (fill_color, stroke_color) = if is_pmc {
+            (
+                egui::Color32::from_rgb(65, 105, 225), // Royal blue
+                egui::Color32::from_rgb(25, 25, 112),  // Midnight blue
+            )
+        } else if is_scav {
+            (
+                egui::Color32::from_rgb(255, 165, 0), // Orange
+                egui::Color32::from_rgb(139, 69, 19), // Saddle brown
+            )
+        } else {
+            // Shared extracts
+            (
+                egui::Color32::from_rgb(186, 85, 211), // Medium orchid (purple)
+                egui::Color32::from_rgb(75, 0, 130),   // Indigo
+            )
+        };
+
+        // Draw extract marker (square shape, double size of spawns)
+        let size = (12.0 * zoom).clamp(8.0, 32.0);
+        let rect = egui::Rect::from_center_size(pos, egui::vec2(size, size));
+
+        painter.rect_filled(rect, 2.0, fill_color);
+        painter.rect_stroke(
+            rect,
+            2.0,
+            egui::Stroke::new(2.0, stroke_color),
+            egui::StrokeKind::Outside,
+        );
+
+        // Draw extract name label (always visible)
+        let font_size = (6.0 * zoom).clamp(9.0, 18.0);
+        let font_id = egui::FontId::proportional(font_size);
+        let text_pos = pos + egui::vec2(0.0, -size / 2.0 - 4.0);
+
+        // Shadow
+        painter.text(
+            text_pos + egui::vec2(1.0, 1.0),
+            egui::Align2::CENTER_BOTTOM,
+            &extract.name,
+            font_id.clone(),
+            egui::Color32::from_rgba_unmultiplied(0, 0, 0, 200),
+        );
+        // Main text
+        painter.text(
+            text_pos,
+            egui::Align2::CENTER_BOTTOM,
+            &extract.name,
+            font_id,
+            egui::Color32::WHITE,
         );
     }
 }
