@@ -104,17 +104,8 @@
             fenixPkgs.targets.x86_64-pc-windows-msvc.stable.rust-std
           ];
 
-          # Rust toolchain for native Linux
-          rustLinux = fenixPkgs.combine [
-            fenixPkgs.stable.rustc
-            fenixPkgs.stable.cargo
-          ];
-
           craneLib = inputs.crane.mkLib pkgs;
-
-          # Separate crane instances for each target
           craneWindows = craneLib.overrideToolchain rustWindows;
-          craneLinux = craneLib.overrideToolchain rustLinux;
 
           # Filter source to only include necessary files
           src = pkgs.lib.cleanSourceWith {
@@ -231,59 +222,20 @@
             // {
               cargoArtifacts = cargoArtifactsWindows;
 
-              # Override install phase to manually copy Windows executables
-              # (crane's default install hook doesn't work for cross-compilation)
+              # Only build the main binary
+              cargoExtraArgs = "--bin main";
+
+              # Override install phase to copy and rename the executable
               installPhaseCommand = ''
                 mkdir -p $out/bin
-                cp target/${target}/release/*.exe $out/bin/ 2>/dev/null || true
+                cp target/${target}/release/main.exe $out/bin/tarkov-map.exe
               '';
             }
           );
 
-          # Common build configuration for Linux
-          commonLinux = {
-            pname = "tarkov-map";
-            version = "0.1.0";
-            inherit src;
-            strictDeps = true;
-
-            nativeBuildInputs = with pkgs; [
-              pkg-config
-            ];
-
-            buildInputs = with pkgs; [
-              wayland
-              xorg.libX11
-              xorg.libXrandr
-              xorg.libXinerama
-              xorg.libXcursor
-              xorg.libXi
-              xorg.libxcb
-              libxkbcommon
-              libGL
-            ];
-          };
-
-          # Native Linux build dependencies
-          cargoArtifactsLinux = craneLinux.buildDepsOnly commonLinux;
-
-          # Native Linux build
-          tarkov-map-linux = craneLinux.buildPackage (
-            commonLinux
-            // {
-              cargoArtifacts = cargoArtifactsLinux;
-
-              meta = with pkgs.lib; {
-                description = "Tarkov Map Viewer - Linux build";
-                platforms = platforms.linux;
-                mainProgram = "main";
-              };
-            }
-          );
         in
         {
-          default = tarkov-map-linux;
-          tarkov-map-linux = tarkov-map-linux;
+          default = tarkov-map-windows;
           tarkov-map-windows = tarkov-map-windows;
         }
       );
