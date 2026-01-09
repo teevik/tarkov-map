@@ -71,7 +71,7 @@ struct TarkovMapApp {
 }
 
 impl TarkovMapApp {
-    fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let maps_path = format!("{}/{}", env!("CARGO_MANIFEST_DIR"), MAPS_RON_PATH);
 
         let (maps, load_error) = match load_maps(&maps_path) {
@@ -80,6 +80,22 @@ impl TarkovMapApp {
         };
 
         let runtime = tokio::runtime::Runtime::new().expect("create tokio runtime");
+
+        // Preload all map images in the background
+        let mut asset_cache = HashMap::new();
+        for map in &maps {
+            let (tx, rx) = mpsc::channel();
+            let ctx = cc.egui_ctx.clone();
+            let asset_path = map.image_path.clone();
+
+            runtime.spawn(async move {
+                let result = load_asset_bytes(&asset_path).await;
+                let _ = tx.send(result);
+                ctx.request_repaint();
+            });
+
+            asset_cache.insert(map.image_path.clone(), AssetLoadState::Loading(rx));
+        }
 
         Self {
             maps,
@@ -94,7 +110,7 @@ impl TarkovMapApp {
             show_pmc_extracts: true,
             show_scav_extracts: true,
             show_shared_extracts: true,
-            asset_cache: HashMap::new(),
+            asset_cache,
             texture_cache: HashMap::new(),
             runtime,
         }
@@ -182,10 +198,6 @@ impl TarkovMapApp {
         // Check loading state
         match self.asset_cache.get(image_path) {
             Some(AssetLoadState::Loading(_)) | None => {
-                ui.horizontal(|ui| {
-                    ui.add(egui::Spinner::new());
-                    ui.label("Loading map...");
-                });
                 return;
             }
             Some(AssetLoadState::Error(err)) => {
