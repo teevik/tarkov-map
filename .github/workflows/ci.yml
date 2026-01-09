@@ -34,4 +34,4 @@ jobs:
           purge-primary-key: never
 
       - name: Build Windows executable
-        run: nix build -L .#package
+        run: nix build -L .
