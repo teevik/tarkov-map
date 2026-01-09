@@ -38,6 +38,7 @@ enum ImageLoadError {
 #[derive(RustEmbed)]
 #[folder = "assets/"]
 struct Assets;
+
 const SIDEBAR_WIDTH: f32 = 200.0;
 const ZOOM_MIN: f32 = 1.0;
 const ZOOM_MAX: f32 = 10.0;
