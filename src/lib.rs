@@ -45,6 +45,9 @@ pub struct Map {
     /// Map labels/annotations.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub labels: Option<Vec<Label>>,
+    /// PMC spawn points.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub spawns: Option<Vec<Spawn>>,
 }
 
 /// A map layer (floor level).
@@ -111,6 +114,18 @@ pub struct Label {
     /// Bottom height limit for visibility.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bottom: Option<f64>,
+}
+
+/// A spawn point on the map.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Spawn {
+    /// Position [x, y, z] in game coordinates.
+    pub position: [f64; 3],
+    /// Spawn sides (e.g., "pmc", "scav", "all").
+    pub sides: Vec<String>,
+    /// Spawn categories (e.g., "player", "bot").
+    pub categories: Vec<String>,
 }
 
 /// Root type for the maps data file.

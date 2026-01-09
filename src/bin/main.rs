@@ -5,7 +5,7 @@ use log::error;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
-use tarkov_map::{Label, Map, TarkovMaps};
+use tarkov_map::{Label, Map, Spawn, TarkovMaps};
 
 const MAPS_RON_PATH: &str = "assets/maps.ron";
 
@@ -44,6 +44,9 @@ struct TarkovMapApp {
     /// Whether to show map labels
     show_labels: bool,
 
+    /// Whether to show PMC spawns
+    show_spawns: bool,
+
     /// Raw asset bytes cache
     asset_cache: HashMap<String, AssetLoadState>,
     /// PNG texture cache
@@ -71,6 +74,7 @@ impl TarkovMapApp {
             prev_zoom: 1.0,
             pan_offset: egui::Vec2::ZERO,
             show_labels: true,
+            show_spawns: true,
             asset_cache: HashMap::new(),
             texture_cache: HashMap::new(),
             runtime,
@@ -260,6 +264,13 @@ impl TarkovMapApp {
                 draw_labels(ui, map_rect, map, labels, self.zoom);
             }
         }
+
+        // Draw spawns
+        if self.show_spawns {
+            if let Some(spawns) = &map.spawns {
+                draw_spawns(ui, map_rect, map, spawns, self.zoom);
+            }
+        }
     }
 }
 
@@ -332,6 +343,7 @@ impl eframe::App for TarkovMapApp {
                 ui.separator();
 
                 ui.checkbox(&mut self.show_labels, "Labels");
+                ui.checkbox(&mut self.show_spawns, "Spawns");
             });
         });
 
@@ -441,6 +453,35 @@ fn draw_labels(ui: &mut egui::Ui, map_rect: egui::Rect, map: &Map, labels: &[Lab
         );
         // Main text
         painter.text(pos, anchor, &label.text, font_id, text_color);
+    }
+}
+
+fn draw_spawns(ui: &mut egui::Ui, map_rect: egui::Rect, map: &Map, spawns: &[Spawn], zoom: f32) {
+    let painter = ui.painter();
+
+    for spawn in spawns {
+        // Convert game coordinates to display position (use x, z for 2D position, y is height)
+        let game_pos = [spawn.position[0], spawn.position[2]];
+        let Some(pos) = game_to_display(map, map_rect, game_pos) else {
+            continue;
+        };
+
+        // Skip if outside visible area
+        if !map_rect.expand(20.0).contains(pos) {
+            continue;
+        }
+
+        // Draw spawn marker (green circle for PMC spawns)
+        let radius = (4.0 * zoom).clamp(3.0, 12.0);
+        let fill_color = egui::Color32::from_rgb(50, 205, 50); // Lime green
+        let stroke_color = egui::Color32::from_rgb(0, 100, 0); // Dark green
+
+        painter.circle(
+            pos,
+            radius,
+            fill_color,
+            egui::Stroke::new(1.5, stroke_color),
+        );
     }
 }
 

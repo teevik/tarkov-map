@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tarkov_map::{Extent, ExtentBound, Label, Layer, Map, TarkovMaps};
+use tarkov_map::{Extent, ExtentBound, Label, Layer, Map, Spawn, TarkovMaps};
 use tokio::fs as tokio_fs;
 use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
@@ -228,6 +228,33 @@ struct MapNameEntry {
     name: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct MapSpawnsData {
+    maps: Vec<MapSpawnsEntry>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MapSpawnsEntry {
+    normalized_name: String,
+    spawns: Vec<FetchedSpawn>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FetchedSpawn {
+    position: FetchedPosition,
+    sides: Vec<String>,
+    categories: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct FetchedPosition {
+    x: f64,
+    y: f64,
+    z: f64,
+}
+
 async fn fetch_map_names(client: &reqwest::Client) -> color_eyre::Result<HashMap<String, String>> {
     let query = "{ maps { normalizedName name } }";
 
@@ -265,6 +292,64 @@ async fn fetch_map_names(client: &reqwest::Client) -> color_eyre::Result<HashMap
         .maps
         .into_iter()
         .map(|map| (map.normalized_name, map.name))
+        .collect())
+}
+
+async fn fetch_map_spawns(
+    client: &reqwest::Client,
+) -> color_eyre::Result<HashMap<String, Vec<Spawn>>> {
+    let query = "{ maps { normalizedName spawns { position { x y z } sides categories } } }";
+
+    let response = client
+        .post(TARKOV_DEV_GRAPHQL_URL)
+        .header(reqwest::header::USER_AGENT, USER_AGENT)
+        .json(&serde_json::json!({ "query": query }))
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        return Err(color_eyre::eyre::eyre!(
+            "Failed to fetch map spawns: {}",
+            response.status()
+        ));
+    }
+
+    let gql: GraphQlResponse<MapSpawnsData> = response.json().await?;
+    if !gql.errors.is_empty() {
+        let messages = gql
+            .errors
+            .into_iter()
+            .map(|err| err.message)
+            .collect::<Vec<_>>()
+            .join("; ");
+
+        return Err(color_eyre::eyre::eyre!("GraphQL errors: {}", messages));
+    }
+
+    let data = gql
+        .data
+        .ok_or_else(|| color_eyre::eyre::eyre!("GraphQL response missing data"))?;
+
+    Ok(data
+        .maps
+        .into_iter()
+        .map(|map| {
+            let spawns = map
+                .spawns
+                .into_iter()
+                // Filter to only PMC spawns (sides contains "pmc" or "all", categories contains "player")
+                .filter(|s| {
+                    (s.sides.iter().any(|side| side == "pmc" || side == "all"))
+                        && s.categories.iter().any(|cat| cat == "player")
+                })
+                .map(|s| Spawn {
+                    position: [s.position.x, s.position.y, s.position.z],
+                    sides: s.sides,
+                    categories: s.categories,
+                })
+                .collect();
+            (map.normalized_name, spawns)
+        })
         .collect())
 }
 
@@ -486,6 +571,7 @@ async fn convert_group(
     client: &reqwest::Client,
     fetched: FetchedMapGroup,
     map_names: &HashMap<String, String>,
+    map_spawns: &HashMap<String, Vec<Spawn>>,
     multi_progress: &MultiProgress,
     force: bool,
     tile_zoom_offset: i32,
@@ -543,6 +629,9 @@ async fn convert_group(
         result.image_size
     };
 
+    // Get spawns for this map
+    let spawns = map_spawns.get(&normalized_name).cloned();
+
     Ok(Some(Map {
         normalized_name,
         name,
@@ -562,6 +651,7 @@ async fn convert_group(
         labels: interactive
             .labels
             .map(|labels| labels.into_iter().map(Label::from).collect()),
+        spawns,
     }))
 }
 
@@ -628,9 +718,14 @@ async fn main() -> color_eyre::Result<()> {
 
     let client = reqwest::Client::new();
 
-    println!("Fetching map names from tarkov.dev...");
+    println!("Fetching map data from tarkov.dev...");
     let map_names = fetch_map_names(&client).await?;
     println!("Fetched {} map names", map_names.len());
+
+    println!("Fetching PMC spawns from tarkov.dev...");
+    let map_spawns = fetch_map_spawns(&client).await?;
+    let total_spawns: usize = map_spawns.values().map(|v| v.len()).sum();
+    println!("Fetched {} PMC spawns", total_spawns);
 
     println!("Fetching maps from tarkov-dev...");
 
@@ -674,6 +769,7 @@ async fn main() -> color_eyre::Result<()> {
             &client,
             group,
             &map_names,
+            &map_spawns,
             &multi_progress,
             args.force,
             args.tile_zoom_offset,
