@@ -1,3 +1,4 @@
+use clap::Parser;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use ron::ser::PrettyConfig;
 use serde::Deserialize;
@@ -9,6 +10,15 @@ use tarkov_map::{Extent, ExtentBound, Label, Layer, Map, MapSource, TarkovMaps};
 use tokio::fs as tokio_fs;
 use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
+
+/// Fetch Tarkov map assets from tarkov-dev
+#[derive(Parser, Debug)]
+#[command(name = "fetch_maps", version, about)]
+struct Args {
+    /// Force re-download of all assets, ignoring cached files
+    #[arg(short, long)]
+    force: bool,
+}
 
 /// GitHub raw content URL for maps.json
 const MAPS_JSON_URL: &str =
@@ -264,8 +274,9 @@ async fn download_url_to_path(
     client: &reqwest::Client,
     url: &str,
     output_path: &Path,
+    force: bool,
 ) -> color_eyre::Result<()> {
-    if tokio_fs::try_exists(output_path).await.unwrap_or(false) {
+    if !force && tokio_fs::try_exists(output_path).await.unwrap_or(false) {
         return Ok(());
     }
 
@@ -297,11 +308,12 @@ async fn ensure_svg_asset(
     client: &reqwest::Client,
     normalized_name: &str,
     svg_url: &str,
+    force: bool,
 ) -> color_eyre::Result<String> {
     let relative_path = format!("{}/{}.svg", SVG_DIR, normalized_name);
     let output_path = repo_path(&relative_path);
 
-    download_url_to_path(client, svg_url, &output_path).await?;
+    download_url_to_path(client, svg_url, &output_path, force).await?;
 
     Ok(relative_path)
 }
@@ -320,6 +332,7 @@ async fn ensure_tile_assets(
     min_zoom: i32,
     max_zoom: i32,
     multi_progress: &MultiProgress,
+    force: bool,
 ) -> color_eyre::Result<String> {
     let relative_template = format!("{}/{}/{{z}}/{{x}}/{{y}}.png", TILES_DIR, normalized_name);
 
@@ -340,7 +353,7 @@ async fn ensure_tile_assets(
                     .join(x.to_string())
                     .join(format!("{}.png", y));
 
-                if !output_path.exists() {
+                if force || !output_path.exists() {
                     let remote_url = apply_tile_template(remote_template, z, x, y);
                     tiles_to_download.push((remote_url, output_path));
                 }
@@ -378,7 +391,8 @@ async fn ensure_tile_assets(
                 .await
                 .map_err(|err| color_eyre::eyre::eyre!(err))?;
 
-            let result = download_url_to_path(&client, &remote_url, &output_path).await;
+            // Always force here since we already filtered what needs downloading
+            let result = download_url_to_path(&client, &remote_url, &output_path, true).await;
             tile_pb.inc(1);
             result
         });
@@ -402,6 +416,7 @@ async fn convert_group(
     fetched: FetchedMapGroup,
     map_names: &HashMap<String, String>,
     multi_progress: &MultiProgress,
+    force: bool,
 ) -> color_eyre::Result<Option<Map>> {
     let FetchedMapGroup {
         normalized_name,
@@ -417,7 +432,7 @@ async fn convert_group(
     })?;
 
     let source = if let Some(svg_url) = interactive.svg_path.as_deref() {
-        let local_svg = ensure_svg_asset(client, &normalized_name, svg_url).await?;
+        let local_svg = ensure_svg_asset(client, &normalized_name, svg_url, force).await?;
         MapSource::Svg {
             path: local_svg,
             svg_layer: interactive.svg_layer,
@@ -438,6 +453,7 @@ async fn convert_group(
             min_zoom,
             max_zoom,
             multi_progress,
+            force,
         )
         .await?;
 
@@ -528,6 +544,12 @@ async fn main() -> color_eyre::Result<()> {
     env_logger::init();
     color_eyre::install()?;
 
+    let args = Args::parse();
+
+    if args.force {
+        println!("Force mode enabled - re-downloading all assets");
+    }
+
     let client = reqwest::Client::new();
 
     println!("Fetching map names from tarkov.dev...");
@@ -577,7 +599,7 @@ async fn main() -> color_eyre::Result<()> {
         let group_name = group.normalized_name.clone();
         maps_pb.set_message(group_name.clone());
 
-        match convert_group(&client, group, &map_names, &multi_progress).await? {
+        match convert_group(&client, group, &map_names, &multi_progress, args.force).await? {
             Some(map) => maps.push(map),
             None => skipped += 1,
         }
