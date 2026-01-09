@@ -1,7 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use eframe::egui::{self, ColorImage, TextureHandle, TextureOptions};
-use log::error;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
@@ -20,9 +19,16 @@ const ZOOM_SPEED: f32 = 1.2;
 // Asset loading
 // ============================================================================
 
+/// Decoded image ready for texture upload
+struct DecodedImage {
+    pixels: Vec<u8>,
+    width: u32,
+    height: u32,
+}
+
 enum AssetLoadState {
-    Loading(mpsc::Receiver<Result<Vec<u8>, String>>),
-    Ready(Vec<u8>),
+    Loading(mpsc::Receiver<Result<DecodedImage, String>>),
+    Ready(DecodedImage),
     Error(String),
 }
 
@@ -67,6 +73,8 @@ struct TarkovMapApp {
     /// PNG texture cache
     texture_cache: HashMap<String, TextureHandle>,
 
+    /// Tokio runtime for async tasks (must be kept alive)
+    #[allow(dead_code)]
     runtime: tokio::runtime::Runtime,
 }
 
@@ -89,7 +97,7 @@ impl TarkovMapApp {
             let asset_path = map.image_path.clone();
 
             runtime.spawn(async move {
-                let result = load_asset_bytes(&asset_path).await;
+                let result = load_and_decode_image(&asset_path).await;
                 let _ = tx.send(result);
                 ctx.request_repaint();
             });
@@ -120,84 +128,79 @@ impl TarkovMapApp {
         self.maps.get(self.selected_map)
     }
 
-    /// Request async loading of an asset
-    fn request_asset(&mut self, ctx: &egui::Context, path: &str) {
-        if self.asset_cache.contains_key(path) {
-            return;
-        }
+    /// Poll all assets and create textures eagerly
+    /// This ensures all maps are ready when the user switches to them
+    fn poll_all_assets(&mut self, ctx: &egui::Context) {
+        // Collect paths that need state updates
+        let mut updates: Vec<(String, AssetLoadState)> = Vec::new();
 
-        let (tx, rx) = mpsc::channel();
-        let ctx = ctx.clone();
-        let asset_path = path.to_owned();
-
-        self.runtime.spawn(async move {
-            let result = load_asset_bytes(&asset_path).await;
-            let _ = tx.send(result);
-            ctx.request_repaint();
-        });
-
-        self.asset_cache
-            .insert(path.to_owned(), AssetLoadState::Loading(rx));
-    }
-
-    /// Poll for completed asset loads
-    fn poll_asset(&mut self, path: &str) {
-        let mut done: Option<AssetLoadState> = None;
-
-        if let Some(AssetLoadState::Loading(rx)) = self.asset_cache.get_mut(path) {
-            match rx.try_recv() {
-                Ok(Ok(bytes)) => done = Some(AssetLoadState::Ready(bytes)),
-                Ok(Err(err)) => done = Some(AssetLoadState::Error(err)),
-                Err(mpsc::TryRecvError::Empty) => {}
-                Err(mpsc::TryRecvError::Disconnected) => {
-                    done = Some(AssetLoadState::Error("channel disconnected".to_owned()));
-                }
-            }
-        }
-
-        if let Some(new_state) = done {
-            self.asset_cache.insert(path.to_owned(), new_state);
-        }
-    }
-
-    /// Get or create texture from loaded bytes
-    fn get_texture(&mut self, ctx: &egui::Context, path: &str) -> Option<&TextureHandle> {
-        if let Some(AssetLoadState::Ready(bytes)) = self.asset_cache.get(path) {
-            if !self.texture_cache.contains_key(path) {
-                match image::load_from_memory(bytes) {
-                    Ok(img) => {
-                        let rgba = img.to_rgba8();
-                        let (w, h) = rgba.dimensions();
-                        let image = ColorImage::from_rgba_unmultiplied(
-                            [w as usize, h as usize],
-                            rgba.as_raw(),
-                        );
-                        let texture = ctx.load_texture(path, image, TextureOptions::LINEAR);
-                        self.texture_cache.insert(path.to_owned(), texture);
+        for (path, state) in self.asset_cache.iter_mut() {
+            if let AssetLoadState::Loading(rx) = state {
+                match rx.try_recv() {
+                    Ok(Ok(decoded)) => {
+                        updates.push((path.clone(), AssetLoadState::Ready(decoded)));
                     }
-                    Err(err) => {
-                        error!("Failed to decode image {}: {}", path, err);
-                        return None;
+                    Ok(Err(err)) => {
+                        updates.push((path.clone(), AssetLoadState::Error(err)));
+                    }
+                    Err(mpsc::TryRecvError::Empty) => {}
+                    Err(mpsc::TryRecvError::Disconnected) => {
+                        updates.push((
+                            path.clone(),
+                            AssetLoadState::Error("channel disconnected".to_owned()),
+                        ));
                     }
                 }
             }
-            self.texture_cache.get(path)
-        } else {
-            None
         }
+
+        // Apply state updates
+        for (path, new_state) in updates {
+            self.asset_cache.insert(path, new_state);
+        }
+
+        // Eagerly create textures for all ready assets
+        let ready_paths: Vec<String> = self
+            .asset_cache
+            .iter()
+            .filter_map(|(path, state)| {
+                if matches!(state, AssetLoadState::Ready(_))
+                    && !self.texture_cache.contains_key(path)
+                {
+                    Some(path.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        for path in ready_paths {
+            if let Some(AssetLoadState::Ready(decoded)) = self.asset_cache.get(&path) {
+                let image = ColorImage::from_rgba_unmultiplied(
+                    [decoded.width as usize, decoded.height as usize],
+                    &decoded.pixels,
+                );
+                let texture = ctx.load_texture(&path, image, TextureOptions::LINEAR);
+                self.texture_cache.insert(path, texture);
+            }
+        }
+    }
+
+    /// Get texture for a path (must have been polled first)
+    fn get_texture(&self, path: &str) -> Option<&TextureHandle> {
+        self.texture_cache.get(path)
     }
 
     fn show_map(&mut self, ui: &mut egui::Ui, _ctx: &egui::Context, map: &Map) {
         let image_path = &map.image_path;
         let logical_size = egui::vec2(map.logical_size[0], map.logical_size[1]);
 
-        // Request and poll the image
-        self.request_asset(_ctx, image_path);
-        self.poll_asset(image_path);
-
         // Check loading state
         match self.asset_cache.get(image_path) {
             Some(AssetLoadState::Loading(_)) | None => {
+                ui.centered_and_justified(|ui| {
+                    ui.spinner();
+                });
                 return;
             }
             Some(AssetLoadState::Error(err)) => {
@@ -208,7 +211,7 @@ impl TarkovMapApp {
         }
 
         // Get texture
-        let Some(texture) = self.get_texture(_ctx, image_path) else {
+        let Some(texture) = self.get_texture(image_path) else {
             ui.label("Failed to create texture");
             return;
         };
@@ -321,6 +324,9 @@ impl TarkovMapApp {
 
 impl eframe::App for TarkovMapApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Poll all assets and eagerly create textures
+        self.poll_all_assets(ctx);
+
         // Handle keyboard shortcuts
         ctx.input(|i| {
             // + or = to zoom in
@@ -870,11 +876,26 @@ fn resolve_asset_path(path: &str) -> PathBuf {
     }
 }
 
-async fn load_asset_bytes(path: &str) -> Result<Vec<u8>, String> {
+/// Load and decode an image in a background task
+async fn load_and_decode_image(path: &str) -> Result<DecodedImage, String> {
     let resolved = resolve_asset_path(path);
-    tokio::fs::read(&resolved)
+    let bytes = tokio::fs::read(&resolved)
         .await
-        .map_err(|err| format!("read {}: {err}", resolved.display()))
+        .map_err(|err| format!("read {}: {err}", resolved.display()))?;
+
+    // Decode image in a blocking task to avoid blocking the async runtime
+    tokio::task::spawn_blocking(move || {
+        let img = image::load_from_memory(&bytes).map_err(|err| format!("decode image: {err}"))?;
+        let rgba = img.to_rgba8();
+        let (width, height) = rgba.dimensions();
+        Ok(DecodedImage {
+            pixels: rgba.into_raw(),
+            width,
+            height,
+        })
+    })
+    .await
+    .map_err(|err| format!("task join error: {err}"))?
 }
 
 fn load_maps(path: &str) -> Result<TarkovMaps, String> {
