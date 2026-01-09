@@ -30,6 +30,9 @@ enum AssetLoadState {
 // Application
 // ============================================================================
 
+/// Sidebar width when open
+const SIDEBAR_WIDTH: f32 = 200.0;
+
 struct TarkovMapApp {
     maps: TarkovMaps,
     load_error: Option<String>,
@@ -40,6 +43,9 @@ struct TarkovMapApp {
 
     /// Pan offset in display coordinates
     pan_offset: egui::Vec2,
+
+    /// Whether the sidebar is open
+    sidebar_open: bool,
 
     /// Whether to show map labels
     show_labels: bool,
@@ -52,6 +58,9 @@ struct TarkovMapApp {
 
     /// Whether to show Scav extracts
     show_scav_extracts: bool,
+
+    /// Whether to show Shared extracts
+    show_shared_extracts: bool,
 
     /// Raw asset bytes cache
     asset_cache: HashMap<String, AssetLoadState>,
@@ -79,10 +88,12 @@ impl TarkovMapApp {
             zoom: 1.0,
             prev_zoom: 1.0,
             pan_offset: egui::Vec2::ZERO,
+            sidebar_open: true,
             show_labels: false,
             show_spawns: true,
             show_pmc_extracts: true,
             show_scav_extracts: true,
+            show_shared_extracts: true,
             asset_cache: HashMap::new(),
             texture_cache: HashMap::new(),
             runtime,
@@ -290,6 +301,7 @@ impl TarkovMapApp {
                 self.zoom,
                 self.show_pmc_extracts,
                 self.show_scav_extracts,
+                self.show_shared_extracts,
             );
         }
     }
@@ -316,98 +328,211 @@ impl eframe::App for TarkovMapApp {
             if i.key_pressed(egui::Key::L) {
                 self.show_labels = !self.show_labels;
             }
+            // Tab to toggle sidebar
+            if i.key_pressed(egui::Key::Tab) {
+                self.sidebar_open = !self.sidebar_open;
+            }
         });
 
+        let selected_map = self.selected_map().cloned();
+
+        // Top bar - minimal with burger menu and zoom
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             ui.horizontal(|ui| {
-                ui.label("Map:");
-
-                if self.maps.is_empty() {
-                    ui.label("(no maps loaded)");
-                    return;
-                }
-
-                let selected_map_name = self
-                    .maps
-                    .get(self.selected_map)
-                    .map(|map| map.name.as_str())
-                    .unwrap_or("(unknown)");
-
-                let prev_selected = self.selected_map;
-                egui::ComboBox::from_id_salt("map")
-                    .selected_text(selected_map_name)
-                    .show_ui(ui, |ui| {
-                        for (idx, map) in self.maps.iter().enumerate() {
-                            ui.selectable_value(&mut self.selected_map, idx, &map.name);
-                        }
-                    });
-
-                // Reset view when map changes
-                if self.selected_map != prev_selected {
-                    self.zoom = 1.0;
-                    self.pan_offset = egui::Vec2::ZERO;
+                // Burger menu button
+                let burger_text = if self.sidebar_open { "<<" } else { ">>" };
+                if ui
+                    .button(burger_text)
+                    .on_hover_text("Toggle sidebar (Tab)")
+                    .clicked()
+                {
+                    self.sidebar_open = !self.sidebar_open;
                 }
 
                 ui.separator();
 
-                ui.add(
-                    egui::Slider::new(&mut self.zoom, ZOOM_MIN..=ZOOM_MAX)
-                        .logarithmic(true)
-                        .text("Zoom"),
-                );
-
-                if ui.button("Fit").clicked() {
-                    self.zoom = 1.0;
-                    self.pan_offset = egui::Vec2::ZERO;
+                // Map name display
+                if let Some(map) = &selected_map {
+                    ui.strong(&map.name);
                 }
 
-                ui.separator();
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.button("Fit").on_hover_text("Reset zoom (0)").clicked() {
+                        self.zoom = 1.0;
+                        self.pan_offset = egui::Vec2::ZERO;
+                    }
 
-                ui.checkbox(&mut self.show_labels, "Labels");
-                ui.checkbox(&mut self.show_spawns, "Spawns");
-                ui.checkbox(&mut self.show_pmc_extracts, "PMC Extracts");
-                ui.checkbox(&mut self.show_scav_extracts, "Scav Extracts");
+                    ui.add(
+                        egui::Slider::new(&mut self.zoom, ZOOM_MIN..=ZOOM_MAX)
+                            .logarithmic(true)
+                            .show_value(false)
+                            .text("Zoom"),
+                    );
+                });
             });
         });
 
+        // Bottom status bar
+        egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                // Hints on the left
+                ui.label(
+                    "Scroll: zoom | Drag: pan | +/-: zoom | 0: fit | L: labels | Tab: sidebar",
+                );
+
+                // Credits on the right
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if let Some(map) = &selected_map {
+                        if let Some(link) = &map.author_link {
+                            ui.hyperlink_to(map.author.as_deref().unwrap_or("Map author"), link);
+                            ui.label("Map by:");
+                        } else if let Some(author) = &map.author {
+                            ui.label(format!("Map by: {}", author));
+                        }
+                    }
+                });
+            });
+        });
+
+        // Sidebar
+        if self.sidebar_open {
+            egui::SidePanel::left("sidebar")
+                .exact_width(SIDEBAR_WIDTH)
+                .resizable(false)
+                .show(ctx, |ui| {
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        self.show_sidebar(ui);
+                    });
+                });
+        }
+
+        // Main map area
         egui::CentralPanel::default().show(ctx, |ui| {
             if let Some(err) = &self.load_error {
                 ui.colored_label(egui::Color32::RED, err);
                 ui.separator();
             }
 
-            let Some(map) = self.selected_map().cloned() else {
-                ui.label(format!(
-                    "No map data. Run `cargo run --bin fetch_maps` to generate {}.",
-                    MAPS_RON_PATH
-                ));
+            let Some(map) = selected_map else {
+                ui.centered_and_justified(|ui| {
+                    ui.label(format!(
+                        "No map data.\nRun `cargo run --bin fetch_maps` to generate {}.",
+                        MAPS_RON_PATH
+                    ));
+                });
                 return;
             };
-
-            ui.heading(&map.name);
-
-            ui.horizontal_wrapped(|ui| {
-                ui.label(format!("ID: {}", map.normalized_name));
-                if let Some(author) = &map.author {
-                    ui.label(format!("Author: {}", author));
-                }
-                if let Some(link) = &map.author_link {
-                    ui.hyperlink(link);
-                }
-            });
-
-            ui.separator();
 
             self.show_map(ui, ctx, &map);
         });
 
-        egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.label("Scroll: zoom in | Drag: pan | +/-: zoom | 0: fit to screen | L: labels");
-            });
+        self.prev_zoom = self.zoom;
+    }
+}
+
+impl TarkovMapApp {
+    fn show_sidebar(&mut self, ui: &mut egui::Ui) {
+        ui.add_space(4.0);
+
+        // ===== MAPS SECTION =====
+        ui.strong("MAPS");
+        ui.separator();
+
+        if self.maps.is_empty() {
+            ui.label("No maps loaded");
+        } else {
+            let prev_selected = self.selected_map;
+            for (idx, map) in self.maps.iter().enumerate() {
+                let is_selected = self.selected_map == idx;
+                if ui.selectable_label(is_selected, &map.name).clicked() {
+                    self.selected_map = idx;
+                }
+            }
+
+            // Reset view when map changes
+            if self.selected_map != prev_selected {
+                self.zoom = 1.0;
+                self.pan_offset = egui::Vec2::ZERO;
+            }
+        }
+
+        ui.add_space(12.0);
+
+        // ===== OVERLAYS SECTION =====
+        ui.strong("OVERLAYS");
+        ui.separator();
+
+        // Labels toggle with white circle indicator
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut self.show_labels, "");
+            let (rect, _) = ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
+            let center = rect.center();
+            ui.painter()
+                .circle_filled(center, 5.0, egui::Color32::WHITE);
+            ui.painter()
+                .circle_stroke(center, 5.0, egui::Stroke::new(1.0, egui::Color32::GRAY));
+            ui.label("Labels");
         });
 
-        self.prev_zoom = self.zoom;
+        // PMC Spawns toggle with color indicator
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut self.show_spawns, "");
+            let (rect, _) = ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
+            let center = rect.center();
+            ui.painter()
+                .circle_filled(center, 5.0, egui::Color32::from_rgb(50, 205, 50));
+            ui.painter().circle_stroke(
+                center,
+                5.0,
+                egui::Stroke::new(1.0, egui::Color32::from_rgb(0, 100, 0)),
+            );
+            ui.label("PMC Spawns");
+        });
+
+        // PMC Extracts toggle with color indicator
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut self.show_pmc_extracts, "");
+            let (rect, _) = ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
+            ui.painter()
+                .rect_filled(rect, 2.0, egui::Color32::from_rgb(65, 105, 225));
+            ui.painter().rect_stroke(
+                rect,
+                2.0,
+                egui::Stroke::new(1.0, egui::Color32::from_rgb(25, 25, 112)),
+                egui::StrokeKind::Inside,
+            );
+            ui.label("PMC Extracts");
+        });
+
+        // Scav Extracts toggle with color indicator
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut self.show_scav_extracts, "");
+            let (rect, _) = ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
+            ui.painter()
+                .rect_filled(rect, 2.0, egui::Color32::from_rgb(255, 165, 0));
+            ui.painter().rect_stroke(
+                rect,
+                2.0,
+                egui::Stroke::new(1.0, egui::Color32::from_rgb(139, 69, 19)),
+                egui::StrokeKind::Inside,
+            );
+            ui.label("Scav Extracts");
+        });
+
+        // Shared Extracts toggle with color indicator
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut self.show_shared_extracts, "");
+            let (rect, _) = ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
+            ui.painter()
+                .rect_filled(rect, 2.0, egui::Color32::from_rgb(186, 85, 211));
+            ui.painter().rect_stroke(
+                rect,
+                2.0,
+                egui::Stroke::new(1.0, egui::Color32::from_rgb(75, 0, 130)),
+                egui::StrokeKind::Inside,
+            );
+            ui.label("Shared Extracts");
+        });
     }
 }
 
@@ -516,6 +641,7 @@ fn draw_extracts(
     zoom: f32,
     show_pmc: bool,
     show_scav: bool,
+    show_shared: bool,
 ) {
     let painter = ui.painter();
 
@@ -533,7 +659,7 @@ fn draw_extracts(
         if is_scav && !show_scav {
             continue;
         }
-        if is_shared && !show_pmc && !show_scav {
+        if is_shared && !show_shared {
             continue;
         }
 
