@@ -477,19 +477,27 @@ impl TarkovMapApp {
         // Labels toggle with white circle indicator
         ui.horizontal(|ui| {
             ui.checkbox(&mut self.show_labels, "");
-            let (rect, _) = ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
+            let (rect, icon_response) =
+                ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::click());
             let center = rect.center();
             ui.painter()
                 .circle_filled(center, 5.0, egui::Color32::WHITE);
             ui.painter()
                 .circle_stroke(center, 5.0, egui::Stroke::new(1.0, egui::Color32::GRAY));
-            ui.label("Labels");
+            let label_response = ui
+                .label("Labels")
+                .interact(egui::Sense::click())
+                .on_hover_cursor(egui::CursorIcon::PointingHand);
+            if icon_response.clicked() || label_response.clicked() {
+                self.show_labels = !self.show_labels;
+            }
         });
 
         // PMC Spawns toggle with color indicator
         ui.horizontal(|ui| {
             ui.checkbox(&mut self.show_spawns, "");
-            let (rect, _) = ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
+            let (rect, icon_response) =
+                ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::click());
             let center = rect.center();
             ui.painter()
                 .circle_filled(center, 5.0, egui::Color32::from_rgb(50, 205, 50));
@@ -498,13 +506,20 @@ impl TarkovMapApp {
                 5.0,
                 egui::Stroke::new(1.0, egui::Color32::from_rgb(0, 100, 0)),
             );
-            ui.label("PMC Spawns");
+            let label_response = ui
+                .label("PMC Spawns")
+                .interact(egui::Sense::click())
+                .on_hover_cursor(egui::CursorIcon::PointingHand);
+            if icon_response.clicked() || label_response.clicked() {
+                self.show_spawns = !self.show_spawns;
+            }
         });
 
         // PMC Extracts toggle with color indicator
         ui.horizontal(|ui| {
             ui.checkbox(&mut self.show_pmc_extracts, "");
-            let (rect, _) = ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
+            let (rect, icon_response) =
+                ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::click());
             ui.painter()
                 .rect_filled(rect, 2.0, egui::Color32::from_rgb(65, 105, 225));
             ui.painter().rect_stroke(
@@ -513,13 +528,20 @@ impl TarkovMapApp {
                 egui::Stroke::new(1.0, egui::Color32::from_rgb(25, 25, 112)),
                 egui::StrokeKind::Inside,
             );
-            ui.label("PMC Extracts");
+            let label_response = ui
+                .label("PMC Extracts")
+                .interact(egui::Sense::click())
+                .on_hover_cursor(egui::CursorIcon::PointingHand);
+            if icon_response.clicked() || label_response.clicked() {
+                self.show_pmc_extracts = !self.show_pmc_extracts;
+            }
         });
 
         // Scav Extracts toggle with color indicator
         ui.horizontal(|ui| {
             ui.checkbox(&mut self.show_scav_extracts, "");
-            let (rect, _) = ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
+            let (rect, icon_response) =
+                ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::click());
             ui.painter()
                 .rect_filled(rect, 2.0, egui::Color32::from_rgb(255, 165, 0));
             ui.painter().rect_stroke(
@@ -528,13 +550,20 @@ impl TarkovMapApp {
                 egui::Stroke::new(1.0, egui::Color32::from_rgb(139, 69, 19)),
                 egui::StrokeKind::Inside,
             );
-            ui.label("Scav Extracts");
+            let label_response = ui
+                .label("Scav Extracts")
+                .interact(egui::Sense::click())
+                .on_hover_cursor(egui::CursorIcon::PointingHand);
+            if icon_response.clicked() || label_response.clicked() {
+                self.show_scav_extracts = !self.show_scav_extracts;
+            }
         });
 
         // Shared Extracts toggle with color indicator
         ui.horizontal(|ui| {
             ui.checkbox(&mut self.show_shared_extracts, "");
-            let (rect, _) = ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
+            let (rect, icon_response) =
+                ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::click());
             ui.painter()
                 .rect_filled(rect, 2.0, egui::Color32::from_rgb(186, 85, 211));
             ui.painter().rect_stroke(
@@ -543,7 +572,13 @@ impl TarkovMapApp {
                 egui::Stroke::new(1.0, egui::Color32::from_rgb(75, 0, 130)),
                 egui::StrokeKind::Inside,
             );
-            ui.label("Shared Extracts");
+            let label_response = ui
+                .label("Shared Extracts")
+                .interact(egui::Sense::click())
+                .on_hover_cursor(egui::CursorIcon::PointingHand);
+            if icon_response.clicked() || label_response.clicked() {
+                self.show_shared_extracts = !self.show_shared_extracts;
+            }
         });
     }
 }
