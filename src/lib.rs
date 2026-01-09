@@ -13,8 +13,11 @@ pub struct Map {
     pub name: String,
     /// Path to the pre-rendered high-resolution PNG image.
     pub image_path: String,
-    /// Original image size [width, height] at 1x scale.
+    /// Original image size [width, height] in pixels.
     pub image_size: [f32; 2],
+    /// Logical size [width, height] in game units (meters).
+    /// Used for consistent zoom scale across maps.
+    pub logical_size: [f32; 2],
     /// Alternative map keys that use this same map.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub alt_maps: Option<Vec<String>>,

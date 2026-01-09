@@ -9,9 +9,9 @@ use tarkov_map::{Label, Map, TarkovMaps};
 
 const MAPS_RON_PATH: &str = "assets/maps.ron";
 
-/// Min/max zoom levels
-const ZOOM_MIN: f32 = 0.1;
-const ZOOM_MAX: f32 = 4.0;
+/// Min/max zoom levels (1.0 = fit to screen)
+const ZOOM_MIN: f32 = 1.0;
+const ZOOM_MAX: f32 = 10.0;
 
 /// Zoom speed for mouse wheel (multiplier per scroll unit)
 const ZOOM_SPEED: f32 = 1.1;
@@ -146,7 +146,7 @@ impl TarkovMapApp {
 
     fn show_map(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, map: &Map) {
         let image_path = &map.image_path;
-        let image_size = egui::vec2(map.image_size[0], map.image_size[1]);
+        let logical_size = egui::vec2(map.logical_size[0], map.logical_size[1]);
 
         // Request and poll the image
         self.request_asset(ctx, image_path);
@@ -175,12 +175,19 @@ impl TarkovMapApp {
         };
         let texture_id = texture.id();
 
-        // Calculate display size
-        let display_size = image_size * self.zoom;
         let scroll_id = egui::Id::new("map_scroll");
+        let available_rect = ui.available_rect_before_wrap();
+        let viewport_size = available_rect.size();
+
+        // Calculate base scale to fit map in viewport at zoom 1.0
+        let scale_x = viewport_size.x / logical_size.x;
+        let scale_y = viewport_size.y / logical_size.y;
+        let fit_scale = scale_x.min(scale_y);
+
+        // Display size: fit to viewport, then apply zoom
+        let display_size = logical_size * fit_scale * self.zoom;
 
         // Handle mouse wheel zoom (before scroll area consumes the events)
-        let available_rect = ui.available_rect_before_wrap();
         let hover_pos = ui.input(|i| i.pointer.hover_pos());
         let scroll_delta = ui.input(|i| i.raw_scroll_delta.y);
 
@@ -196,7 +203,6 @@ impl TarkovMapApp {
             if let (Some(hover), Some(scroll_state)) =
                 (hover_pos, egui::scroll_area::State::load(ctx, scroll_id))
             {
-                let viewport_size = available_rect.size();
                 let old_offset = scroll_state.offset;
 
                 // Mouse position relative to viewport
@@ -210,7 +216,7 @@ impl TarkovMapApp {
 
                 // New offset to keep mouse at same position
                 let new_offset = new_mouse_in_map - mouse_in_viewport;
-                let new_display_size = image_size * new_zoom;
+                let new_display_size = logical_size * fit_scale * new_zoom;
                 let max_offset = (new_display_size - viewport_size).max(egui::Vec2::ZERO);
                 let new_offset = egui::vec2(
                     new_offset.x.clamp(0.0, max_offset.x),
@@ -231,7 +237,6 @@ impl TarkovMapApp {
 
         if needs_adjustment {
             if let Some(scroll_state) = egui::scroll_area::State::load(ctx, scroll_id) {
-                let viewport_size = ui.available_size();
                 let old_offset = scroll_state.offset;
                 let old_center = old_offset + viewport_size * 0.5;
                 let new_center = old_center * zoom_ratio;
@@ -344,11 +349,11 @@ impl eframe::App for TarkovMapApp {
                         .text("Zoom"),
                 );
 
-                if ui.button("100%").clicked() {
+                if ui.button("Fit").clicked() {
                     self.zoom = 1.0;
                 }
 
-                ui.label(format!("{:.0}%", self.zoom * 100.0));
+                ui.label(format!("{:.0}x", self.zoom));
 
                 ui.separator();
 
@@ -389,7 +394,7 @@ impl eframe::App for TarkovMapApp {
 
         egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
             ui.horizontal(|ui| {
-                ui.label("Scroll: zoom | Drag: pan | +/-: zoom | 0: reset | L: labels");
+                ui.label("Scroll: zoom in | Drag: pan | +/-: zoom | 0: fit to screen | L: labels");
             });
         });
 

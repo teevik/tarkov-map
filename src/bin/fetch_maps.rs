@@ -532,11 +532,23 @@ async fn convert_group(
         ));
     };
 
+    // Calculate logical size from bounds (in game units/meters)
+    // bounds format: [[maxX, minY], [minX, maxY]]
+    let logical_size = if let Some(bounds) = &interactive.bounds {
+        let width = (bounds[0][0] - bounds[1][0]).abs() as f32;
+        let height = (bounds[1][1] - bounds[0][1]).abs() as f32;
+        [width, height]
+    } else {
+        // Fallback to image size if no bounds
+        result.image_size
+    };
+
     Ok(Some(Map {
         normalized_name,
         name,
         image_path: result.image_path,
         image_size: result.image_size,
+        logical_size,
         alt_maps: interactive.alt_maps,
         author: interactive.author,
         author_link: interactive.author_link,
