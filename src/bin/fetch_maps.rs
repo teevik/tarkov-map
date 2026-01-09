@@ -1,3 +1,4 @@
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use ron::ser::PrettyConfig;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -318,13 +319,14 @@ async fn ensure_tile_assets(
     remote_template: &str,
     min_zoom: i32,
     max_zoom: i32,
+    multi_progress: &MultiProgress,
 ) -> color_eyre::Result<String> {
     let relative_template = format!("{}/{}/{{z}}/{{x}}/{{y}}.png", TILES_DIR, normalized_name);
 
     let output_root = repo_path(TILES_DIR).join(normalized_name);
 
-    let semaphore = Arc::new(Semaphore::new(TILE_DOWNLOAD_CONCURRENCY));
-    let mut join_set: JoinSet<color_eyre::Result<()>> = JoinSet::new();
+    // Collect tiles that need to be downloaded
+    let mut tiles_to_download: Vec<(String, PathBuf)> = Vec::new();
 
     for z in min_zoom..=max_zoom {
         let tiles_per_axis = 1u32
@@ -333,34 +335,60 @@ async fn ensure_tile_assets(
 
         for x in 0..tiles_per_axis {
             for y in 0..tiles_per_axis {
-                let remote_url = apply_tile_template(remote_template, z, x, y);
                 let output_path = output_root
                     .join(z.to_string())
                     .join(x.to_string())
                     .join(format!("{}.png", y));
 
-                if output_path.exists() {
-                    continue;
+                if !output_path.exists() {
+                    let remote_url = apply_tile_template(remote_template, z, x, y);
+                    tiles_to_download.push((remote_url, output_path));
                 }
-
-                let client = client.clone();
-                let semaphore = semaphore.clone();
-
-                join_set.spawn(async move {
-                    let _permit = semaphore
-                        .acquire_owned()
-                        .await
-                        .map_err(|err| color_eyre::eyre::eyre!(err))?;
-
-                    download_url_to_path(&client, &remote_url, &output_path).await
-                });
             }
         }
+    }
+
+    // If all tiles already exist, skip download
+    if tiles_to_download.is_empty() {
+        return Ok(relative_template);
+    }
+
+    // Create progress bar for tile downloads
+    let tile_pb = multi_progress.add(ProgressBar::new(tiles_to_download.len() as u64));
+    tile_pb.set_style(
+        ProgressStyle::default_bar()
+            .template("    {spinner:.green} [{bar:30.cyan/blue}] {pos}/{len} tiles ({eta})")
+            .unwrap()
+            .progress_chars("=>-"),
+    );
+    tile_pb.set_message(format!("Downloading {} tiles", normalized_name));
+
+    let semaphore = Arc::new(Semaphore::new(TILE_DOWNLOAD_CONCURRENCY));
+    let tile_pb = Arc::new(tile_pb);
+    let mut join_set: JoinSet<color_eyre::Result<()>> = JoinSet::new();
+
+    for (remote_url, output_path) in tiles_to_download {
+        let client = client.clone();
+        let semaphore = semaphore.clone();
+        let tile_pb = tile_pb.clone();
+
+        join_set.spawn(async move {
+            let _permit = semaphore
+                .acquire_owned()
+                .await
+                .map_err(|err| color_eyre::eyre::eyre!(err))?;
+
+            let result = download_url_to_path(&client, &remote_url, &output_path).await;
+            tile_pb.inc(1);
+            result
+        });
     }
 
     while let Some(result) = join_set.join_next().await {
         result??;
     }
+
+    tile_pb.finish_and_clear();
 
     Ok(relative_template)
 }
@@ -373,6 +401,7 @@ async fn convert_group(
     client: &reqwest::Client,
     fetched: FetchedMapGroup,
     map_names: &HashMap<String, String>,
+    multi_progress: &MultiProgress,
 ) -> color_eyre::Result<Option<Map>> {
     let FetchedMapGroup {
         normalized_name,
@@ -380,7 +409,6 @@ async fn convert_group(
     } = fetched;
 
     let Some(interactive) = maps.into_iter().find(|map| map.projection == "interactive") else {
-        eprintln!("Skipping group '{normalized_name}': no interactive map");
         return Ok(None);
     };
 
@@ -403,8 +431,15 @@ async fn convert_group(
             .ok_or_else(|| color_eyre::eyre::eyre!("Missing maxZoom for '{normalized_name}'"))?;
         let tile_size = interactive.tile_size.unwrap_or(256);
 
-        let local_template =
-            ensure_tile_assets(client, &normalized_name, tile_template, min_zoom, max_zoom).await?;
+        let local_template = ensure_tile_assets(
+            client,
+            &normalized_name,
+            tile_template,
+            min_zoom,
+            max_zoom,
+            multi_progress,
+        )
+        .await?;
 
         MapSource::Tiles {
             template: local_template,
@@ -520,21 +555,40 @@ async fn main() -> color_eyre::Result<()> {
 
     // Parse the JSON into our fetched types
     let fetched_maps: Vec<FetchedMapGroup> = serde_json::from_str(&json_text)?;
-    println!("Parsed {} map groups", fetched_maps.len());
+    println!("Parsed {} map groups\n", fetched_maps.len());
+
+    // Set up multi-progress for concurrent progress bars
+    let multi_progress = MultiProgress::new();
+
+    // Create main progress bar for map processing
+    let maps_pb = multi_progress.add(ProgressBar::new(fetched_maps.len() as u64));
+    maps_pb.set_style(
+        ProgressStyle::default_bar()
+            .template("{spinner:.green} [{bar:40.cyan/blue}] {pos}/{len} maps - {msg}")
+            .unwrap()
+            .progress_chars("=>-"),
+    );
 
     // Convert to the library types (one interactive map per group)
     let mut skipped = 0usize;
     let mut maps: TarkovMaps = Vec::new();
 
     for group in fetched_maps {
-        match convert_group(&client, group, &map_names).await? {
+        let group_name = group.normalized_name.clone();
+        maps_pb.set_message(group_name.clone());
+
+        match convert_group(&client, group, &map_names, &multi_progress).await? {
             Some(map) => maps.push(map),
             None => skipped += 1,
         }
+
+        maps_pb.inc(1);
     }
 
+    maps_pb.finish_with_message("Done");
+
     println!(
-        "Selected {} interactive maps (skipped {})",
+        "\nSelected {} interactive maps (skipped {})",
         maps.len(),
         skipped
     );
