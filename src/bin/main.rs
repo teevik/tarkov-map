@@ -613,6 +613,33 @@ fn game_to_display(map: &Map, map_rect: egui::Rect, game_pos: [f64; 2]) -> Optio
     // Apply rotation to the game coordinates
     let (rotated_x, rotated_y) = rotate_point(game_pos[0], game_pos[1], rotation);
 
+    // For 270° rotation maps with transform, use the transform-based approach
+    // This handles maps like Labs and Labyrinth where the SVG has padding/margins
+    // and the transform accounts for this offset
+    if rotation == 270.0 {
+        if let Some(transform) = map.transform {
+            let scale_x = transform[0];
+            let margin_x = transform[1];
+            let scale_y = -transform[2]; // Negated as per tarkov-dev
+            let margin_y = transform[3];
+
+            // Apply Leaflet transformation: svg_coord = scale * rotated_coord + margin
+            let svg_x = scale_x * rotated_x + margin_x;
+            let svg_y = scale_y * rotated_y + margin_y;
+
+            // Normalize to [0, 1] using image_size (the actual SVG dimensions)
+            // The SVG has padding, and the transform maps game coords to SVG coords
+            let frac_x = svg_x / map.image_size[0] as f64;
+            let frac_y = svg_y / map.image_size[1] as f64;
+
+            // Map to display coordinates
+            let display_x = map_rect.min.x + (frac_x as f32) * map_rect.width();
+            let display_y = map_rect.min.y + (frac_y as f32) * map_rect.height();
+
+            return Some(egui::pos2(display_x, display_y));
+        }
+    }
+
     // Rotate all four corners of the bounds to find the rotated extent
     // bounds format: [[maxX, minY], [minX, maxY]]
     let corners = [
@@ -645,10 +672,14 @@ fn game_to_display(map: &Map, map_rect: egui::Rect, game_pos: [f64; 2]) -> Optio
         .map(|(_, y)| *y)
         .fold(f64::NEG_INFINITY, f64::max);
 
+    // Calculate the bounds range
+    let bounds_width = rotated_max_x - rotated_min_x;
+    let bounds_height = rotated_max_y - rotated_min_y;
+
     // Normalize the rotated point within the rotated bounds to [0, 1]
-    let frac_x = (rotated_x - rotated_min_x) / (rotated_max_x - rotated_min_x);
+    let frac_x = (rotated_x - rotated_min_x) / bounds_width;
     // Y axis is inverted (as per Leaflet's negated scaleY in the official implementation)
-    let frac_y = (rotated_max_y - rotated_y) / (rotated_max_y - rotated_min_y);
+    let frac_y = (rotated_max_y - rotated_y) / bounds_height;
 
     // Map to display coordinates
     let display_x = map_rect.min.x + (frac_x as f32) * map_rect.width();
