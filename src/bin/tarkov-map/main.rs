@@ -14,7 +14,7 @@ use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
 use overlays::OverlayVisibility;
 use screenshot_watcher::{PlayerPosition, ScreenshotWatcher};
 use std::collections::HashMap;
-use std::sync::mpsc;
+use std::sync::{Arc, mpsc};
 use std::thread;
 use tarkov_map::{Map, TarkovMaps};
 
@@ -202,11 +202,26 @@ impl eframe::App for TarkovMapApp {
     }
 }
 
+fn load_icon() -> egui::IconData {
+    let icon_bytes = include_bytes!("../../../assets/tarkov-map-icon.ico");
+    let icon_dir =
+        ico::IconDir::read(std::io::Cursor::new(icon_bytes)).expect("Failed to read icon");
+    let entry = &icon_dir.entries()[2];
+    let image = entry.decode().expect("Failed to decode icon");
+    egui::IconData {
+        rgba: image.rgba_data().to_vec(),
+        width: image.width(),
+        height: image.height(),
+    }
+}
+
 fn main() -> eframe::Result {
     env_logger::init();
 
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([1280.0, 720.0]),
+        viewport: egui::ViewportBuilder::default()
+            .with_inner_size([1280.0, 720.0])
+            .with_icon(Arc::new(load_icon())),
         ..Default::default()
     };
 
