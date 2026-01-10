@@ -104,7 +104,6 @@ struct TarkovMapApp {
     zoom: f32,
     prev_zoom: f32,
     pan_offset: egui::Vec2,
-    sidebar_open: bool,
     overlays: OverlayVisibility,
     asset_cache: HashMap<String, AssetLoadState>,
     texture_cache: HashMap<String, TextureHandle>,
@@ -155,7 +154,6 @@ impl TarkovMapApp {
             zoom: 1.0,
             prev_zoom: 1.0,
             pan_offset: egui::Vec2::ZERO,
-            sidebar_open: true,
             overlays: OverlayVisibility::default(),
             asset_cache,
             texture_cache: HashMap::new(),
@@ -248,12 +246,9 @@ impl eframe::App for TarkovMapApp {
 
         let selected_map = self.selected_map().cloned();
 
-        self.show_top_panel(ctx, &selected_map);
         self.show_status_bar(ctx, &selected_map);
 
-        if self.sidebar_open {
-            self.show_sidebar(ctx);
-        }
+        self.show_sidebar(ctx);
 
         self.show_central_panel(ctx, selected_map);
         self.prev_zoom = self.zoom;
@@ -278,52 +273,13 @@ impl TarkovMapApp {
             if i.key_pressed(egui::Key::L) {
                 self.overlays.labels = !self.overlays.labels;
             }
-            if i.key_pressed(egui::Key::Tab) {
-                self.sidebar_open = !self.sidebar_open;
-            }
-        });
-    }
-
-    fn show_top_panel(&mut self, ctx: &egui::Context, selected_map: &Option<Map>) {
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                let burger_text = if self.sidebar_open { "<<" } else { ">>" };
-                if ui
-                    .button(burger_text)
-                    .on_hover_text("Toggle sidebar (Tab)")
-                    .clicked()
-                {
-                    self.sidebar_open = !self.sidebar_open;
-                }
-
-                ui.separator();
-
-                if let Some(map) = selected_map {
-                    ui.strong(&map.name);
-                }
-
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button("Fit").on_hover_text("Reset zoom (0)").clicked() {
-                        self.reset_view();
-                    }
-
-                    ui.add(
-                        egui::Slider::new(&mut self.zoom, ZOOM_MIN..=ZOOM_MAX)
-                            .logarithmic(true)
-                            .show_value(false)
-                            .text("Zoom"),
-                    );
-                });
-            });
         });
     }
 
     fn show_status_bar(&self, ctx: &egui::Context, selected_map: &Option<Map>) {
         egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
             ui.horizontal(|ui| {
-                ui.label(
-                    "Scroll: Zoom | Drag: Pan | +/-: Zoom | 0: Fit | L: Labels | Tab: Sidebar",
-                );
+                ui.label("Scroll: Zoom | Drag: Pan | +/-: Zoom | 0: Fit | L: Labels");
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if let Some(map) = selected_map {
@@ -468,8 +424,41 @@ impl TarkovMapApp {
                 return;
             };
 
+            let panel_rect = ui.max_rect();
             self.show_map(ui, ctx, &map);
+            self.show_zoom_controls(ctx, panel_rect);
         });
+    }
+
+    fn show_zoom_controls(&mut self, ctx: &egui::Context, panel_rect: egui::Rect) {
+        let margin = 12.0;
+        let panel_width = 160.0;
+        let panel_height = 36.0;
+
+        let anchor_pos = egui::pos2(
+            panel_rect.right() - panel_width - margin,
+            panel_rect.bottom() - panel_height - margin,
+        );
+
+        egui::Area::new(egui::Id::new("zoom_controls"))
+            .fixed_pos(anchor_pos)
+            .interactable(true)
+            .show(ctx, |ui| {
+                egui::Frame::popup(ui.style())
+                    .fill(ui.style().visuals.window_fill.gamma_multiply(0.95))
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.add(
+                                egui::Slider::new(&mut self.zoom, ZOOM_MIN..=ZOOM_MAX)
+                                    .logarithmic(true)
+                                    .show_value(false),
+                            );
+                            if ui.button("Fit").on_hover_text("Reset view (0)").clicked() {
+                                self.reset_view();
+                            }
+                        });
+                    });
+            });
     }
 
     fn show_map(&mut self, ui: &mut egui::Ui, _ctx: &egui::Context, map: &Map) {
