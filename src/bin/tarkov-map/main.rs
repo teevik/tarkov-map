@@ -5,12 +5,14 @@ mod colors;
 mod constants;
 mod coordinates;
 mod overlays;
+mod screenshot_watcher;
 mod ui;
 
 use assets::{AssetLoadState, load_and_decode_image, load_maps};
 use eframe::egui::{self, ColorImage, TextureHandle, TextureOptions};
 use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
 use overlays::OverlayVisibility;
+use screenshot_watcher::{PlayerPosition, ScreenshotWatcher};
 use std::collections::HashMap;
 use std::sync::mpsc;
 use std::thread;
@@ -27,6 +29,8 @@ pub struct TarkovMapApp {
     asset_cache: HashMap<String, AssetLoadState>,
     texture_cache: HashMap<String, TextureHandle>,
     toasts: Toasts,
+    screenshot_watcher: Option<ScreenshotWatcher>,
+    player_position: Option<PlayerPosition>,
 }
 
 impl TarkovMapApp {
@@ -67,6 +71,15 @@ impl TarkovMapApp {
             asset_cache.insert(map.image_path.clone(), AssetLoadState::Loading(rx));
         }
 
+        // Initialize screenshot watcher for player position tracking
+        let mut screenshot_watcher = ScreenshotWatcher::new(cc.egui_ctx.clone());
+        // Get initial position from the newest screenshot
+        let player_position = screenshot_watcher.as_mut().and_then(|w| w.poll());
+
+        if screenshot_watcher.is_none() {
+            log::info!("Screenshot watcher not available - player position tracking disabled");
+        }
+
         Self {
             maps,
             selected_map: 0,
@@ -77,6 +90,8 @@ impl TarkovMapApp {
             asset_cache,
             texture_cache: HashMap::new(),
             toasts,
+            screenshot_watcher,
+            player_position,
         }
     }
 
@@ -157,11 +172,21 @@ impl TarkovMapApp {
         self.zoom = 1.0;
         self.pan_offset = egui::Vec2::ZERO;
     }
+
+    /// Polls the screenshot watcher for player position updates.
+    fn poll_player_position(&mut self) {
+        if let Some(watcher) = &mut self.screenshot_watcher {
+            if let Some(position) = watcher.poll() {
+                self.player_position = Some(position);
+            }
+        }
+    }
 }
 
 impl eframe::App for TarkovMapApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.poll_all_assets(ctx);
+        self.poll_player_position();
         self.handle_keyboard_input(ctx);
 
         let selected_map = self.selected_map().cloned();

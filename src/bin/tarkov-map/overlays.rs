@@ -2,6 +2,7 @@
 
 use crate::colors;
 use crate::coordinates::game_to_display;
+use crate::screenshot_watcher::PlayerPosition;
 use eframe::egui;
 use tarkov_map::{Extract, Label, Map, Spawn};
 
@@ -13,6 +14,7 @@ pub struct OverlayVisibility {
     pub pmc_extracts: bool,
     pub scav_extracts: bool,
     pub shared_extracts: bool,
+    pub player_marker: bool,
 }
 
 impl Default for OverlayVisibility {
@@ -23,6 +25,7 @@ impl Default for OverlayVisibility {
             pmc_extracts: true,
             scav_extracts: true,
             shared_extracts: true,
+            player_marker: true,
         }
     }
 }
@@ -171,4 +174,73 @@ pub fn draw_extracts(
             egui::Color32::WHITE,
         );
     }
+}
+
+/// Draws the player position marker as a circle with a directional triangle on the map.
+pub fn draw_player_marker(
+    ui: &mut egui::Ui,
+    map_rect: egui::Rect,
+    map: &Map,
+    player: &PlayerPosition,
+    zoom: f32,
+) {
+    // Use x, z for 2D position (y is height in Tarkov)
+    let game_pos = [player.position[0], player.position[2]];
+    let Some(pos) = game_to_display(map, map_rect, game_pos) else {
+        return;
+    };
+
+    // Don't draw if outside the visible map area
+    if !map_rect.expand(50.0).contains(pos) {
+        return;
+    }
+
+    let painter = ui.painter();
+
+    // Sizes scale with zoom
+    let circle_radius = (8.0 * zoom).clamp(6.0, 16.0);
+    let triangle_size = (8.0 * zoom).clamp(5.0, 14.0);
+    let triangle_offset = circle_radius + triangle_size * 0.6; // Distance from center to triangle
+
+    // The yaw from the screenshot represents the player's facing direction.
+    // We need to adjust for the map's coordinate rotation to display correctly.
+    let coord_rotation = map.coordinate_rotation.unwrap_or(0.0) as f32;
+    let adjusted_yaw = player.yaw - coord_rotation.to_radians();
+
+    // Draw the circle at player position
+    painter.circle(
+        pos,
+        circle_radius,
+        colors::PLAYER_MARKER_FILL,
+        egui::Stroke::new(2.0, colors::PLAYER_MARKER_STROKE),
+    );
+
+    // Calculate triangle center position (outside the circle, in direction of yaw)
+    let triangle_center = pos
+        + egui::vec2(
+            adjusted_yaw.sin() * triangle_offset,
+            -adjusted_yaw.cos() * triangle_offset,
+        );
+
+    // Create triangle points (pointing outward from circle)
+    // The tip points away from the circle center
+    let tip = egui::vec2(0.0, -triangle_size);
+    let back_left = egui::vec2(-triangle_size * 0.6, triangle_size * 0.4);
+    let back_right = egui::vec2(triangle_size * 0.6, triangle_size * 0.4);
+
+    // Rotate each point by the adjusted yaw
+    let rotate = |v: egui::Vec2| -> egui::Pos2 {
+        let cos = adjusted_yaw.cos();
+        let sin = adjusted_yaw.sin();
+        triangle_center + egui::vec2(v.x * cos - v.y * sin, v.x * sin + v.y * cos)
+    };
+
+    let points = vec![rotate(tip), rotate(back_left), rotate(back_right)];
+
+    // Draw filled triangle with stroke
+    painter.add(egui::Shape::convex_polygon(
+        points,
+        colors::PLAYER_MARKER_FILL,
+        egui::Stroke::new(1.5, colors::PLAYER_MARKER_STROKE),
+    ));
 }

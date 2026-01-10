@@ -18,6 +18,10 @@ pub const SCAV_EXTRACT_STROKE: Color32 = Color32::from_rgb(139, 69, 19);
 pub const SHARED_EXTRACT_FILL: Color32 = Color32::from_rgb(186, 85, 211);
 pub const SHARED_EXTRACT_STROKE: Color32 = Color32::from_rgb(75, 0, 130);
 
+// Player marker
+pub const PLAYER_MARKER_FILL: Color32 = Color32::from_rgb(255, 50, 50);
+pub const PLAYER_MARKER_STROKE: Color32 = Color32::from_rgb(139, 0, 0);
+
 // Text colors
 pub const LABEL_TEXT: Color32 = Color32::from_rgba_premultiplied(255, 255, 255, 220);
 pub const LABEL_SHADOW: Color32 = Color32::from_rgba_premultiplied(0, 0, 0, 180);

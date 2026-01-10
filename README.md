@@ -1,6 +1,6 @@
 # tarkov-map
 
-Native desktop map viewer for Escape from Tarkov. Built with Rust and egui.
+Native desktop map viewer with position tracking for Escape from Tarkov. Built with Rust and egui.
 
 ![screenshot](.github/screenshot.png)
 

@@ -3,7 +3,7 @@
 use crate::TarkovMapApp;
 use crate::colors;
 use crate::constants::{SIDEBAR_WIDTH, ZOOM_MAX, ZOOM_MIN, ZOOM_SPEED};
-use crate::overlays::{draw_extracts, draw_labels, draw_spawns};
+use crate::overlays::{draw_extracts, draw_labels, draw_player_marker, draw_spawns};
 use eframe::egui;
 use tarkov_map::Map;
 
@@ -120,6 +120,46 @@ impl TarkovMapApp {
             "Shared Extracts",
             colors::SHARED_EXTRACT_FILL,
         );
+        Self::overlay_toggle_triangle(
+            ui,
+            &mut self.overlays.player_marker,
+            "Player Position",
+            colors::PLAYER_MARKER_FILL,
+        );
+    }
+
+    /// Renders a triangle-style overlay toggle (for player marker).
+    fn overlay_toggle_triangle(
+        ui: &mut egui::Ui,
+        value: &mut bool,
+        label: &str,
+        color: egui::Color32,
+    ) {
+        ui.horizontal(|ui| {
+            ui.checkbox(value, "");
+            let (rect, icon_response) =
+                ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::click());
+            let center = rect.center();
+            // Draw a small triangle pointing up
+            let size = 5.0;
+            let points = vec![
+                center + egui::vec2(0.0, -size),
+                center + egui::vec2(-size * 0.7, size * 0.5),
+                center + egui::vec2(size * 0.7, size * 0.5),
+            ];
+            ui.painter().add(egui::Shape::convex_polygon(
+                points,
+                color,
+                egui::Stroke::new(1.0, color.gamma_multiply(0.5)),
+            ));
+            let label_response = ui
+                .label(label)
+                .interact(egui::Sense::click())
+                .on_hover_cursor(egui::CursorIcon::PointingHand);
+            if icon_response.clicked() || label_response.clicked() {
+                *value = !*value;
+            }
+        });
     }
 
     /// Renders a circle-style overlay toggle (for spawns, labels).
@@ -294,6 +334,13 @@ impl TarkovMapApp {
 
         if let Some(extracts) = &map.extracts {
             draw_extracts(ui, map_rect, map, extracts, self.zoom, &overlays);
+        }
+
+        // Draw player position marker
+        if overlays.player_marker
+            && let Some(player_pos) = &self.player_position
+        {
+            draw_player_marker(ui, map_rect, map, player_pos, self.zoom);
         }
     }
 
