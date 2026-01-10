@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.4](https://github.com/teevik/tarkov-map/compare/tarkov-map-v0.1.3...tarkov-map-v0.1.4) (2026-01-10)
+
+
+### Features
+
+* app icon ([25a24d4](https://github.com/teevik/tarkov-map/commit/25a24d4925a3f73d68cd6adef64fa9fe0ea01fb8))
+* tarkov screenshot position tracking ([48dd827](https://github.com/teevik/tarkov-map/commit/48dd82795724c6edfd498eb8c767951a18a9c321))
+* use skip_serializing_none to simplify code ([b86a16d](https://github.com/teevik/tarkov-map/commit/b86a16d88316499a0d043b14d1dce7938f68f021))
+
 ## [0.1.3](https://github.com/teevik/tarkov-map/compare/tarkov-map-v0.1.2...tarkov-map-v0.1.3) (2026-01-10)
 
 
