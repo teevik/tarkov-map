@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/teevik/tarkov-map/compare/tarkov-map-v0.1.1...tarkov-map-v0.1.2) (2026-01-10)
+
+
+### Features
+
+* Simplify UI ([5b7769a](https://github.com/teevik/tarkov-map/commit/5b7769a1a5274a842631d5c1b1416850fe0f618f))
+
 ## [0.1.1](https://github.com/teevik/tarkov-map/compare/tarkov-map-v0.1.0...tarkov-map-v0.1.1) (2026-01-09)
 
 
