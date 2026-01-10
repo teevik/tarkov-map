@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/teevik/tarkov-map/compare/tarkov-map-v0.1.2...tarkov-map-v0.1.3) (2026-01-10)
+
+
+### Features
+
+* Use PAT for release-please ([5f3dd85](https://github.com/teevik/tarkov-map/commit/5f3dd85698cd649ecbb880dc24d489d730fcf64d))
+
 ## [0.1.2](https://github.com/teevik/tarkov-map/compare/tarkov-map-v0.1.1...tarkov-map-v0.1.2) (2026-01-10)
 
 
