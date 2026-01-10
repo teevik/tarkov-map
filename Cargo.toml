@@ -3,7 +3,7 @@ name = "tarkov-map"
 version = "0.1.1"
 edition = "2024"
 license = "MIT"
-default-run = "main"
+default-run = "tarkov-map"
 
 [dependencies]
 base64 = "0.22.1"

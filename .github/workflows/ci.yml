@@ -17,21 +17,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: cachix/install-nix-action@v30
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          extra_nix_config: |
-            accept-flake-config = true
+          targets: x86_64-pc-windows-msvc
 
-      - name: Restore and save Nix store
-        uses: nix-community/cache-nix-action@v6
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Cache xwin Windows SDK/CRT
+        uses: actions/cache@v4
         with:
-          primary-key: nix-${{ runner.os }}-${{ hashFiles('**/*.nix', '**/flake.lock') }}
-          restore-prefixes-first-match: nix-${{ runner.os }}-
-          gc-max-store-size-linux: 2G
-          purge: true
-          purge-prefixes: nix-${{ runner.os }}-
-          purge-created: 0
-          purge-primary-key: never
+          path: ~/.cache/cargo-xwin
+          key: xwin-${{ runner.os }}-v17
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y clang lld llvm
+
+      - name: Install cargo-xwin
+        run: cargo install --locked cargo-xwin
 
       - name: Build Windows executable
-        run: nix build -L .
+        env:
+          XWIN_CACHE_DIR: ~/.cache/cargo-xwin
+          RUSTFLAGS: "-C target-feature=+crt-static"
+        run: cargo xwin build --release --target x86_64-pc-windows-msvc
