@@ -7,6 +7,7 @@ mod coordinates;
 mod overlays;
 mod screenshot_watcher;
 mod ui;
+mod updater;
 
 use assets::{AssetLoadState, load_and_decode_image, load_maps};
 use eframe::egui::{self, ColorImage, TextureHandle, TextureOptions};
@@ -52,7 +53,9 @@ pub struct TarkovMapApp {
     asset_cache: HashMap<String, AssetLoadState>,
     texture_cache: HashMap<String, TextureHandle>,
     toasts: Toasts,
+    updater: updater::Updater,
     screenshot_watcher: Option<ScreenshotWatcher>,
+
     player_position: Option<PlayerPosition>,
 }
 
@@ -63,9 +66,13 @@ impl TarkovMapApp {
             .and_then(|storage| eframe::get_value(storage, SETTINGS_STORAGE_KEY))
             .unwrap_or_default();
 
-        let mut toasts = Toasts::new()
-            .anchor(egui::Align2::RIGHT_TOP, (-10.0, 10.0))
-            .direction(egui::Direction::TopDown);
+        let updater = updater::Updater::new(cc.egui_ctx.clone());
+
+        let mut toasts = updater.configure_toasts(
+            Toasts::new()
+                .anchor(egui::Align2::RIGHT_TOP, (-10.0, 10.0))
+                .direction(egui::Direction::TopDown),
+        );
 
         let maps = match load_maps() {
             Ok(maps) => maps,
@@ -127,7 +134,9 @@ impl TarkovMapApp {
             asset_cache,
             texture_cache: HashMap::new(),
             toasts,
+            updater,
             screenshot_watcher,
+
             player_position,
         }
     }
@@ -212,10 +221,10 @@ impl TarkovMapApp {
 
     /// Polls the screenshot watcher for player position updates.
     fn poll_player_position(&mut self) {
-        if let Some(watcher) = &mut self.screenshot_watcher {
-            if let Some(position) = watcher.poll() {
-                self.player_position = Some(position);
-            }
+        if let Some(watcher) = &mut self.screenshot_watcher
+            && let Some(position) = watcher.poll()
+        {
+            self.player_position = Some(position);
         }
     }
 }
@@ -225,6 +234,7 @@ impl eframe::App for TarkovMapApp {
         self.poll_all_assets(ctx);
         self.poll_player_position();
         self.handle_keyboard_input(ctx);
+        self.updater.poll(ctx, &mut self.toasts);
 
         let selected_map = self.selected_map().cloned();
 

@@ -8,7 +8,7 @@ use eframe::egui;
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use regex::Regex;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 
 /// Player position and rotation data extracted from a screenshot filename.
@@ -69,18 +69,18 @@ impl ScreenshotWatcher {
                 // Only handle file creation events
                 if matches!(event.kind, EventKind::Create(_)) {
                     for path in event.paths {
-                        if path.extension().is_some_and(|ext| ext == "png") {
-                            if let Some(position) = Self::parse_screenshot_filename(&path) {
-                                log::info!(
-                                    "New player position: [{:.2}, {:.2}, {:.2}], yaw: {:.2}°",
-                                    position.position[0],
-                                    position.position[1],
-                                    position.position[2],
-                                    position.yaw.to_degrees()
-                                );
-                                let _ = tx.send(position);
-                                ctx_clone.request_repaint();
-                            }
+                        if path.extension().is_some_and(|ext| ext == "png")
+                            && let Some(position) = Self::parse_screenshot_filename(&path)
+                        {
+                            log::info!(
+                                "New player position: [{:.2}, {:.2}, {:.2}], yaw: {:.2}°",
+                                position.position[0],
+                                position.position[1],
+                                position.position[2],
+                                position.yaw.to_degrees()
+                            );
+                            let _ = tx.send(position);
+                            ctx_clone.request_repaint();
                         }
                     }
                 }
@@ -123,7 +123,7 @@ impl ScreenshotWatcher {
     /// Parses a screenshot filename to extract player position and rotation.
     ///
     /// Expected format: `DATE[TIME]_X, Y, Z_QX, QY, QZ, QW_OTHER (N).png`
-    fn parse_screenshot_filename(path: &PathBuf) -> Option<PlayerPosition> {
+    fn parse_screenshot_filename(path: &Path) -> Option<PlayerPosition> {
         let filename = path.file_name()?.to_str()?;
 
         // Regex to match the position and quaternion in the filename
