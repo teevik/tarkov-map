@@ -7,7 +7,7 @@ default-run = "tarkov-map"
 
 [dependencies]
 base64 = "0.22.1"
-eframe = "0.33.3"
+eframe = { version = "0.33.3", features = ["persistence"] }
 egui_extras = { version = "0.33.3", features = ["svg", "image"] }
 ico = "0.4"
 image = { version = "0.25", default-features = false, features = ["png"] }

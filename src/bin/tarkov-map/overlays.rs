@@ -4,10 +4,12 @@ use crate::colors;
 use crate::coordinates::game_to_display;
 use crate::screenshot_watcher::PlayerPosition;
 use eframe::egui;
+use serde::{Deserialize, Serialize};
 use tarkov_map::{Extract, Label, Map, Spawn};
 
 /// Controls visibility of different overlay types on the map.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(default)]
 pub struct OverlayVisibility {
     pub labels: bool,
     pub spawns: bool,

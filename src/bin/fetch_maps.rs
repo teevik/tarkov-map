@@ -189,7 +189,6 @@ struct FetchedMapGroup {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-#[allow(dead_code)]
 struct FetchedMap {
     #[serde(default)]
     alt_maps: Option<Vec<String>>,
@@ -212,8 +211,6 @@ struct FetchedMap {
     bounds: Option<[[f64; 2]; 2]>,
     #[serde(default)]
     svg_path: Option<String>,
-    #[serde(default)]
-    svg_layer: Option<String>,
     #[serde(default)]
     tile_path: Option<String>,
     #[serde(default)]

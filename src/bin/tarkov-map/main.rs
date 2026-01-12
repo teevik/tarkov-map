@@ -13,10 +13,33 @@ use eframe::egui::{self, ColorImage, TextureHandle, TextureOptions};
 use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
 use overlays::OverlayVisibility;
 use screenshot_watcher::{PlayerPosition, ScreenshotWatcher};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, mpsc};
 use std::thread;
 use tarkov_map::{Map, TarkovMaps};
+
+const APP_ID: &str = "tarkov-map";
+const APP_TITLE: &str = "Tarkov Map";
+const SETTINGS_STORAGE_KEY: &str = "app_settings";
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+struct AppSettings {
+    schema_version: u32,
+    selected_map_normalized_name: Option<String>,
+    overlays: OverlayVisibility,
+}
+
+impl Default for AppSettings {
+    fn default() -> Self {
+        Self {
+            schema_version: 1,
+            selected_map_normalized_name: None,
+            overlays: OverlayVisibility::default(),
+        }
+    }
+}
 
 /// Main application state for the Tarkov Map viewer.
 pub struct TarkovMapApp {
@@ -35,6 +58,11 @@ pub struct TarkovMapApp {
 
 impl TarkovMapApp {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        let settings: AppSettings = cc
+            .storage
+            .and_then(|storage| eframe::get_value(storage, SETTINGS_STORAGE_KEY))
+            .unwrap_or_default();
+
         let mut toasts = Toasts::new()
             .anchor(egui::Align2::RIGHT_TOP, (-10.0, 10.0))
             .direction(egui::Direction::TopDown);
@@ -53,6 +81,15 @@ impl TarkovMapApp {
                 Vec::new()
             }
         };
+
+        let selected_map = settings
+            .selected_map_normalized_name
+            .as_deref()
+            .and_then(|saved_name| {
+                maps.iter()
+                    .position(|map| map.normalized_name == saved_name)
+            })
+            .unwrap_or(0);
 
         let mut asset_cache = HashMap::new();
 
@@ -82,11 +119,11 @@ impl TarkovMapApp {
 
         Self {
             maps,
-            selected_map: 0,
+            selected_map,
             zoom: 1.0,
             prev_zoom: 1.0,
             pan_offset: egui::Vec2::ZERO,
-            overlays: OverlayVisibility::default(),
+            overlays: settings.overlays,
             asset_cache,
             texture_cache: HashMap::new(),
             toasts,
@@ -200,6 +237,21 @@ impl eframe::App for TarkovMapApp {
         // Show toasts
         self.toasts.show(ctx);
     }
+
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        let selected_map_normalized_name = self
+            .maps
+            .get(self.selected_map)
+            .map(|map| map.normalized_name.clone());
+
+        let settings = AppSettings {
+            selected_map_normalized_name,
+            overlays: self.overlays,
+            ..Default::default()
+        };
+
+        eframe::set_value(storage, SETTINGS_STORAGE_KEY, &settings);
+    }
 }
 
 fn load_icon() -> egui::IconData {
@@ -220,13 +272,14 @@ fn main() -> eframe::Result {
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
+            .with_title(APP_TITLE)
             .with_inner_size([1280.0, 720.0])
             .with_icon(Arc::new(load_icon())),
         ..Default::default()
     };
 
     eframe::run_native(
-        "Tarkov Map",
+        APP_ID,
         options,
         Box::new(|cc| Ok(Box::new(TarkovMapApp::new(cc)))),
     )
