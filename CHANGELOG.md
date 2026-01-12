@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/teevik/tarkov-map/compare/tarkov-map-v0.1.4...tarkov-map-v0.1.5) (2026-01-12)
+
+
+### Features
+
+* Persisted sidebar settings ([89c88c0](https://github.com/teevik/tarkov-map/commit/89c88c0d756a60942d83658eb6846e8d86fce95a))
+
 ## [0.1.4](https://github.com/teevik/tarkov-map/compare/tarkov-map-v0.1.3...tarkov-map-v0.1.4) (2026-01-10)
 
 
