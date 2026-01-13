@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.6](https://github.com/teevik/tarkov-map/compare/tarkov-map-v0.1.5...tarkov-map-v0.1.6) (2026-01-12)
+
+
+### Features
+
+* self updating with notification ([1ad7774](https://github.com/teevik/tarkov-map/commit/1ad777430d20e9b8ab5be849427764adaaffa3a6))
+
 ## [0.1.5](https://github.com/teevik/tarkov-map/compare/tarkov-map-v0.1.4...tarkov-map-v0.1.5) (2026-01-12)
 
 
