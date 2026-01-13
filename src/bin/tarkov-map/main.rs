@@ -292,6 +292,7 @@ fn main() -> eframe::Result {
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
+            .with_title(APP_TITLE)
             .with_decorations(false) // Hide OS window decorations for custom title bar
             .with_transparent(true) // Enable transparency for rounded corners
             .with_inner_size([1280.0, 720.0])
