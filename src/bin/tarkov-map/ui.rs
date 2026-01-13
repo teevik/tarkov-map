@@ -531,7 +531,7 @@ impl TarkovMapApp {
                 .layout(egui::Layout::left_to_right(egui::Align::Center)),
             |ui| {
                 ui.add_space(8.0);
-                self.show_file_menu(ui);
+                self.show_menu_bar(ui);
             },
         );
 
@@ -549,10 +549,10 @@ impl TarkovMapApp {
         );
     }
 
-    /// Renders the File menu dropdown.
-    #[allow(deprecated)]
-    fn show_file_menu(&mut self, ui: &mut egui::Ui) {
-        egui::menu::bar(ui, |ui| {
+    /// Renders the menu bar (File, Help).
+    fn show_menu_bar(&mut self, ui: &mut egui::Ui) {
+        egui::MenuBar::new().ui(ui, |ui| {
+            // File menu
             ui.menu_button("File", |ui| {
                 if ui.button("Clear Settings").clicked() {
                     // Clear settings by resetting to defaults and restarting app
@@ -571,6 +571,14 @@ impl TarkovMapApp {
 
                 if ui.button("Exit").clicked() {
                     ui.ctx().send_viewport_cmd(ViewportCommand::Close);
+                    ui.close();
+                }
+            });
+
+            // Help menu
+            ui.menu_button("Help", |ui| {
+                if ui.button("GitHub").clicked() {
+                    let _ = open::that("https://github.com/teevik/tarkov-map");
                     ui.close();
                 }
             });

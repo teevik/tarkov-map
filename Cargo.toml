@@ -30,6 +30,7 @@ serde_with = "3.16.1"
 notify = "8.0.0"
 regex = "1.11"
 dirs = "6.0"
+open = "5"
 
 [build-dependencies]
 cynic-codegen = "3.12.0"
