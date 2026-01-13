@@ -25,12 +25,15 @@ jobs:
       - name: Build Windows executable
         run: cargo build --release
 
-      - name: Prepare release asset
+      - name: Prepare release assets
         run: |
           $target = "x86_64-pc-windows-msvc"
-          Copy-Item "target/release/tarkov-map.exe" "target/release/tarkov-map-$target.exe"
+          # Create zip containing tarkov-map.exe
+          Compress-Archive -Path "target/release/tarkov-map.exe" -DestinationPath "target/release/tarkov-map-$target.zip"
 
-      - name: Upload release asset
+      - name: Upload release assets
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ github.event.release.tag_name }}" "target/release/tarkov-map-x86_64-pc-windows-msvc.exe" --clobber
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" "target/release/tarkov-map.exe" --clobber
+          gh release upload "${{ github.event.release.tag_name }}" "target/release/tarkov-map-x86_64-pc-windows-msvc.zip" --clobber
