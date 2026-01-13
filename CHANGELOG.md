@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.9](https://github.com/teevik/tarkov-map/compare/v0.1.8...v0.1.9) (2026-01-13)
+
+
+### Features
+
+* github link ([da80a4a](https://github.com/teevik/tarkov-map/commit/da80a4a0f65c37d9a0603f3061f93c603e1ca758))
+* hide border when fullscreened, and proper windows decorations ([994b14f](https://github.com/teevik/tarkov-map/commit/994b14fa58432fa1629528d816238ad1b942eda0))
+
 ## [0.1.8](https://github.com/teevik/tarkov-map/compare/v0.1.7...v0.1.8) (2026-01-13)
 
 
