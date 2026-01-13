@@ -385,11 +385,19 @@ impl TarkovMapApp {
 
     /// Renders the complete custom window frame with title bar and content.
     pub fn show_custom_frame(&mut self, ctx: &egui::Context) {
+        let is_maximized = ctx.input(|i| i.viewport().maximized.unwrap_or(false));
+
+        // When maximized, no border radius or stroke (like native Windows)
+        let corner_radius = if is_maximized { 0.0 } else { 10.0 };
         let panel_frame = egui::Frame::new()
             .fill(ctx.style().visuals.window_fill())
-            .corner_radius(10.0)
-            .stroke(ctx.style().visuals.widgets.noninteractive.fg_stroke)
-            .outer_margin(1.0); // so the stroke is within the bounds
+            .corner_radius(corner_radius)
+            .stroke(if is_maximized {
+                egui::Stroke::NONE
+            } else {
+                ctx.style().visuals.widgets.noninteractive.fg_stroke
+            })
+            .outer_margin(if is_maximized { 0.0 } else { 1.0 });
 
         egui::CentralPanel::default()
             .frame(egui::Frame::NONE)
@@ -413,27 +421,28 @@ impl TarkovMapApp {
                     };
 
                     // Render title bar
-                    self.show_title_bar(ui, title_bar_rect);
+                    self.show_title_bar(ui, title_bar_rect, is_maximized, corner_radius);
 
                     // Render content in the remaining area
                     let mut content_ui =
                         ui.new_child(egui::UiBuilder::new().max_rect(content_rect));
-                    self.show_frame_content(&mut content_ui);
+                    self.show_frame_content(&mut content_ui, is_maximized);
                 });
             });
     }
 
     /// Renders the content inside the custom frame (sidebar, central panel, status bar).
-    fn show_frame_content(&mut self, ui: &mut egui::Ui) {
+    fn show_frame_content(&mut self, ui: &mut egui::Ui, is_maximized: bool) {
         let ctx = ui.ctx().clone();
         let selected_map = self.selected_map().cloned();
 
-        // Status bar at bottom
+        // Status bar at bottom (no corner radius when maximized)
+        let status_corner_radius = if is_maximized { 0 } else { 10 };
         egui::TopBottomPanel::bottom("status_bar")
             .frame(
                 egui::Frame::side_top_panel(ui.style()).corner_radius(egui::CornerRadius {
-                    sw: 10,
-                    se: 10,
+                    sw: status_corner_radius,
+                    se: status_corner_radius,
                     ..Default::default()
                 }),
             )
@@ -483,7 +492,13 @@ impl TarkovMapApp {
     }
 
     /// Renders the custom title bar with file menu, title, and window controls.
-    fn show_title_bar(&mut self, ui: &mut egui::Ui, title_bar_rect: egui::Rect) {
+    fn show_title_bar(
+        &mut self,
+        ui: &mut egui::Ui,
+        title_bar_rect: egui::Rect,
+        is_maximized: bool,
+        corner_radius: f32,
+    ) {
         let painter = ui.painter();
 
         // Make the title bar draggable
@@ -514,7 +529,6 @@ impl TarkovMapApp {
 
         // Double-click to maximize/restore
         if title_bar_response.double_clicked() {
-            let is_maximized = ui.input(|i| i.viewport().maximized.unwrap_or(false));
             ui.ctx()
                 .send_viewport_cmd(ViewportCommand::Maximized(!is_maximized));
         }
@@ -541,10 +555,8 @@ impl TarkovMapApp {
                 .max_rect(title_bar_rect)
                 .layout(egui::Layout::right_to_left(egui::Align::Center)),
             |ui| {
-                ui.add_space(8.0);
                 ui.spacing_mut().item_spacing.x = 0.0;
-                ui.visuals_mut().button_frame = false;
-                Self::close_maximize_minimize(ui);
+                Self::window_controls(ui, is_maximized, corner_radius);
             },
         );
     }
@@ -585,51 +597,131 @@ impl TarkovMapApp {
         });
     }
 
-    /// Renders the window control buttons (minimize, maximize/restore, close).
-    fn close_maximize_minimize(ui: &mut egui::Ui) {
-        let button_height = 12.0;
+    /// Renders Windows-style window control buttons (minimize, maximize/restore, close).
+    fn window_controls(ui: &mut egui::Ui, is_maximized: bool, corner_radius: f32) {
+        let button_width = 46.0;
+        let button_height = TITLE_BAR_HEIGHT;
+        let icon_color = ui.style().visuals.text_color();
 
-        // Close button
-        let close_response = ui
-            .add(egui::Button::new(
-                egui::RichText::new("\u{274C}").size(button_height),
-            ))
-            .on_hover_text("Close");
+        // Close button (red on hover, with corner radius to match window frame)
+        let (close_rect, close_response) = ui.allocate_exact_size(
+            egui::vec2(button_width, button_height),
+            egui::Sense::click(),
+        );
+        if close_response.hovered() {
+            // Only round the top-right corner to match the window frame
+            let close_corner_radius = egui::CornerRadius {
+                ne: corner_radius as u8,
+                ..Default::default()
+            };
+            ui.painter().rect_filled(
+                close_rect,
+                close_corner_radius,
+                egui::Color32::from_rgb(196, 43, 28),
+            );
+        }
+        // Draw X icon
+        let close_icon_color = if close_response.hovered() {
+            egui::Color32::WHITE
+        } else {
+            icon_color
+        };
+        Self::draw_close_icon(ui.painter(), close_rect.center(), close_icon_color);
         if close_response.clicked() {
             ui.ctx().send_viewport_cmd(ViewportCommand::Close);
         }
 
         // Maximize/Restore button
-        let is_maximized = ui.input(|i| i.viewport().maximized.unwrap_or(false));
+        let (max_rect, max_response) = ui.allocate_exact_size(
+            egui::vec2(button_width, button_height),
+            egui::Sense::click(),
+        );
+        if max_response.hovered() {
+            ui.painter()
+                .rect_filled(max_rect, 0.0, ui.style().visuals.widgets.hovered.bg_fill);
+        }
         if is_maximized {
-            let restore_response = ui
-                .add(egui::Button::new(
-                    egui::RichText::new("\u{1F5D7}").size(button_height),
-                ))
-                .on_hover_text("Restore");
-            if restore_response.clicked() {
-                ui.ctx()
-                    .send_viewport_cmd(ViewportCommand::Maximized(false));
-            }
+            Self::draw_restore_icon(ui.painter(), max_rect.center(), icon_color);
         } else {
-            let maximize_response = ui
-                .add(egui::Button::new(
-                    egui::RichText::new("\u{1F5D7}").size(button_height),
-                ))
-                .on_hover_text("Maximize");
-            if maximize_response.clicked() {
-                ui.ctx().send_viewport_cmd(ViewportCommand::Maximized(true));
-            }
+            Self::draw_maximize_icon(ui.painter(), max_rect.center(), icon_color);
+        }
+        if max_response.clicked() {
+            ui.ctx()
+                .send_viewport_cmd(ViewportCommand::Maximized(!is_maximized));
         }
 
         // Minimize button
-        let minimize_response = ui
-            .add(egui::Button::new(
-                egui::RichText::new("\u{1F5D5}").size(button_height),
-            ))
-            .on_hover_text("Minimize");
-        if minimize_response.clicked() {
+        let (min_rect, min_response) = ui.allocate_exact_size(
+            egui::vec2(button_width, button_height),
+            egui::Sense::click(),
+        );
+        if min_response.hovered() {
+            ui.painter()
+                .rect_filled(min_rect, 0.0, ui.style().visuals.widgets.hovered.bg_fill);
+        }
+        Self::draw_minimize_icon(ui.painter(), min_rect.center(), icon_color);
+        if min_response.clicked() {
             ui.ctx().send_viewport_cmd(ViewportCommand::Minimized(true));
         }
+    }
+
+    /// Draws a close (X) icon.
+    fn draw_close_icon(painter: &egui::Painter, center: egui::Pos2, color: egui::Color32) {
+        let size = 4.5;
+        let stroke = egui::Stroke::new(1.0, color);
+        painter.line_segment(
+            [
+                center + egui::vec2(-size, -size),
+                center + egui::vec2(size, size),
+            ],
+            stroke,
+        );
+        painter.line_segment(
+            [
+                center + egui::vec2(size, -size),
+                center + egui::vec2(-size, size),
+            ],
+            stroke,
+        );
+    }
+
+    /// Draws a maximize (square) icon.
+    fn draw_maximize_icon(painter: &egui::Painter, center: egui::Pos2, color: egui::Color32) {
+        let size = 4.5;
+        let stroke = egui::Stroke::new(1.0, color);
+        let rect = egui::Rect::from_center_size(center, egui::vec2(size * 2.0, size * 2.0));
+        painter.rect_stroke(rect, 0.0, stroke, egui::StrokeKind::Inside);
+    }
+
+    /// Draws a restore (overlapping squares) icon.
+    fn draw_restore_icon(painter: &egui::Painter, center: egui::Pos2, color: egui::Color32) {
+        let size = 4.0;
+        let stroke = egui::Stroke::new(1.0, color);
+        // Back square (offset up-right)
+        let back_rect = egui::Rect::from_min_size(
+            center + egui::vec2(-size + 2.0, -size - 2.0),
+            egui::vec2(size * 2.0 - 2.0, size * 2.0 - 2.0),
+        );
+        painter.line_segment([back_rect.left_top(), back_rect.right_top()], stroke);
+        painter.line_segment([back_rect.right_top(), back_rect.right_bottom()], stroke);
+        // Front square
+        let front_rect = egui::Rect::from_min_size(
+            center + egui::vec2(-size, -size + 2.0),
+            egui::vec2(size * 2.0 - 2.0, size * 2.0 - 2.0),
+        );
+        painter.rect_stroke(front_rect, 0.0, stroke, egui::StrokeKind::Inside);
+    }
+
+    /// Draws a minimize (horizontal line) icon.
+    fn draw_minimize_icon(painter: &egui::Painter, center: egui::Pos2, color: egui::Color32) {
+        let size = 5.0;
+        let stroke = egui::Stroke::new(1.0, color);
+        painter.line_segment(
+            [
+                center + egui::vec2(-size, 0.0),
+                center + egui::vec2(size, 0.0),
+            ],
+            stroke,
+        );
     }
 }
