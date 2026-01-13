@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.7](https://github.com/teevik/tarkov-map/compare/tarkov-map-v0.1.6...tarkov-map-v0.1.7) (2026-01-13)
+
+
+### Features
+
+* self_update assets in CI ([c4c714b](https://github.com/teevik/tarkov-map/commit/c4c714b538128a868836c45a4cf55a86eac9c3a1))
+
 ## [0.1.6](https://github.com/teevik/tarkov-map/compare/tarkov-map-v0.1.5...tarkov-map-v0.1.6) (2026-01-12)
 
 
