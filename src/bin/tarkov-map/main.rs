@@ -22,6 +22,7 @@ use tarkov_map::{Map, TarkovMaps};
 
 const APP_ID: &str = "tarkov-map";
 const APP_TITLE: &str = "Tarkov Map";
+const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 const SETTINGS_STORAGE_KEY: &str = "app_settings";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,8 +56,10 @@ pub struct TarkovMapApp {
     toasts: Toasts,
     updater: updater::Updater,
     screenshot_watcher: Option<ScreenshotWatcher>,
-
     player_position: Option<PlayerPosition>,
+
+    /// Flag to clear settings on app close (triggered by File -> Clear Settings).
+    pub clear_settings_on_close: bool,
 }
 
 impl TarkovMapApp {
@@ -136,8 +139,8 @@ impl TarkovMapApp {
             toasts,
             updater,
             screenshot_watcher,
-
             player_position,
+            clear_settings_on_close: false,
         }
     }
 
@@ -230,17 +233,18 @@ impl TarkovMapApp {
 }
 
 impl eframe::App for TarkovMapApp {
+    fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
+        egui::Rgba::TRANSPARENT.to_array() // Don't paint behind rounded corners
+    }
+
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.poll_all_assets(ctx);
         self.poll_player_position();
         self.handle_keyboard_input(ctx);
         self.updater.poll(ctx, &mut self.toasts);
 
-        let selected_map = self.selected_map().cloned();
-
-        self.show_status_bar(ctx, &selected_map);
-        self.show_sidebar(ctx);
-        self.show_central_panel(ctx, selected_map);
+        // Render custom window frame with title bar
+        self.show_custom_frame(ctx);
 
         self.prev_zoom = self.zoom;
 
@@ -249,6 +253,12 @@ impl eframe::App for TarkovMapApp {
     }
 
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        // If clear settings was requested, save default settings
+        if self.clear_settings_on_close {
+            eframe::set_value(storage, SETTINGS_STORAGE_KEY, &AppSettings::default());
+            return;
+        }
+
         let selected_map_normalized_name = self
             .maps
             .get(self.selected_map)
@@ -282,8 +292,10 @@ fn main() -> eframe::Result {
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title(APP_TITLE)
+            .with_decorations(false) // Hide OS window decorations for custom title bar
+            .with_transparent(true) // Enable transparency for rounded corners
             .with_inner_size([1280.0, 720.0])
+            .with_min_inner_size([800.0, 600.0])
             .with_icon(Arc::new(load_icon())),
         ..Default::default()
     };

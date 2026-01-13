@@ -2,9 +2,10 @@
 
 use crate::TarkovMapApp;
 use crate::colors;
-use crate::constants::{SIDEBAR_WIDTH, ZOOM_MAX, ZOOM_MIN, ZOOM_SPEED};
+use crate::constants::{SIDEBAR_WIDTH, TITLE_BAR_HEIGHT, ZOOM_MAX, ZOOM_MIN, ZOOM_SPEED};
 use crate::overlays::{draw_extracts, draw_labels, draw_player_marker, draw_spawns};
-use eframe::egui;
+use crate::{APP_TITLE, APP_VERSION};
+use eframe::egui::{self, ViewportCommand};
 use tarkov_map::Map;
 
 impl TarkovMapApp {
@@ -379,6 +380,248 @@ impl TarkovMapApp {
         let zoom_ratio = self.zoom / self.prev_zoom;
         if (zoom_ratio - 1.0).abs() > 0.001 {
             self.pan_offset *= zoom_ratio;
+        }
+    }
+
+    /// Renders the complete custom window frame with title bar and content.
+    pub fn show_custom_frame(&mut self, ctx: &egui::Context) {
+        let panel_frame = egui::Frame::new()
+            .fill(ctx.style().visuals.window_fill())
+            .corner_radius(10.0)
+            .stroke(ctx.style().visuals.widgets.noninteractive.fg_stroke)
+            .outer_margin(1.0); // so the stroke is within the bounds
+
+        egui::CentralPanel::default()
+            .frame(egui::Frame::NONE)
+            .show(ctx, |ui| {
+                panel_frame.show(ui, |ui| {
+                    let app_rect = ui.max_rect();
+                    ui.expand_to_include_rect(app_rect);
+
+                    // Title bar area
+                    let title_bar_rect = {
+                        let mut rect = app_rect;
+                        rect.max.y = rect.min.y + TITLE_BAR_HEIGHT;
+                        rect
+                    };
+
+                    // Content area (below title bar)
+                    let content_rect = {
+                        let mut rect = app_rect;
+                        rect.min.y = title_bar_rect.max.y;
+                        rect
+                    };
+
+                    // Render title bar
+                    self.show_title_bar(ui, title_bar_rect);
+
+                    // Render content in the remaining area
+                    let mut content_ui =
+                        ui.new_child(egui::UiBuilder::new().max_rect(content_rect));
+                    self.show_frame_content(&mut content_ui);
+                });
+            });
+    }
+
+    /// Renders the content inside the custom frame (sidebar, central panel, status bar).
+    fn show_frame_content(&mut self, ui: &mut egui::Ui) {
+        let ctx = ui.ctx().clone();
+        let selected_map = self.selected_map().cloned();
+
+        // Status bar at bottom
+        egui::TopBottomPanel::bottom("status_bar")
+            .frame(
+                egui::Frame::side_top_panel(ui.style()).corner_radius(egui::CornerRadius {
+                    sw: 10,
+                    se: 10,
+                    ..Default::default()
+                }),
+            )
+            .show_inside(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label("Scroll: Zoom | Drag: Pan | +/-: Zoom | 0: Fit | L: Labels");
+
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if let Some(map) = &selected_map {
+                            if let Some(link) = &map.author_link {
+                                ui.hyperlink_to(
+                                    map.author.as_deref().unwrap_or("Map author"),
+                                    link,
+                                );
+                                ui.label("Map by:");
+                            } else if let Some(author) = &map.author {
+                                ui.label(format!("Map by: {author}"));
+                            }
+                        }
+                    });
+                });
+            });
+
+        // Sidebar on left
+        egui::SidePanel::left("sidebar")
+            .exact_width(SIDEBAR_WIDTH)
+            .resizable(false)
+            .show_inside(ui, |ui| {
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    self.show_sidebar_content(ui);
+                });
+            });
+
+        // Central panel with map
+        egui::CentralPanel::default().show_inside(ui, |ui| {
+            let Some(map) = selected_map else {
+                ui.centered_and_justified(|ui| {
+                    ui.label("No map data.\nRun `cargo run --bin fetch_maps` to generate assets.");
+                });
+                return;
+            };
+
+            let panel_rect = ui.max_rect();
+            self.show_map(ui, &ctx, &map);
+            self.show_zoom_controls(&ctx, panel_rect);
+        });
+    }
+
+    /// Renders the custom title bar with file menu, title, and window controls.
+    fn show_title_bar(&mut self, ui: &mut egui::Ui, title_bar_rect: egui::Rect) {
+        let painter = ui.painter();
+
+        // Make the title bar draggable
+        let title_bar_response = ui.interact(
+            title_bar_rect,
+            egui::Id::new("title_bar"),
+            egui::Sense::click_and_drag(),
+        );
+
+        // Paint the title in the center
+        let title = format!("{} v{}", APP_TITLE, APP_VERSION);
+        painter.text(
+            title_bar_rect.center(),
+            egui::Align2::CENTER_CENTER,
+            title,
+            egui::FontId::proportional(16.0),
+            ui.style().visuals.text_color(),
+        );
+
+        // Paint line under title bar
+        painter.line_segment(
+            [
+                title_bar_rect.left_bottom() + egui::vec2(1.0, 0.0),
+                title_bar_rect.right_bottom() + egui::vec2(-1.0, 0.0),
+            ],
+            ui.visuals().widgets.noninteractive.bg_stroke,
+        );
+
+        // Double-click to maximize/restore
+        if title_bar_response.double_clicked() {
+            let is_maximized = ui.input(|i| i.viewport().maximized.unwrap_or(false));
+            ui.ctx()
+                .send_viewport_cmd(ViewportCommand::Maximized(!is_maximized));
+        }
+
+        // Drag to move window
+        if title_bar_response.drag_started_by(egui::PointerButton::Primary) {
+            ui.ctx().send_viewport_cmd(ViewportCommand::StartDrag);
+        }
+
+        // File menu on the left
+        ui.scope_builder(
+            egui::UiBuilder::new()
+                .max_rect(title_bar_rect)
+                .layout(egui::Layout::left_to_right(egui::Align::Center)),
+            |ui| {
+                ui.add_space(8.0);
+                self.show_file_menu(ui);
+            },
+        );
+
+        // Window controls on the right
+        ui.scope_builder(
+            egui::UiBuilder::new()
+                .max_rect(title_bar_rect)
+                .layout(egui::Layout::right_to_left(egui::Align::Center)),
+            |ui| {
+                ui.add_space(8.0);
+                ui.spacing_mut().item_spacing.x = 0.0;
+                ui.visuals_mut().button_frame = false;
+                Self::close_maximize_minimize(ui);
+            },
+        );
+    }
+
+    /// Renders the File menu dropdown.
+    #[allow(deprecated)]
+    fn show_file_menu(&mut self, ui: &mut egui::Ui) {
+        egui::menu::bar(ui, |ui| {
+            ui.menu_button("File", |ui| {
+                if ui.button("Clear Settings").clicked() {
+                    // Clear settings by resetting to defaults and restarting app
+                    self.clear_settings_on_close = true;
+
+                    // Spawn a new instance of the app before closing
+                    if let Ok(exe_path) = std::env::current_exe() {
+                        let _ = std::process::Command::new(exe_path).spawn();
+                    }
+
+                    ui.ctx().send_viewport_cmd(ViewportCommand::Close);
+                    ui.close();
+                }
+
+                ui.separator();
+
+                if ui.button("Exit").clicked() {
+                    ui.ctx().send_viewport_cmd(ViewportCommand::Close);
+                    ui.close();
+                }
+            });
+        });
+    }
+
+    /// Renders the window control buttons (minimize, maximize/restore, close).
+    fn close_maximize_minimize(ui: &mut egui::Ui) {
+        let button_height = 12.0;
+
+        // Close button
+        let close_response = ui
+            .add(egui::Button::new(
+                egui::RichText::new("\u{274C}").size(button_height),
+            ))
+            .on_hover_text("Close");
+        if close_response.clicked() {
+            ui.ctx().send_viewport_cmd(ViewportCommand::Close);
+        }
+
+        // Maximize/Restore button
+        let is_maximized = ui.input(|i| i.viewport().maximized.unwrap_or(false));
+        if is_maximized {
+            let restore_response = ui
+                .add(egui::Button::new(
+                    egui::RichText::new("\u{1F5D7}").size(button_height),
+                ))
+                .on_hover_text("Restore");
+            if restore_response.clicked() {
+                ui.ctx()
+                    .send_viewport_cmd(ViewportCommand::Maximized(false));
+            }
+        } else {
+            let maximize_response = ui
+                .add(egui::Button::new(
+                    egui::RichText::new("\u{1F5D7}").size(button_height),
+                ))
+                .on_hover_text("Maximize");
+            if maximize_response.clicked() {
+                ui.ctx().send_viewport_cmd(ViewportCommand::Maximized(true));
+            }
+        }
+
+        // Minimize button
+        let minimize_response = ui
+            .add(egui::Button::new(
+                egui::RichText::new("\u{1F5D5}").size(button_height),
+            ))
+            .on_hover_text("Minimize");
+        if minimize_response.clicked() {
+            ui.ctx().send_viewport_cmd(ViewportCommand::Minimized(true));
         }
     }
 }
