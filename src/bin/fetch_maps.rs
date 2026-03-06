@@ -669,38 +669,77 @@ async fn convert_group(
                 name: normalized_name.clone(),
             })?;
 
-    let result = match (&interactive.svg_path, &interactive.tile_path) {
-        (Some(svg_url), _) => process_svg_map(client, &normalized_name, svg_url, force).await?,
-        (_, Some(tile_template)) => {
-            let min_zoom = interactive
-                .min_zoom
-                .ok_or_else(|| FetchError::MissingMinZoom {
-                    name: normalized_name.clone(),
-                })?;
-            let max_zoom = interactive
-                .max_zoom
-                .ok_or_else(|| FetchError::MissingMaxZoom {
-                    name: normalized_name.clone(),
-                })?;
-            let tile_size = interactive.tile_size.unwrap_or(256);
-
-            process_tile_map(
-                client,
-                &normalized_name,
-                tile_template,
-                tile_size,
-                min_zoom,
-                max_zoom,
-                tile_zoom_offset,
-                multi_progress,
-                force,
-            )
-            .await?
+    let try_tiles = |interactive: &FetchedMap| -> Result<Option<(String, i32, i32, i32)>, FetchError> {
+        match &interactive.tile_path {
+            Some(tile_template) => {
+                let min_zoom = interactive
+                    .min_zoom
+                    .ok_or_else(|| FetchError::MissingMinZoom {
+                        name: normalized_name.clone(),
+                    })?;
+                let max_zoom = interactive
+                    .max_zoom
+                    .ok_or_else(|| FetchError::MissingMaxZoom {
+                        name: normalized_name.clone(),
+                    })?;
+                let tile_size = interactive.tile_size.unwrap_or(256);
+                Ok(Some((tile_template.clone(), tile_size, min_zoom, max_zoom)))
+            }
+            None => Ok(None),
         }
-        _ => {
-            return Err(FetchError::MissingMapSource {
-                name: normalized_name,
-            });
+    };
+
+    let result = match &interactive.svg_path {
+        Some(svg_url) => {
+            match process_svg_map(client, &normalized_name, svg_url, force).await {
+                Ok(r) => r,
+                Err(svg_err) => {
+                    // SVG failed — try falling back to tiles if available
+                    if let Some((tile_template, tile_size, min_zoom, max_zoom)) =
+                        try_tiles(&interactive)?
+                    {
+                        multi_progress.println(format!(
+                            "  Warning: SVG failed for {normalized_name} ({svg_err}), falling back to tiles"
+                        ))?;
+                        process_tile_map(
+                            client,
+                            &normalized_name,
+                            &tile_template,
+                            tile_size,
+                            min_zoom,
+                            max_zoom,
+                            tile_zoom_offset,
+                            multi_progress,
+                            force,
+                        )
+                        .await?
+                    } else {
+                        return Err(svg_err);
+                    }
+                }
+            }
+        }
+        None => {
+            if let Some((tile_template, tile_size, min_zoom, max_zoom)) =
+                try_tiles(&interactive)?
+            {
+                process_tile_map(
+                    client,
+                    &normalized_name,
+                    &tile_template,
+                    tile_size,
+                    min_zoom,
+                    max_zoom,
+                    tile_zoom_offset,
+                    multi_progress,
+                    force,
+                )
+                .await?
+            } else {
+                return Err(FetchError::MissingMapSource {
+                    name: normalized_name,
+                });
+            }
         }
     };
 
@@ -809,10 +848,14 @@ async fn main() -> Result<(), FetchError> {
             args.force,
             args.tile_zoom_offset,
         )
-        .await?
+        .await
         {
-            Some(map) => maps.push(map),
-            None => skipped += 1,
+            Ok(Some(map)) => maps.push(map),
+            Ok(None) => skipped += 1,
+            Err(e) => {
+                multi_progress.println(format!("  Warning: skipping {group_name}: {e}"))?;
+                skipped += 1;
+            }
         }
 
         maps_pb.inc(1);
