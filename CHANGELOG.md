@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.11](https://github.com/teevik/tarkov-map/compare/v0.1.10...v0.1.11) (2026-03-06)
+
+
+### Bug Fixes
+
+* trigger an empty patch release ([f81e349](https://github.com/teevik/tarkov-map/commit/f81e34901a41d2c65312f0c9599fc3208abb4b0a))
+
 ## [0.1.10](https://github.com/teevik/tarkov-map/compare/v0.1.9...v0.1.10) (2026-01-13)
 
 
