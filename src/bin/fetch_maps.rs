@@ -27,12 +27,6 @@ pub enum FetchError {
     #[error("HTTP request failed: {0}")]
     Http(#[from] reqwest::Error),
 
-    #[error("GraphQL error: {0}")]
-    GraphQL(String),
-
-    #[error("GraphQL response missing data")]
-    GraphQLMissingData,
-
     #[error("failed to fetch {resource}: HTTP {status}")]
     HttpStatus { resource: String, status: u16 },
 
@@ -82,79 +76,6 @@ pub enum FetchError {
 /// Result of downloading a single tile.
 type TileResult = Result<(u32, u32, Vec<u8>), FetchError>;
 
-#[cynic::schema("tarkov")]
-pub mod schema {}
-
-#[derive(cynic::QueryFragment, Debug)]
-#[cynic(graphql_type = "Query")]
-struct MapNamesQuery {
-    #[cynic(flatten)]
-    maps: Vec<MapNameFragment>,
-}
-
-#[derive(cynic::QueryFragment, Debug)]
-#[cynic(graphql_type = "Map")]
-struct MapNameFragment {
-    normalized_name: String,
-    name: String,
-}
-
-#[derive(cynic::QueryFragment, Debug)]
-#[cynic(graphql_type = "Query")]
-struct MapSpawnsQuery {
-    #[cynic(flatten)]
-    maps: Vec<MapSpawnsFragment>,
-}
-
-#[derive(cynic::QueryFragment, Debug)]
-#[cynic(graphql_type = "Map")]
-struct MapSpawnsFragment {
-    normalized_name: String,
-    #[cynic(flatten)]
-    spawns: Vec<MapSpawnFragment>,
-}
-
-#[derive(cynic::QueryFragment, Debug)]
-#[cynic(graphql_type = "MapSpawn")]
-struct MapSpawnFragment {
-    position: MapPositionFragment,
-    #[cynic(flatten)]
-    sides: Vec<String>,
-    #[cynic(flatten)]
-    categories: Vec<String>,
-}
-
-#[derive(cynic::QueryFragment, Debug)]
-#[cynic(graphql_type = "MapPosition")]
-struct MapPositionFragment {
-    x: f64,
-    y: f64,
-    z: f64,
-}
-
-#[derive(cynic::QueryFragment, Debug)]
-#[cynic(graphql_type = "Query")]
-struct MapExtractsQuery {
-    #[cynic(flatten)]
-    maps: Vec<MapExtractsFragment>,
-}
-
-#[derive(cynic::QueryFragment, Debug)]
-#[cynic(graphql_type = "Map")]
-struct MapExtractsFragment {
-    normalized_name: String,
-    #[cynic(flatten)]
-    extracts: Vec<MapExtractFragment>,
-}
-
-#[derive(cynic::QueryFragment, Debug)]
-#[cynic(graphql_type = "MapExtract")]
-struct MapExtractFragment {
-    name: Option<String>,
-    faction: Option<String>,
-    position: Option<MapPositionFragment>,
-}
-
 /// Fetch Tarkov map assets from tarkov-dev
 #[derive(Parser, Debug)]
 #[command(name = "fetch_maps", version, about)]
@@ -170,7 +91,8 @@ struct Args {
 
 const MAPS_JSON_URL: &str =
     "https://raw.githubusercontent.com/the-hideout/tarkov-dev/main/src/data/maps.json";
-const TARKOV_DEV_GRAPHQL_URL: &str = "https://api.tarkov.dev/graphql";
+const TARKOV_DEV_MAPS_URL: &str = "https://json.tarkov.dev/regular/maps";
+const TARKOV_DEV_MAPS_EN_URL: &str = "https://json.tarkov.dev/regular/maps_en";
 const USER_AGENT: &str = "tarkov-map";
 const MAPS_RON_PATH: &str = "assets/maps.ron";
 /// Physical directory for storing map images on disk
@@ -225,6 +147,8 @@ struct FetchedMap {
 #[serde(rename_all = "camelCase")]
 struct FetchedLayer {
     name: String,
+    #[serde(skip)]
+    image_path: Option<String>,
     #[serde(default)]
     svg_layer: Option<String>,
     #[serde(default)]
@@ -293,6 +217,57 @@ struct FetchedLabel {
     bottom: Option<f64>,
 }
 
+#[derive(Debug, Deserialize)]
+struct ApiResponse<T> {
+    data: T,
+}
+
+#[derive(Debug, Deserialize)]
+struct ApiMapsData {
+    maps: HashMap<String, ApiMap>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ApiMap {
+    name: String,
+    normalized_name: String,
+    #[serde(default)]
+    spawns: Vec<ApiSpawn>,
+    #[serde(default)]
+    extracts: Vec<ApiExtract>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ApiSpawn {
+    position: ApiPosition,
+    #[serde(default)]
+    sides: Vec<String>,
+    #[serde(default)]
+    categories: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ApiExtract {
+    name: String,
+    faction: String,
+    #[serde(default)]
+    position: Option<ApiPosition>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ApiPosition {
+    x: f64,
+    y: f64,
+    z: f64,
+}
+
+struct ApiMapData {
+    names: HashMap<String, String>,
+    spawns: HashMap<String, Vec<Spawn>>,
+    extracts: HashMap<String, Vec<Extract>>,
+}
+
 fn deserialize_rotation<'de, D>(deserializer: D) -> std::result::Result<Option<f64>, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -316,6 +291,7 @@ impl From<FetchedLayer> for Layer {
     fn from(f: FetchedLayer) -> Self {
         Self {
             name: f.name,
+            image_path: f.image_path,
             svg_layer: f.svg_layer,
             tile_path: f.tile_path,
             show: f.show,
@@ -356,100 +332,87 @@ impl From<FetchedLabel> for Label {
     }
 }
 
-async fn fetch_graphql<Q, T>(
-    client: &reqwest::Client,
-    operation: cynic::Operation<Q, ()>,
-) -> Result<T, FetchError>
-where
-    Q: serde::de::DeserializeOwned,
-    T: From<Q>,
-{
-    let response: cynic::GraphQlResponse<Q> = client
-        .post(TARKOV_DEV_GRAPHQL_URL)
+async fn fetch_api_map_data(client: &reqwest::Client) -> Result<ApiMapData, FetchError> {
+    let maps_response = client
+        .get(TARKOV_DEV_MAPS_URL)
         .header(reqwest::header::USER_AGENT, USER_AGENT)
-        .json(&operation)
         .send()
-        .await?
-        .json()
         .await?;
+    if !maps_response.status().is_success() {
+        return Err(FetchError::HttpStatus {
+            resource: "tarkov.dev map data".into(),
+            status: maps_response.status().as_u16(),
+        });
+    }
+    let api_maps: ApiResponse<ApiMapsData> = maps_response.json().await?;
 
-    if let Some(errors) = response.errors.filter(|e| !e.is_empty()) {
-        let messages: Vec<_> = errors.into_iter().map(|e| e.message).collect();
-        return Err(FetchError::GraphQL(messages.join("; ")));
+    let names_response = client
+        .get(TARKOV_DEV_MAPS_EN_URL)
+        .header(reqwest::header::USER_AGENT, USER_AGENT)
+        .send()
+        .await?;
+    if !names_response.status().is_success() {
+        return Err(FetchError::HttpStatus {
+            resource: "tarkov.dev English translations".into(),
+            status: names_response.status().as_u16(),
+        });
+    }
+    let translations: ApiResponse<HashMap<String, String>> = names_response.json().await?;
+
+    let mut names = HashMap::new();
+    let mut spawns = HashMap::new();
+    let mut extracts = HashMap::new();
+
+    for map in api_maps.data.maps.into_values() {
+        let normalized_name = map.normalized_name;
+        names.insert(
+            normalized_name.clone(),
+            translations
+                .data
+                .get(&map.name)
+                .cloned()
+                .unwrap_or(map.name),
+        );
+        spawns.insert(
+            normalized_name.clone(),
+            map.spawns
+                .into_iter()
+                .filter(|spawn| {
+                    spawn
+                        .sides
+                        .iter()
+                        .any(|side| side == "pmc" || side == "all")
+                        && spawn.categories.iter().any(|category| category == "player")
+                })
+                .map(|spawn| Spawn {
+                    position: [spawn.position.x, spawn.position.y, spawn.position.z],
+                    sides: spawn.sides,
+                    categories: spawn.categories,
+                })
+                .collect(),
+        );
+        extracts.insert(
+            normalized_name,
+            map.extracts
+                .into_iter()
+                .map(|extract| Extract {
+                    name: translations
+                        .data
+                        .get(&extract.name)
+                        .cloned()
+                        .unwrap_or(extract.name),
+                    faction: extract.faction,
+                    position: extract.position.map(|p| [p.x, p.y, p.z]),
+                })
+                .collect(),
+        );
     }
 
-    response
-        .data
-        .map(Into::into)
-        .ok_or(FetchError::GraphQLMissingData)
-}
-
-async fn fetch_map_names(client: &reqwest::Client) -> Result<HashMap<String, String>, FetchError> {
-    use cynic::QueryBuilder;
-
-    let data: MapNamesQuery = fetch_graphql(client, MapNamesQuery::build(())).await?;
-
-    Ok(data
-        .maps
-        .into_iter()
-        .map(|m| (m.normalized_name, m.name))
-        .collect())
-}
-
-async fn fetch_map_spawns(
-    client: &reqwest::Client,
-) -> Result<HashMap<String, Vec<Spawn>>, FetchError> {
-    use cynic::QueryBuilder;
-
-    let data: MapSpawnsQuery = fetch_graphql(client, MapSpawnsQuery::build(())).await?;
-
-    Ok(data
-        .maps
-        .into_iter()
-        .map(|map| {
-            let spawns = map
-                .spawns
-                .into_iter()
-                .filter(|s| {
-                    s.sides.iter().any(|side| side == "pmc" || side == "all")
-                        && s.categories.iter().any(|cat| cat == "player")
-                })
-                .map(|s| Spawn {
-                    position: [s.position.x, s.position.y, s.position.z],
-                    sides: s.sides,
-                    categories: s.categories,
-                })
-                .collect();
-            (map.normalized_name, spawns)
-        })
-        .collect())
-}
-
-async fn fetch_map_extracts(
-    client: &reqwest::Client,
-) -> Result<HashMap<String, Vec<Extract>>, FetchError> {
-    use cynic::QueryBuilder;
-
-    let data: MapExtractsQuery = fetch_graphql(client, MapExtractsQuery::build(())).await?;
-
-    Ok(data
-        .maps
-        .into_iter()
-        .map(|map| {
-            let extracts = map
-                .extracts
-                .into_iter()
-                .filter_map(|e| {
-                    Some(Extract {
-                        name: e.name?,
-                        faction: e.faction?,
-                        position: e.position.map(|p| [p.x, p.y, p.z]),
-                    })
-                })
-                .collect();
-            (map.normalized_name, extracts)
-        })
-        .collect())
+    Ok(ApiMapData {
+        names,
+        spawns,
+        extracts,
+    })
 }
 
 fn repo_path(path: &str) -> PathBuf {
@@ -657,7 +620,7 @@ async fn convert_group(
         maps,
     } = fetched;
 
-    let Some(interactive) = maps.into_iter().find(|m| m.projection == "interactive") else {
+    let Some(mut interactive) = maps.into_iter().find(|m| m.projection == "interactive") else {
         return Ok(None);
     };
 
@@ -669,25 +632,28 @@ async fn convert_group(
                 name: normalized_name.clone(),
             })?;
 
-    let try_tiles = |interactive: &FetchedMap| -> Result<Option<(String, i32, i32, i32)>, FetchError> {
-        match &interactive.tile_path {
-            Some(tile_template) => {
-                let min_zoom = interactive
-                    .min_zoom
-                    .ok_or_else(|| FetchError::MissingMinZoom {
-                        name: normalized_name.clone(),
-                    })?;
-                let max_zoom = interactive
-                    .max_zoom
-                    .ok_or_else(|| FetchError::MissingMaxZoom {
-                        name: normalized_name.clone(),
-                    })?;
-                let tile_size = interactive.tile_size.unwrap_or(256);
-                Ok(Some((tile_template.clone(), tile_size, min_zoom, max_zoom)))
+    let try_tiles =
+        |interactive: &FetchedMap| -> Result<Option<(String, i32, i32, i32)>, FetchError> {
+            match &interactive.tile_path {
+                Some(tile_template) => {
+                    let min_zoom =
+                        interactive
+                            .min_zoom
+                            .ok_or_else(|| FetchError::MissingMinZoom {
+                                name: normalized_name.clone(),
+                            })?;
+                    let max_zoom =
+                        interactive
+                            .max_zoom
+                            .ok_or_else(|| FetchError::MissingMaxZoom {
+                                name: normalized_name.clone(),
+                            })?;
+                    let tile_size = interactive.tile_size.unwrap_or(256);
+                    Ok(Some((tile_template.clone(), tile_size, min_zoom, max_zoom)))
+                }
+                None => Ok(None),
             }
-            None => Ok(None),
-        }
-    };
+        };
 
     let result = match &interactive.svg_path {
         Some(svg_url) => {
@@ -720,9 +686,7 @@ async fn convert_group(
             }
         }
         None => {
-            if let Some((tile_template, tile_size, min_zoom, max_zoom)) =
-                try_tiles(&interactive)?
-            {
+            if let Some((tile_template, tile_size, min_zoom, max_zoom)) = try_tiles(&interactive)? {
                 process_tile_map(
                     client,
                     &normalized_name,
@@ -751,6 +715,52 @@ async fn convert_group(
             [width, height]
         })
         .unwrap_or(result.image_size);
+
+    if let Some(layers) = &mut interactive.layers {
+        for (index, layer) in layers.iter_mut().enumerate() {
+            let Some(tile_template) = layer.tile_path.as_deref() else {
+                continue;
+            };
+
+            if interactive.tile_path.as_deref() == Some(tile_template) {
+                layer.image_path = Some(result.image_path.clone());
+                continue;
+            }
+
+            let min_zoom = interactive
+                .min_zoom
+                .ok_or_else(|| FetchError::MissingMinZoom {
+                    name: normalized_name.clone(),
+                })?;
+            let max_zoom = interactive
+                .max_zoom
+                .ok_or_else(|| FetchError::MissingMaxZoom {
+                    name: normalized_name.clone(),
+                })?;
+            let tile_size = interactive.tile_size.unwrap_or(256);
+            let asset_name = format!("{normalized_name}-layer-{index}");
+
+            match process_tile_map(
+                client,
+                &asset_name,
+                tile_template,
+                tile_size,
+                min_zoom,
+                max_zoom,
+                tile_zoom_offset,
+                multi_progress,
+                force,
+            )
+            .await
+            {
+                Ok(layer_result) => layer.image_path = Some(layer_result.image_path),
+                Err(error) => multi_progress.println(format!(
+                    "  Warning: failed to process {normalized_name} layer '{}': {error}",
+                    layer.name
+                ))?,
+            }
+        }
+    }
 
     Ok(Some(Map {
         normalized_name: normalized_name.clone(),
@@ -789,16 +799,13 @@ async fn main() -> Result<(), FetchError> {
     let client = reqwest::Client::new();
 
     println!("Fetching map data from tarkov.dev...");
-    let map_names = fetch_map_names(&client).await?;
+    let api_data = fetch_api_map_data(&client).await?;
+    let map_names = api_data.names;
+    let map_spawns = api_data.spawns;
+    let map_extracts = api_data.extracts;
     println!("Fetched {} map names", map_names.len());
-
-    println!("Fetching PMC spawns from tarkov.dev...");
-    let map_spawns = fetch_map_spawns(&client).await?;
     let total_spawns: usize = map_spawns.values().map(Vec::len).sum();
     println!("Fetched {total_spawns} PMC spawns");
-
-    println!("Fetching extracts from tarkov.dev...");
-    let map_extracts = fetch_map_extracts(&client).await?;
     let total_extracts: usize = map_extracts.values().map(Vec::len).sum();
     println!("Fetched {total_extracts} extracts");
 

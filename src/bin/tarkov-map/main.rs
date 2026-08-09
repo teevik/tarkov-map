@@ -30,6 +30,8 @@ const SETTINGS_STORAGE_KEY: &str = "app_settings";
 struct AppSettings {
     schema_version: u32,
     selected_map_normalized_name: Option<String>,
+    selected_layers: HashMap<String, usize>,
+    auto_layer: bool,
     overlays: OverlayVisibility,
 }
 
@@ -38,6 +40,8 @@ impl Default for AppSettings {
         Self {
             schema_version: 1,
             selected_map_normalized_name: None,
+            selected_layers: HashMap::new(),
+            auto_layer: true,
             overlays: OverlayVisibility::default(),
         }
     }
@@ -47,6 +51,8 @@ impl Default for AppSettings {
 pub struct TarkovMapApp {
     maps: TarkovMaps,
     selected_map: usize,
+    selected_layers: HashMap<String, usize>,
+    auto_layer: bool,
     zoom: f32,
     prev_zoom: f32,
     pan_offset: egui::Vec2,
@@ -104,18 +110,30 @@ impl TarkovMapApp {
         let mut asset_cache = HashMap::new();
 
         // Preload all map images in background threads
-        for map in &maps {
+        let asset_paths = maps.iter().flat_map(|map| {
+            std::iter::once(map.image_path.clone()).chain(
+                map.layers
+                    .iter()
+                    .flatten()
+                    .filter_map(|layer| layer.image_path.clone()),
+            )
+        });
+
+        for asset_path in asset_paths {
+            if asset_cache.contains_key(&asset_path) {
+                continue;
+            }
             let (tx, rx) = mpsc::channel();
             let ctx = cc.egui_ctx.clone();
-            let asset_path = map.image_path.clone();
+            let path_to_load = asset_path.clone();
 
             thread::spawn(move || {
-                let result = load_and_decode_image(&asset_path);
+                let result = load_and_decode_image(&path_to_load);
                 let _ = tx.send(result);
                 ctx.request_repaint();
             });
 
-            asset_cache.insert(map.image_path.clone(), AssetLoadState::Loading(rx));
+            asset_cache.insert(asset_path, AssetLoadState::Loading(rx));
         }
 
         // Initialize screenshot watcher for player position tracking
@@ -130,6 +148,8 @@ impl TarkovMapApp {
         Self {
             maps,
             selected_map,
+            selected_layers: settings.selected_layers,
+            auto_layer: settings.auto_layer,
             zoom: 1.0,
             prev_zoom: 1.0,
             pan_offset: egui::Vec2::ZERO,
@@ -266,6 +286,8 @@ impl eframe::App for TarkovMapApp {
 
         let settings = AppSettings {
             selected_map_normalized_name,
+            selected_layers: self.selected_layers.clone(),
+            auto_layer: self.auto_layer,
             overlays: self.overlays,
             ..Default::default()
         };

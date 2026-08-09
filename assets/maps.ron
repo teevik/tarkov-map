@@ -3,7 +3,7 @@
     normalizedName: "streets-of-tarkov",
     name: "Streets of Tarkov",
     imagePath: "maps/streets-of-tarkov.png",
-    imageSize: (605.0, 831.5),
+    imageSize: (605.324, 831.5775),
     logicalSize: (603.0, 827.0),
     author: Some("Shebuka"),
     authorLink: Some("https://github.com/the-hideout/tarkov-dev-svg-maps/"),
@@ -12,16 +12,6 @@
     bounds: Some(((323.0, -295.0), (-280.0, 532.0))),
     heightRange: Some((-6.0, 10.0)),
     layers: Some([
-      Layer(
-        name: "Underground",
-        svgLayer: Some("Underground_Level"),
-        show: false,
-        extents: [
-          Extent(
-            height: (-10000.0, -6.0),
-          ),
-        ],
-      ),
       Layer(
         name: "2nd Floor",
         svgLayer: Some("Second_Floor"),
@@ -59,6 +49,16 @@
         extents: [
           Extent(
             height: (25.0, 10000.0),
+          ),
+        ],
+      ),
+      Layer(
+        name: "Underground",
+        svgLayer: Some("Underground_Level"),
+        show: false,
+        extents: [
+          Extent(
+            height: (-10000.0, -6.0),
           ),
         ],
       ),
@@ -306,7 +306,7 @@
     ]),
     spawns: Some([
       Spawn(
-        position: (-178.507, 2.451, 415.023),
+        position: (-174.294, 1.218, 107.643),
         sides: [
           "all",
         ],
@@ -315,7 +315,7 @@
         ],
       ),
       Spawn(
-        position: (184.824, 2.528, 186.987),
+        position: (104.25, -1.854, -162.48),
         sides: [
           "all",
         ],
@@ -324,7 +324,7 @@
         ],
       ),
       Spawn(
-        position: (100.71, -1.854, -162.53),
+        position: (-178.03, 1.218, 107.92),
         sides: [
           "all",
         ],
@@ -333,7 +333,7 @@
         ],
       ),
       Spawn(
-        position: (53.182, 4.531, -138.587),
+        position: (272.0, -1.16, 374.65),
         sides: [
           "all",
         ],
@@ -342,7 +342,7 @@
         ],
       ),
       Spawn(
-        position: (53.22, 4.781, -130.649),
+        position: (45.106, 2.717, 413.596),
         sides: [
           "all",
         ],
@@ -351,196 +351,7 @@
         ],
       ),
       Spawn(
-        position: (232.64, 3.49, 409.53),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-134.814, 3.058, 399.605),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-163.933, 3.158, 183.069),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-59.838, 3.202, -147.273),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (211.142, -1.221, 341.592),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-231.978, 2.312, 344.996),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (228.885, 4.007, 176.279),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-59.862, 3.737, -148.574),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (208.555, 3.935, 296.639),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (186.85, 3.529, 460.53),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-44.833, 6.678, -114.215),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (209.973, -1.221, 341.66),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-227.329, 5.26, 277.332),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-58.206, 3.214, -146.784),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-16.305, 2.763, -133.662),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-136.856, 2.565, 399.57),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (227.794, 3.945, 174.694),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (232.682, -2.049, -103.148),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (221.598, 3.94900012, 175.266),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-134.489, 2.515, 399.622),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-176.75, 1.218, 105.23),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (231.865, -2.049, -106.136),
+        position: (-204.056, 3.367, 179.404),
         sides: [
           "all",
         ],
@@ -558,7 +369,7 @@
         ],
       ),
       Spawn(
-        position: (187.061, 1.574, 189.557),
+        position: (-193.63, 3.137, 346.516),
         sides: [
           "all",
         ],
@@ -567,340 +378,7 @@
         ],
       ),
       Spawn(
-        position: (-179.339, 2.451, 416.352),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (261.511, -5.94, 49.977),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-176.596, 2.455, 466.984),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (271.36, -1.16, 376.28),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-111.692, 0.659, -28.424),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-203.631, 3.367, 180.776),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (234.745, -2.049, -103.385),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (102.07, -1.854, -158.58),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-192.295, 3.137, 345.684),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-150.644, 0.65, -63.383),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-182.94, 2.41, 413.56),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-152.333, 0.736, -66.574),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (175.964, 3.093, 234.797),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-192.658, 4.993, 386.326),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (52.732, 4.531, -135.649),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-50.879, 0.668, -67.271),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (185.6, 3.529, 459.37),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-235.154, 2.846, 345.06),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (99.35, 2.76, 446.78),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (155.767, 3.624, 428.614),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-65.996, 2.699, 459.747),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (270.52, -4.431, 88.67),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-242.312, 3.685, 242.94),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (45.792, 2.717, 417.082),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (157.0, 3.624, 430.76),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (186.511, 1.574, 188.445),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (186.79, 3.529, 454.4),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-106.422, 0.662, -29.223),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-231.985, 2.196, 342.49),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-243.129, 3.43, 240.565),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-10.37, 2.763, -135.41),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-180.504, 2.451, 419.05),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (233.368, -2.049, -107.123),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (227.6, 3.351, 410.72),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-175.222, 2.455, 468.656),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-152.769, 9.669, -26.856),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-61.464, 2.699, 457.351),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-150.592, 9.644, -23.594),
+        position: (211.97, 0.444, 345.289),
         sides: [
           "all",
         ],
@@ -918,6 +396,15 @@
         ],
       ),
       Spawn(
+        position: (154.142, 3.624, 428.129),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
         position: (-47.652, 0.668, -65.516),
         sides: [
           "all",
@@ -927,7 +414,7 @@
         ],
       ),
       Spawn(
-        position: (44.472, 2.717, 414.922),
+        position: (-226.153, 5.226, 280.783),
         sides: [
           "all",
         ],
@@ -936,7 +423,7 @@
         ],
       ),
       Spawn(
-        position: (244.71, -3.21, -36.95),
+        position: (155.767, 3.624, 428.614),
         sides: [
           "all",
         ],
@@ -945,7 +432,7 @@
         ],
       ),
       Spawn(
-        position: (-234.277, 2.196, 342.105),
+        position: (234.745, -2.049, -103.385),
         sides: [
           "all",
         ],
@@ -954,7 +441,7 @@
         ],
       ),
       Spawn(
-        position: (175.713, 3.172, 236.73),
+        position: (-242.591, 3.685, 242.089),
         sides: [
           "all",
         ],
@@ -963,7 +450,7 @@
         ],
       ),
       Spawn(
-        position: (-48.546, 0.668, -67.733),
+        position: (-50.879, 0.668, -67.271),
         sides: [
           "all",
         ],
@@ -972,7 +459,115 @@
         ],
       ),
       Spawn(
-        position: (179.062, 3.048, 233.031),
+        position: (-178.507, 2.451, 415.023),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-14.886, 2.763, -139.338),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (53.22, 4.531, -132.52),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (166.96, -1.451, -132.76),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (228.885, 4.007, 176.279),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-152.333, 0.736, -66.574),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (53.182, 4.531, -138.587),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (186.85, 3.529, 460.53),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-77.602, 3.235, 336.713),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-76.262, 3.337, 336.625),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (211.022, 0.465, 346.075),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-65.728, 2.699, 457.559),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (231.865, -2.049, -106.136),
         sides: [
           "all",
         ],
@@ -990,7 +585,358 @@
         ],
       ),
       Spawn(
-        position: (-65.728, 2.699, 457.559),
+        position: (-181.525, 2.451, 415.068),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-227.27, 5.226, 282.533),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-230.641, 2.196, 342.45),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-106.422, 0.662, -29.223),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (221.598, 3.94900012, 175.266),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-161.686, 3.221, 180.655),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-203.631, 3.367, 180.776),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-234.277, 2.196, 342.105),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-176.32, 1.218, 106.89),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-58.333, 3.214, -145.348),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (99.03, -1.854, -158.78),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (187.061, 1.574, 189.557),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (186.79, 3.529, 454.4),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (184.824, 2.528, 186.987),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (43.754, 2.717, 416.533),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (168.3, -1.451, -130.72),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-81.37, 3.296, 338.106),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-203.697, 3.367, 182.271),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (170.335, -1.451, -129.286),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-61.464, 2.699, 457.351),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (102.07, -1.854, -158.58),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-176.05, 1.218, 108.38),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (274.053, 4.782, 518.326),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-155.781, 9.671, -26.933),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-195.947, 4.993, 389.306),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (275.417, 4.782, 516.126),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-16.305, 2.763, -133.662),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-152.769, 9.669, -26.856),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-149.896, 9.669, -27.344),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (257.34, -5.94, 50.955),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (273.3, -1.16, 377.25),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-111.445, 0.668, -30.917),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-191.392, 3.137, 344.702),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (93.93, 2.579, 451.26),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (232.64, 3.49, 409.53),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-43.209, 6.7, -114.198),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (244.71, -3.21, -36.95),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (211.142, -1.221, 341.592),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-42.919, 6.677, -117.171),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (209.839, 3.935, 297.28),
         sides: [
           "all",
         ],
@@ -1017,51 +963,6 @@
         ],
       ),
       Spawn(
-        position: (257.34, -5.94, 50.955),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (170.335, -1.451, -129.286),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-188.923, 3.137, 340.446),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-176.32, 1.218, 106.89),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (205.631, 3.935, 296.404),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
         position: (-135.79, 2.34, 401.49),
         sides: [
           "all",
@@ -1071,7 +972,7 @@
         ],
       ),
       Spawn(
-        position: (209.839, 3.935, 297.28),
+        position: (44.472, 2.717, 414.922),
         sides: [
           "all",
         ],
@@ -1080,7 +981,7 @@
         ],
       ),
       Spawn(
-        position: (258.622, -5.94, 48.843),
+        position: (233.368, -2.049, -107.123),
         sides: [
           "all",
         ],
@@ -1089,7 +990,7 @@
         ],
       ),
       Spawn(
-        position: (211.97, 0.444, 345.289),
+        position: (-150.644, 0.65, -63.383),
         sides: [
           "all",
         ],
@@ -1098,7 +999,7 @@
         ],
       ),
       Spawn(
-        position: (274.053, 4.782, 518.326),
+        position: (209.973, -1.221, 341.66),
         sides: [
           "all",
         ],
@@ -1107,313 +1008,7 @@
         ],
       ),
       Spawn(
-        position: (106.65, -1.854, -162.6),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-157.981, 9.684, -26.729),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-195.373, 4.992, 384.652),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (177.294, 3.093, 234.762),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-161.686, 3.221, 180.655),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (211.022, 0.465, 346.075),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-225.555, 5.226, 282.178),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-243.08, 3.685, 243.479),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-14.886, 2.763, -139.338),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-162.757, 3.221, 177.965),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-178.03, 1.218, 107.92),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (158.33, 3.624, 428.53),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-155.781, 9.671, -26.933),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (244.86, -3.21, -40.06),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-52.407, 0.668, -66.38),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-206.343, 3.367, 180.998),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-190.088, 3.137, 338.111),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (166.96, -1.451, -132.76),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-65.706, 2.699, 461.359),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-77.602, 3.235, 336.713),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (245.03, -3.21, -38.56),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-227.27, 5.226, 282.533),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-191.392, 3.137, 344.702),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-165.629, 3.158, 183.074),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-151.106, 0.736, -66.902),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-58.333, 3.214, -145.348),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-61.886, 2.699, 461.654),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-136.26, 2.34, 402.74),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (214.21, 3.99899983, 172.474),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-81.37, 3.296, 338.106),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (234.399, -2.049, -105.547),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-43.209, 6.7, -114.198),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-78.998, 3.308, 336.759),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-226.153, 5.226, 280.783),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (99.03, -1.854, -158.78),
+        position: (270.52, -4.431, 88.67),
         sides: [
           "all",
         ],
@@ -1431,7 +1026,7 @@
         ],
       ),
       Spawn(
-        position: (-106.95, 0.662, -30.759),
+        position: (268.66, -4.431, 88.95),
         sides: [
           "all",
         ],
@@ -1440,295 +1035,7 @@
         ],
       ),
       Spawn(
-        position: (167.909988, -1.451, -128.53),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (229.38, 3.37, 410.74),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-244.442, 2.193, 237.972),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-230.641, 2.196, 342.45),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (211.085, 3.935, 297.4),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-108.95, 0.662, -28.307),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-111.445, 0.668, -30.917),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (168.3, -1.451, -130.72),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-195.641, 4.992, 387.005),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (45.106, 2.717, 413.596),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (93.93, 2.579, 451.26),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (273.3, -1.16, 377.25),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (104.25, -1.854, -162.48),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (185.35, 3.529, 451.26),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-162.386, 3.158, 182.139),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (46.174, 2.717, 415.754),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-181.525, 2.451, 415.068),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-50.789, 0.668, -65.073),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (177.514, 3.093, 236.545),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (275.666, -4.431, 88.001),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-152.382, 0.663, -62.95),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (206.924, 3.935, 295.835),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-175.044, 2.455, 466.141),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (259.911, -5.94, 52.289),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (185.446, 3.529, 456.849),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-176.05, 1.218, 108.38),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (50.602, 4.465, -134.514),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (185.557, 1.574, 188.963),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-204.056, 3.367, 179.404),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (244.576, -3.21, -41.784),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (98.71, 2.76, 450.63),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-153.903, 0.654, -64.471),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-59.728, 4.488, -149.696),
+        position: (-188.923, 3.137, 340.446),
         sides: [
           "all",
         ],
@@ -1746,7 +1053,7 @@
         ],
       ),
       Spawn(
-        position: (-42.942, 6.67, -115.674),
+        position: (185.557, 1.574, 188.963),
         sides: [
           "all",
         ],
@@ -1755,7 +1062,7 @@
         ],
       ),
       Spawn(
-        position: (-13.868, 2.763, -132.861),
+        position: (177.514, 3.093, 236.545),
         sides: [
           "all",
         ],
@@ -1764,7 +1071,7 @@
         ],
       ),
       Spawn(
-        position: (53.22, 4.531, -132.52),
+        position: (-175.222, 2.455, 468.656),
         sides: [
           "all",
         ],
@@ -1773,7 +1080,7 @@
         ],
       ),
       Spawn(
-        position: (-193.63, 3.137, 346.516),
+        position: (206.924, 3.935, 295.835),
         sides: [
           "all",
         ],
@@ -1782,169 +1089,7 @@
         ],
       ),
       Spawn(
-        position: (216.25, 3.97299981, 174.019),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-174.294, 1.218, 107.643),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-195.947, 4.993, 389.306),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (272.0, -1.16, 374.65),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-149.896, 9.669, -27.344),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (226.23, 3.351, 410.5),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (43.754, 2.717, 416.533),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (268.66, -4.431, 88.95),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (274.105, -1.16, 376.208),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-193.902, 4.993, 389.207),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (226.23, 3.351, 410.5),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (273.202, 4.781, 516.697),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-203.697, 3.367, 182.271),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (274.738, 4.782, 517.334),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (275.417, 4.782, 516.126),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (277.164, -4.431, 87.967),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (154.142, 3.624, 428.129),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-173.311, 2.455, 467.431),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (272.043, 4.773, 516.173),
+        position: (-151.106, 0.736, -66.902),
         sides: [
           "all",
         ],
@@ -1962,7 +1107,7 @@
         ],
       ),
       Spawn(
-        position: (-42.919, 6.677, -117.171),
+        position: (-165.629, 3.158, 183.074),
         sides: [
           "all",
         ],
@@ -1971,7 +1116,7 @@
         ],
       ),
       Spawn(
-        position: (91.666, 2.579, 450.023),
+        position: (52.732, 4.531, -135.649),
         sides: [
           "all",
         ],
@@ -1980,7 +1125,7 @@
         ],
       ),
       Spawn(
-        position: (-10.48, 2.763, -137.96),
+        position: (-162.757, 3.221, 177.965),
         sides: [
           "all",
         ],
@@ -1989,7 +1134,7 @@
         ],
       ),
       Spawn(
-        position: (186.308, 1.65, 186.469),
+        position: (227.6, 3.351, 410.72),
         sides: [
           "all",
         ],
@@ -1998,7 +1143,7 @@
         ],
       ),
       Spawn(
-        position: (155.154, 3.624, 430.339),
+        position: (50.602, 4.465, -134.514),
         sides: [
           "all",
         ],
@@ -2007,7 +1152,43 @@
         ],
       ),
       Spawn(
-        position: (-76.262, 3.337, 336.625),
+        position: (-162.386, 3.158, 182.139),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-231.978, 2.312, 344.996),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-206.343, 3.367, 180.998),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (227.794, 3.945, 174.694),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (259.911, -5.94, 52.289),
         sides: [
           "all",
         ],
@@ -2025,7 +1206,169 @@
         ],
       ),
       Spawn(
-        position: (244.69, -3.21, -35.49),
+        position: (-134.489, 2.515, 399.622),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (158.33, 3.624, 428.53),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-173.311, 2.455, 467.431),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (186.511, 1.574, 188.445),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-231.985, 2.196, 342.49),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (275.666, -4.431, 88.001),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (100.71, -1.854, -162.53),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-225.555, 5.226, 282.178),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-180.504, 2.451, 419.05),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (98.71, 2.76, 450.63),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-195.641, 4.992, 387.005),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (106.65, -1.854, -162.6),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (170.078, -1.451, -132.837),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (273.202, 4.781, 516.697),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-50.789, 0.668, -65.073),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (167.909988, -1.451, -128.53),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-195.373, 4.992, 384.652),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (208.555, 3.935, 296.639),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (185.446, 3.529, 456.849),
         sides: [
           "all",
         ],
@@ -2043,7 +1386,160 @@
         ],
       ),
       Spawn(
-        position: (-242.591, 3.685, 242.089),
+        position: (229.38, 3.37, 410.74),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (185.6, 3.529, 459.37),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (157.0, 3.624, 430.76),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (175.964, 3.093, 234.797),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (205.631, 3.935, 296.404),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (232.682, -2.049, -103.148),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (244.86, -3.21, -40.06),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (226.23, 3.351, 410.5),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (244.576, -3.21, -41.784),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-179.339, 2.451, 416.352),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-152.382, 0.663, -62.95),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-243.08, 3.685, 243.479),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (211.085, 3.935, 297.4),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-65.996, 2.699, 459.747),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-10.48, 2.763, -137.96),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (91.666, 2.579, 450.023),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-153.903, 0.654, -64.471),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (244.69, -3.21, -35.49),
         sides: [
           "all",
         ],
@@ -2061,7 +1557,511 @@
         ],
       ),
       Spawn(
-        position: (170.078, -1.451, -132.837),
+        position: (-52.407, 0.668, -66.38),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-61.886, 2.699, 461.654),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-134.814, 3.058, 399.605),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (274.738, 4.782, 517.334),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-59.838, 3.202, -147.273),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (99.35, 2.76, 446.78),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (261.511, -5.94, 49.977),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (234.399, -2.049, -105.547),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-192.658, 4.993, 386.326),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (45.792, 2.717, 417.082),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-111.692, 0.659, -28.424),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (274.105, -1.16, 376.208),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (186.308, 1.65, 186.469),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-175.044, 2.455, 466.141),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-59.728, 4.488, -149.696),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (175.713, 3.172, 236.73),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-136.856, 2.565, 399.57),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-13.868, 2.763, -132.861),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-176.75, 1.218, 105.23),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-78.998, 3.308, 336.759),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-243.129, 3.43, 240.565),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-244.442, 2.193, 237.972),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-108.95, 0.662, -28.307),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-190.088, 3.137, 338.111),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (277.164, -4.431, 87.967),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-106.95, 0.662, -30.759),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (272.043, 4.773, 516.173),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-157.981, 9.684, -26.729),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (216.25, 3.97299981, 174.019),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-163.933, 3.158, 183.069),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-44.833, 6.678, -114.215),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (177.294, 3.093, 234.762),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-176.596, 2.455, 466.984),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (46.174, 2.717, 415.754),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (179.062, 3.048, 233.031),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-65.706, 2.699, 461.359),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-235.154, 2.846, 345.06),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (226.23, 3.351, 410.5),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-48.546, 0.668, -67.733),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-59.862, 3.737, -148.574),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-150.592, 9.644, -23.594),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (53.22, 4.781, -130.649),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (214.21, 3.99899983, 172.474),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (155.154, 3.624, 430.339),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-42.942, 6.67, -115.674),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-242.312, 3.685, 242.94),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-227.329, 5.26, 277.332),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-10.37, 2.763, -135.41),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-192.295, 3.137, 345.684),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (258.622, -5.94, 48.843),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (185.35, 3.529, 451.26),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-136.26, 2.34, 402.74),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-193.902, 4.993, 389.207),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (271.36, -1.16, 376.28),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-58.206, 3.214, -146.784),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (245.03, -3.21, -38.56),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-182.94, 2.41, 413.56),
         sides: [
           "all",
         ],
@@ -2162,7 +2162,7 @@
     normalizedName: "ground-zero",
     name: "Ground Zero",
     imagePath: "maps/ground-zero.png",
-    imageSize: (348.5, 488.0),
+    imageSize: (348.9254, 488.4479),
     logicalSize: (348.0, 488.0),
     altMaps: Some([
       "ground-zero-21",
@@ -2175,30 +2175,8 @@
     heightRange: Some((-1000.0, 28.0)),
     layers: Some([
       Layer(
-        name: "Garage",
-        svgLayer: Some("Underground_Level"),
-        tilePath: Some("https://assets.tarkov.dev/maps/groundzero/garage/{z}/{x}/{y}.png"),
-        show: false,
-        extents: [
-          Extent(
-            height: (-1000.0, 21.0),
-            bounds: Some([
-              ExtentBound(
-                point1: (117.0, -100.0),
-                point2: (43.0, 190.0),
-                name: "garage",
-              ),
-              ExtentBound(
-                point1: (143.0, 49.0),
-                point2: (117.0, 80.0),
-                name: "underpass",
-              ),
-            ]),
-          ),
-        ],
-      ),
-      Layer(
         name: "2nd Floor",
+        imagePath: Some("maps/ground-zero-layer-0.png"),
         svgLayer: Some("Second_Floor"),
         tilePath: Some("https://assets.tarkov.dev/maps/groundzero/2nd/{z}/{x}/{y}.png"),
         show: false,
@@ -2220,12 +2198,37 @@
       ),
       Layer(
         name: "3rd Floor",
+        imagePath: Some("maps/ground-zero-layer-1.png"),
         svgLayer: Some("Third_Floor"),
         tilePath: Some("https://assets.tarkov.dev/maps/groundzero/3rd/{z}/{x}/{y}.png"),
         show: false,
         extents: [
           Extent(
             height: (32.3, 1000.0),
+          ),
+        ],
+      ),
+      Layer(
+        name: "Garage",
+        imagePath: Some("maps/ground-zero-layer-2.png"),
+        svgLayer: Some("Underground_Level"),
+        tilePath: Some("https://assets.tarkov.dev/maps/groundzero/garage/{z}/{x}/{y}.png"),
+        show: false,
+        extents: [
+          Extent(
+            height: (-1000.0, 21.0),
+            bounds: Some([
+              ExtentBound(
+                point1: (117.0, -100.0),
+                point2: (43.0, 190.0),
+                name: "garage",
+              ),
+              ExtentBound(
+                point1: (143.0, 49.0),
+                point2: (117.0, 80.0),
+                name: "underpass",
+              ),
+            ]),
           ),
         ],
       ),
@@ -3235,7 +3238,7 @@
     normalizedName: "customs",
     name: "Customs",
     imagePath: "maps/customs.png",
-    imageSize: (1062.0, 535.0),
+    imageSize: (1062.4827, 535.174),
     logicalSize: (1070.0, 544.0),
     author: Some("Shebuka"),
     authorLink: Some("https://github.com/the-hideout/tarkov-dev-svg-maps/"),
@@ -3245,50 +3248,8 @@
     heightRange: Some((-1000.0, 1000.0)),
     layers: Some([
       Layer(
-        name: "Underground",
-        svgLayer: Some("Underground_Level"),
-        tilePath: Some("https://assets.tarkov.dev/maps/customs_0.16/underground/{z}/{x}/{y}.png"),
-        show: false,
-        extents: [
-          Extent(
-            height: (-1000.0, 0.5),
-            bounds: Some([
-              ExtentBound(
-                point1: (635.0, -137.0),
-                point2: (620.0, -125.0),
-                name: "zb-1011",
-              ),
-              ExtentBound(
-                point1: (473.0, -122.0),
-                point2: (458.0, -110.0),
-                name: "zb-1012",
-              ),
-              ExtentBound(
-                point1: (314.0, -173.0),
-                point2: (308.0, -184.0),
-                name: "old gas",
-              ),
-              ExtentBound(
-                point1: (349.0, -88.0),
-                point2: (323.0, -32.0),
-                name: "switch basement",
-              ),
-              ExtentBound(
-                point1: (219.0, -158.0),
-                point2: (193.0, -137.0),
-                name: "zb-013",
-              ),
-              ExtentBound(
-                point1: (122.0, -61.0),
-                point2: (88.0, -40.0),
-                name: "boiler room",
-              ),
-            ]),
-          ),
-        ],
-      ),
-      Layer(
         name: "2nd Floor",
+        imagePath: Some("maps/customs-layer-0.png"),
         svgLayer: Some("Second_Floor"),
         tilePath: Some("https://assets.tarkov.dev/maps/customs_0.16/2nd/{z}/{x}/{y}.png"),
         show: false,
@@ -3412,6 +3373,7 @@
       ),
       Layer(
         name: "3rd Floor",
+        imagePath: Some("maps/customs-layer-1.png"),
         svgLayer: Some("Third_Floor"),
         tilePath: Some("https://assets.tarkov.dev/maps/customs_0.16/3rd/{z}/{x}/{y}.png"),
         show: false,
@@ -3460,6 +3422,7 @@
       ),
       Layer(
         name: "4th Floor",
+        imagePath: Some("maps/customs-layer-2.png"),
         tilePath: Some("https://assets.tarkov.dev/maps/customs_0.16/4th/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -3470,6 +3433,50 @@
                 point1: (279.0, -79.0),
                 point2: (246.0, -1.4),
                 name: "oilrig & panda",
+              ),
+            ]),
+          ),
+        ],
+      ),
+      Layer(
+        name: "Underground",
+        imagePath: Some("maps/customs-layer-3.png"),
+        svgLayer: Some("Underground_Level"),
+        tilePath: Some("https://assets.tarkov.dev/maps/customs_0.16/underground/{z}/{x}/{y}.png"),
+        show: false,
+        extents: [
+          Extent(
+            height: (-1000.0, 0.5),
+            bounds: Some([
+              ExtentBound(
+                point1: (635.0, -137.0),
+                point2: (620.0, -125.0),
+                name: "zb-1011",
+              ),
+              ExtentBound(
+                point1: (473.0, -122.0),
+                point2: (458.0, -110.0),
+                name: "zb-1012",
+              ),
+              ExtentBound(
+                point1: (314.0, -173.0),
+                point2: (308.0, -184.0),
+                name: "old gas",
+              ),
+              ExtentBound(
+                point1: (349.0, -88.0),
+                point2: (323.0, -32.0),
+                name: "switch basement",
+              ),
+              ExtentBound(
+                point1: (219.0, -158.0),
+                point2: (193.0, -137.0),
+                name: "zb-013",
+              ),
+              ExtentBound(
+                point1: (122.0, -61.0),
+                point2: (88.0, -40.0),
+                name: "boiler room",
               ),
             ]),
           ),
@@ -4811,7 +4818,7 @@
     normalizedName: "factory",
     name: "Factory",
     imagePath: "maps/factory.png",
-    imageSize: (130.5, 141.0),
+    imageSize: (130.81831, 141.23242),
     logicalSize: (142.5, 131.9),
     altMaps: Some([
       "night-factory",
@@ -4825,6 +4832,7 @@
     layers: Some([
       Layer(
         name: "2nd Floor",
+        imagePath: Some("maps/factory-layer-0.png"),
         svgLayer: Some("Second_Floor"),
         tilePath: Some("https://assets.tarkov.dev/maps/factory/2nd/{z}/{x}/{y}.png"),
         show: false,
@@ -4836,6 +4844,7 @@
       ),
       Layer(
         name: "3rd Floor",
+        imagePath: Some("maps/factory-layer-1.png"),
         svgLayer: Some("Third_Floor"),
         tilePath: Some("https://assets.tarkov.dev/maps/factory/3rd/{z}/{x}/{y}.png"),
         show: false,
@@ -4847,6 +4856,7 @@
       ),
       Layer(
         name: "Tunnels",
+        imagePath: Some("maps/factory-layer-2.png"),
         svgLayer: Some("Basement"),
         tilePath: Some("https://assets.tarkov.dev/maps/factory/tunnels/{z}/{x}/{y}.png"),
         show: false,
@@ -5861,10 +5871,223 @@
     ]),
   ),
   Map(
+    normalizedName: "icebreaker",
+    name: "Icebreaker",
+    imagePath: "maps/icebreaker.png",
+    imageSize: (256.0, 256.0),
+    logicalSize: (142.5, 131.9),
+    author: Some("TarkovBOT.eu"),
+    authorLink: Some("https://tarkovbot.eu/"),
+    transform: Some((2.0, 125.0, 3.5, 91.0)),
+    coordinateRotation: Some(180.0),
+    bounds: Some(((77.0, -64.5), (-65.5, 67.4))),
+    heightRange: Some((18.92, 19.56)),
+    layers: Some([
+      Layer(
+        name: "Infirmary",
+        imagePath: Some("maps/icebreaker.png"),
+        tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/06_infirmary/{z}/{x}/{y}.png"),
+        show: true,
+        extents: [
+          Extent(
+            height: (18.92, 19.56),
+          ),
+        ],
+      ),
+      Layer(
+        name: "Helipad",
+        imagePath: Some("maps/icebreaker-layer-1.png"),
+        tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/07_helipad/{z}/{x}/{y}.png"),
+        show: false,
+        extents: [
+          Extent(
+            height: (19.57, 22.1),
+          ),
+        ],
+      ),
+      Layer(
+        name: "Gym/Canteen",
+        imagePath: Some("maps/icebreaker-layer-2.png"),
+        tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/08_gym-canteen/{z}/{x}/{y}.png"),
+        show: false,
+        extents: [
+          Extent(
+            height: (22.2, 25.2),
+          ),
+        ],
+      ),
+      Layer(
+        name: "Accommodation (lower)",
+        imagePath: Some("maps/icebreaker-layer-3.png"),
+        tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/09_accommodation_lower/{z}/{x}/{y}.png"),
+        show: false,
+        extents: [
+          Extent(
+            height: (25.3, 28.2),
+          ),
+        ],
+      ),
+      Layer(
+        name: "Accommodation (mid)",
+        imagePath: Some("maps/icebreaker-layer-4.png"),
+        tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/10_accommodation_mid/{z}/{x}/{y}.png"),
+        show: false,
+        extents: [
+          Extent(
+            height: (28.3, 31.3),
+          ),
+        ],
+      ),
+      Layer(
+        name: "Accommodation (upper)",
+        imagePath: Some("maps/icebreaker-layer-5.png"),
+        tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/11_accommodation_upper/{z}/{x}/{y}.png"),
+        show: false,
+        extents: [
+          Extent(
+            height: (31.4, 34.4),
+          ),
+        ],
+      ),
+      Layer(
+        name: "Officers\' Deck",
+        imagePath: Some("maps/icebreaker-layer-6.png"),
+        tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/12_officers_deck/{z}/{x}/{y}.png"),
+        show: false,
+        extents: [
+          Extent(
+            height: (34.5, 37.5),
+          ),
+        ],
+      ),
+      Layer(
+        name: "Stairs (blocked)",
+        imagePath: Some("maps/icebreaker-layer-7.png"),
+        tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/13_stairs_blocked/{z}/{x}/{y}.png"),
+        show: false,
+        extents: [
+          Extent(
+            height: (37.6, 40.6),
+          ),
+        ],
+      ),
+      Layer(
+        name: "Bridge",
+        imagePath: Some("maps/icebreaker-layer-8.png"),
+        tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/14_bridge/{z}/{x}/{y}.png"),
+        show: false,
+        extents: [
+          Extent(
+            height: (40.7, 43.7),
+          ),
+        ],
+      ),
+      Layer(
+        name: "Bridge Roof",
+        imagePath: Some("maps/icebreaker-layer-9.png"),
+        tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/15_bridge_roof/{z}/{x}/{y}.png"),
+        show: false,
+        extents: [
+          Extent(
+            height: (43.8, 10000.0),
+          ),
+        ],
+      ),
+      Layer(
+        name: "Control Room",
+        imagePath: Some("maps/icebreaker-layer-10.png"),
+        tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/00_control_room/{z}/{x}/{y}.png"),
+        show: false,
+        extents: [
+          Extent(
+            height: (-10000.0, 3.5),
+          ),
+        ],
+      ),
+      Layer(
+        name: "Engine Room",
+        imagePath: Some("maps/icebreaker-layer-11.png"),
+        tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/01_engine_room/{z}/{x}/{y}.png"),
+        show: false,
+        extents: [
+          Extent(
+            height: (3.6, 5.6),
+          ),
+        ],
+      ),
+      Layer(
+        name: "Engine Room (upper)",
+        imagePath: Some("maps/icebreaker-layer-12.png"),
+        tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/02_engine_room_upper/{z}/{x}/{y}.png"),
+        show: false,
+        extents: [
+          Extent(
+            height: (5.7, 8.7),
+          ),
+        ],
+      ),
+      Layer(
+        name: "Fuel Pumps (lower)",
+        imagePath: Some("maps/icebreaker-layer-13.png"),
+        tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/03_fuel_pumps_lower/{z}/{x}/{y}.png"),
+        show: false,
+        extents: [
+          Extent(
+            height: (8.8, 11.8),
+          ),
+        ],
+      ),
+      Layer(
+        name: "Fuel Pumps",
+        imagePath: Some("maps/icebreaker-layer-14.png"),
+        tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/04_fuel_pumps/{z}/{x}/{y}.png"),
+        show: false,
+        extents: [
+          Extent(
+            height: (11.9, 14.9),
+          ),
+        ],
+      ),
+      Layer(
+        name: "Storage/Security",
+        imagePath: Some("maps/icebreaker-layer-15.png"),
+        tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/05_storage_ecurity/{z}/{x}/{y}.png"),
+        show: false,
+        extents: [
+          Extent(
+            height: (15.0, 18.93),
+          ),
+        ],
+      ),
+    ]),
+    labels: Some([]),
+    spawns: Some([
+      Spawn(
+        position: (-1.3544693, 19.4779987, 81.6578),
+        sides: [
+          "pmc",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-0.354278564, 19.4779987, 82.33914),
+        sides: [
+          "pmc",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+    ]),
+    extracts: Some([]),
+  ),
+  Map(
     normalizedName: "interchange",
     name: "Interchange",
     imagePath: "maps/interchange.png",
-    imageSize: (977.0, 977.0),
+    imageSize: (1127.6852, 947.0258),
     logicalSize: (1031.0, 868.0),
     author: Some("Shebuka"),
     authorLink: Some("https://github.com/the-hideout/tarkov-dev-svg-maps/"),
@@ -7658,6 +7881,9 @@
     imagePath: "maps/the-lab.png",
     imageSize: (175.0, 175.0),
     logicalSize: (207.0, 284.0),
+    altMaps: Some([
+      "the-lab-dark",
+    ]),
     author: Some("Tarkov.dev"),
     authorLink: Some("https://tarkov.dev"),
     transform: Some((0.575, 281.2, 0.575, 193.7)),
@@ -7667,6 +7893,7 @@
     layers: Some([
       Layer(
         name: "Second Level",
+        imagePath: Some("maps/the-lab-layer-0.png"),
         tilePath: Some("https://assets.tarkov.dev/maps/labs_v4/2nd/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -7684,6 +7911,7 @@
       ),
       Layer(
         name: "Technical",
+        imagePath: Some("maps/the-lab-layer-1.png"),
         tilePath: Some("https://assets.tarkov.dev/maps/labs_v4/technical/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -7923,7 +8151,7 @@
         ],
       ),
       Spawn(
-        position: (-279.05, 0.06, -338.94),
+        position: (-264.171, 0.039, -321.665),
         sides: [
           "all",
         ],
@@ -8175,7 +8403,7 @@
         ],
       ),
       Spawn(
-        position: (-276.1, 0.06, -333.32),
+        position: (-257.348, 0.031, -319.486),
         sides: [
           "all",
         ],
@@ -8193,7 +8421,7 @@
         ],
       ),
       Spawn(
-        position: (-279.36, 0.06, -334.88),
+        position: (-260.981, 0.071, -321.761),
         sides: [
           "all",
         ],
@@ -8265,7 +8493,7 @@
         ],
       ),
       Spawn(
-        position: (-279.1, 0.06, -337.01),
+        position: (-266.107, 0.027, -321.662),
         sides: [
           "all",
         ],
@@ -8445,7 +8673,7 @@
         ],
       ),
       Spawn(
-        position: (-276.59, 0.06, -335.35),
+        position: (-258.094, 0.027, -321.203),
         sides: [
           "all",
         ],
@@ -8536,51 +8764,6 @@
       ),
       Spawn(
         position: (-166.67, 0.06, -416.11),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-135.21, -4.97, -265.53),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-112.6, 4.2, -419.06),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-116.615, -4.002, -398.184),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-108.59, 4.2, -413.89),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (-116.276, -4.025, -404.21),
         sides: [
           "all",
         ],
@@ -8703,7 +8886,7 @@
     normalizedName: "lighthouse",
     name: "Lighthouse",
     imagePath: "maps/lighthouse.png",
-    imageSize: (1059.0, 1722.5),
+    imageSize: (1059.3752, 1722.95),
     logicalSize: (1060.0, 1723.0),
     author: Some("Shebuka"),
     authorLink: Some("https://github.com/the-hideout/tarkov-dev-svg-maps/"),
@@ -8812,7 +8995,7 @@
         ],
       ),
       Spawn(
-        position: (105.9234, 0.8048973, 427.2954),
+        position: (138.956451, 0.8249016, 375.8534),
         sides: [
           "all",
         ],
@@ -8821,7 +9004,25 @@
         ],
       ),
       Spawn(
-        position: (-444.616425, 28.8648987, -372.493347),
+        position: (142.4226, 2.81489944, -929.319336),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-338.282532, 0.6148987, -263.818054),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (6.100586, 10.650898, -916.5203),
         sides: [
           "all",
         ],
@@ -8848,7 +9049,7 @@
         ],
       ),
       Spawn(
-        position: (-221.127411, 13.2248974, -186.749329),
+        position: (-214.567413, 12.4848976, -184.769348),
         sides: [
           "all",
         ],
@@ -8866,6 +9067,33 @@
         ],
       ),
       Spawn(
+        position: (-126.367409, 10.5948982, -897.199341),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (168.9226, 0.9848976, -763.5993),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (138.410034, 3.254898, -930.2862),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
         position: (-135.877411, 6.02489853, 483.9607),
         sides: [
           "all",
@@ -8875,7 +9103,7 @@
         ],
       ),
       Spawn(
-        position: (111.742584, 0.3838997, -161.499329),
+        position: (139.20459, 0.344898224, -109.733337),
         sides: [
           "all",
         ],
@@ -8893,7 +9121,7 @@
         ],
       ),
       Spawn(
-        position: (-15.1174011, 1.05489731, -137.2793),
+        position: (-22.8574066, 1.52489853, -11.4993286),
         sides: [
           "all",
         ],
@@ -8902,7 +9130,7 @@
         ],
       ),
       Spawn(
-        position: (103.953522, 0.480896, 426.513062),
+        position: (136.986572, 0.500900269, 375.071045),
         sides: [
           "all",
         ],
@@ -8911,7 +9139,7 @@
         ],
       ),
       Spawn(
-        position: (75.3526, 8.804897, 226.640686),
+        position: (85.752594, 7.23489761, 207.540649),
         sides: [
           "all",
         ],
@@ -8920,7 +9148,7 @@
         ],
       ),
       Spawn(
-        position: (-444.4114, 28.9749, -374.474365),
+        position: (-6.117401, 12.0938988, -919.6793),
         sides: [
           "all",
         ],
@@ -8929,7 +9157,7 @@
         ],
       ),
       Spawn(
-        position: (-168.237411, 30.4148979, -65.0293),
+        position: (-338.498169, 0.7248993, -261.8385),
         sides: [
           "all",
         ],
@@ -8938,7 +9166,7 @@
         ],
       ),
       Spawn(
-        position: (102.215881, 0.3598938, 425.473877),
+        position: (-167.097412, 30.544899, -66.89935),
         sides: [
           "all",
         ],
@@ -8947,7 +9175,7 @@
         ],
       ),
       Spawn(
-        position: (-385.1474, 24.9248981, -509.9793),
+        position: (135.772583, 0.379898071, 373.160645),
         sides: [
           "all",
         ],
@@ -8956,7 +9184,7 @@
         ],
       ),
       Spawn(
-        position: (76.9725952, 9.154898, 219.860657),
+        position: (-124.4474, 10.6748981, -896.3493),
         sides: [
           "all",
         ],
@@ -8965,7 +9193,7 @@
         ],
       ),
       Spawn(
-        position: (-442.8274, 28.7448978, -375.699341),
+        position: (-126.8074, 10.544899, -895.699341),
         sides: [
           "all",
         ],
@@ -8974,7 +9202,34 @@
         ],
       ),
       Spawn(
-        position: (-169.927414, 30.3048973, -65.95935),
+        position: (86.73259, 6.97489738, 203.790649),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-126.65741, 10.5548973, -891.6193),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-340.088654, 0.49489975, -260.621765),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-168.787415, 30.4348984, -67.82941),
         sides: [
           "all",
         ],
@@ -9001,7 +9256,7 @@
         ],
       ),
       Spawn(
-        position: (-11.9374084, 0.644897461, -126.729309),
+        position: (-27.7574, 0.134899139, 0.5006714),
         sides: [
           "all",
         ],
@@ -9010,7 +9265,7 @@
         ],
       ),
       Spawn(
-        position: (-168.8574, 30.4148979, -67.9093),
+        position: (-167.7174, 30.544899, -69.77936),
         sides: [
           "all",
         ],
@@ -9028,7 +9283,7 @@
         ],
       ),
       Spawn(
-        position: (116.612579, 0.3838997, -163.829346),
+        position: (138.834564, 0.4048996, -115.612366),
         sides: [
           "all",
         ],
@@ -9046,7 +9301,7 @@
         ],
       ),
       Spawn(
-        position: (104.329529, 0.504894257, 424.062744),
+        position: (137.362579, 0.5248985, 372.620728),
         sides: [
           "all",
         ],
@@ -9055,7 +9310,7 @@
         ],
       ),
       Spawn(
-        position: (74.7225952, 8.974897, 233.730652),
+        position: (89.26259, 7.134899, 203.730652),
         sides: [
           "all",
         ],
@@ -9064,7 +9319,7 @@
         ],
       ),
       Spawn(
-        position: (-159.287415, 30.3648987, 260.930664),
+        position: (-161.797409, 32.4049, 215.7107),
         sides: [
           "all",
         ],
@@ -9073,7 +9328,7 @@
         ],
       ),
       Spawn(
-        position: (-222.5874, 13.5648975, -193.249329),
+        position: (-212.9134, 12.8508987, -189.246338),
         sides: [
           "all",
         ],
@@ -9082,7 +9337,7 @@
         ],
       ),
       Spawn(
-        position: (77.002594, 9.054897, 224.620667),
+        position: (85.1326, 7.02489853, 204.680664),
         sides: [
           "all",
         ],
@@ -9100,7 +9355,7 @@
         ],
       ),
       Spawn(
-        position: (-14.8574066, 0.374897, -134.839355),
+        position: (137.742584, 3.27489853, -926.46936),
         sides: [
           "all",
         ],
@@ -9109,7 +9364,7 @@
         ],
       ),
       Spawn(
-        position: (-12.26741, 0.9448967, -133.069336),
+        position: (-26.79741, 0.184898376, 5.690674),
         sides: [
           "all",
         ],
@@ -9118,7 +9373,25 @@
         ],
       ),
       Spawn(
-        position: (114.390594, 0.3838997, -166.727356),
+        position: (-13.76741, 0.454898834, 2.45068359),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (134.4826, 3.18989944, -931.819336),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (136.612579, 0.4048996, -118.510376),
         sides: [
           "all",
         ],
@@ -9136,7 +9409,7 @@
         ],
       ),
       Spawn(
-        position: (115.702606, 0.3838997, -160.319336),
+        position: (137.924591, 0.4048996, -112.102356),
         sides: [
           "all",
         ],
@@ -9145,7 +9418,7 @@
         ],
       ),
       Spawn(
-        position: (-386.5914, 23.7648983, -511.923279),
+        position: (165.2526, 1.4408989, -758.209351),
         sides: [
           "all",
         ],
@@ -9154,7 +9427,7 @@
         ],
       ),
       Spawn(
-        position: (-386.7574, 23.5148983, -515.9593),
+        position: (2.49259949, 12.0388985, -918.71936),
         sides: [
           "all",
         ],
@@ -9163,7 +9436,7 @@
         ],
       ),
       Spawn(
-        position: (-441.8674, 28.6048985, -372.989319),
+        position: (171.902588, 0.714897156, -756.6693),
         sides: [
           "all",
         ],
@@ -9172,7 +9445,7 @@
         ],
       ),
       Spawn(
-        position: (-220.127411, 13.1848965, -188.419312),
+        position: (-341.034149, 0.35490036, -263.3369),
         sides: [
           "all",
         ],
@@ -9181,7 +9454,7 @@
         ],
       ),
       Spawn(
-        position: (-161.4974, 31.2748985, 257.310669),
+        position: (-210.9474, 12.8148975, -184.879333),
         sides: [
           "all",
         ],
@@ -9190,7 +9463,7 @@
         ],
       ),
       Spawn(
-        position: (106.705719, 0.730896, 424.522827),
+        position: (-162.437408, 32.2249, 222.9607),
         sides: [
           "all",
         ],
@@ -9199,7 +9472,7 @@
         ],
       ),
       Spawn(
-        position: (-10.3174133, 1.8348999, -130.169312),
+        position: (139.73877, 0.750900269, 373.0808),
         sides: [
           "all",
         ],
@@ -9208,7 +9481,7 @@
         ],
       ),
       Spawn(
-        position: (-443.404419, 28.4408989, -371.109375),
+        position: (-14.9674072, 0.6848984, -3.29931641),
         sides: [
           "all",
         ],
@@ -9217,7 +9490,7 @@
         ],
       ),
       Spawn(
-        position: (-382.737427, 24.7548981, -512.699341),
+        position: (158.642578, 2.294899, -760.199341),
         sides: [
           "all",
         ],
@@ -9226,7 +9499,25 @@
         ],
       ),
       Spawn(
-        position: (-384.5074, 24.2249, -513.6393),
+        position: (-339.487244, 0.19090271, -265.208466),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (5.822586, 10.6138973, -921.3993),
+        sides: [
+          "all",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (-125.097412, 10.5468979, -891.5593),
         sides: [
           "all",
         ],
@@ -9244,7 +9535,7 @@
         ],
       ),
       Spawn(
-        position: (-217.447433, 12.584898, -181.449341),
+        position: (-209.457413, 12.584898, -188.2793),
         sides: [
           "all",
         ],
@@ -9271,7 +9562,7 @@
         ],
       ),
       Spawn(
-        position: (-167.4974, 30.4148979, -66.609314),
+        position: (-166.3574, 30.544899, -68.47937),
         sides: [
           "all",
         ],
@@ -9280,7 +9571,7 @@
         ],
       ),
       Spawn(
-        position: (-150.487411, 29.9358978, 262.8806),
+        position: (-162.677414, 32.4949, 210.1507),
         sides: [
           "all",
         ],
@@ -9289,7 +9580,7 @@
         ],
       ),
       Spawn(
-        position: (-162.8074, 31.3148975, 254.180664),
+        position: (140.562592, 2.9048996, -927.209351),
         sides: [
           "all",
         ],
@@ -9298,7 +9589,7 @@
         ],
       ),
       Spawn(
-        position: (-171.187408, 30.3048973, -66.78931),
+        position: (-163.6974, 32.3948975, 213.100647),
         sides: [
           "all",
         ],
@@ -9307,7 +9598,7 @@
         ],
       ),
       Spawn(
-        position: (-62.47941, 5.990898, 330.1067),
+        position: (-170.047409, 30.4348984, -68.65936),
         sides: [
           "all",
         ],
@@ -9316,7 +9607,7 @@
         ],
       ),
       Spawn(
-        position: (76.0825958, 8.794899, 228.730652),
+        position: (-5.6474, 12.1908989, -921.9213),
         sides: [
           "all",
         ],
@@ -9325,16 +9616,7 @@
         ],
       ),
       Spawn(
-        position: (-164.797409, 30.834898, 260.620728),
-        sides: [
-          "all",
-        ],
-        categories: [
-          "player",
-        ],
-      ),
-      Spawn(
-        position: (116.310608, 0.3838997, -167.806335),
+        position: (169.116608, 0.9918976, -766.5003),
         sides: [
           "all",
         ],
@@ -9415,7 +9697,7 @@
     normalizedName: "reserve",
     name: "Reserve",
     imagePath: "maps/reserve.png",
-    imageSize: (827.0, 761.0),
+    imageSize: (827.2874, 761.16437),
     logicalSize: (592.0, 537.0),
     author: Some("Shebuka"),
     authorLink: Some("https://github.com/the-hideout/tarkov-dev-svg-maps/"),
@@ -9425,75 +9707,8 @@
     heightRange: Some((-7.0, 10000.0)),
     layers: Some([
       Layer(
-        name: "Bunkers",
-        svgLayer: Some("Bunkers"),
-        tilePath: Some("https://assets.tarkov.dev/maps/reserve/bunkers/{z}/{x}/{y}.png"),
-        show: false,
-        extents: [
-          Extent(
-            height: (-10000.0, -7.27),
-            bounds: Some([
-              ExtentBound(
-                point1: (128.0, -208.0),
-                point2: (18.0, -33.0),
-                name: "storage bunker",
-              ),
-              ExtentBound(
-                point1: (-46.0, -42.0),
-                point2: (-176.0, 127.0),
-                name: "command bunkers",
-              ),
-            ]),
-          ),
-          Extent(
-            height: (-10000.0, -12.0),
-            bounds: Some([
-              ExtentBound(
-                point1: (-40.0, 124.0),
-                point2: (-124.0, 189.0),
-                name: "D2",
-              ),
-            ]),
-          ),
-          Extent(
-            height: (-10000.0, 18.0),
-            bounds: Some([
-              ExtentBound(
-                point1: (23.0, 173.0),
-                point2: (-65.0, 189.0),
-                name: "dome tunnels",
-              ),
-            ]),
-          ),
-          Extent(
-            height: (-7.27, -3.2),
-            bounds: Some([
-              ExtentBound(
-                point1: (74.0, -196.0),
-                point2: (19.0, -149.0),
-                name: "bunker hermetic door bunkers",
-              ),
-            ]),
-          ),
-          Extent(
-            height: (-11.0, -4.6),
-            bounds: Some([
-              ExtentBound(
-                point1: (-246.0, -79.0),
-                point2: (-274.0, -53.0),
-                name: "E1 bunkers",
-              ),
-              ExtentBound(
-                point1: (238.0, -26.0),
-                point2: (126.0, 45.0),
-                name: "bunkers",
-              ),
-            ]),
-          ),
-        ],
-      ),
-      Layer(
         name: "2nd Floor",
+        imagePath: Some("maps/reserve-layer-0.png"),
         tilePath: Some("https://assets.tarkov.dev/maps/reserve/2nd/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -9616,6 +9831,7 @@
       ),
       Layer(
         name: "3rd Floor",
+        imagePath: Some("maps/reserve-layer-1.png"),
         tilePath: Some("https://assets.tarkov.dev/maps/reserve/3rd/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -9683,6 +9899,7 @@
       ),
       Layer(
         name: "4th Floor",
+        imagePath: Some("maps/reserve-layer-2.png"),
         tilePath: Some("https://assets.tarkov.dev/maps/reserve/4th/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -9730,6 +9947,7 @@
       ),
       Layer(
         name: "5th Floor",
+        imagePath: Some("maps/reserve-layer-3.png"),
         tilePath: Some("https://assets.tarkov.dev/maps/reserve/5th/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -9740,6 +9958,75 @@
                 point1: (-77.0, 26.0),
                 point2: (-177.0, 106.0),
                 name: "pawns",
+              ),
+            ]),
+          ),
+        ],
+      ),
+      Layer(
+        name: "Bunkers",
+        imagePath: Some("maps/reserve-layer-4.png"),
+        svgLayer: Some("Bunkers"),
+        tilePath: Some("https://assets.tarkov.dev/maps/reserve/bunkers/{z}/{x}/{y}.png"),
+        show: false,
+        extents: [
+          Extent(
+            height: (-10000.0, -7.27),
+            bounds: Some([
+              ExtentBound(
+                point1: (128.0, -208.0),
+                point2: (18.0, -33.0),
+                name: "storage bunker",
+              ),
+              ExtentBound(
+                point1: (-46.0, -42.0),
+                point2: (-176.0, 127.0),
+                name: "command bunkers",
+              ),
+            ]),
+          ),
+          Extent(
+            height: (-10000.0, -12.0),
+            bounds: Some([
+              ExtentBound(
+                point1: (-40.0, 124.0),
+                point2: (-124.0, 189.0),
+                name: "D2",
+              ),
+            ]),
+          ),
+          Extent(
+            height: (-10000.0, 18.0),
+            bounds: Some([
+              ExtentBound(
+                point1: (23.0, 173.0),
+                point2: (-65.0, 189.0),
+                name: "dome tunnels",
+              ),
+            ]),
+          ),
+          Extent(
+            height: (-7.27, -3.2),
+            bounds: Some([
+              ExtentBound(
+                point1: (74.0, -196.0),
+                point2: (19.0, -149.0),
+                name: "bunker hermetic door bunkers",
+              ),
+            ]),
+          ),
+          Extent(
+            height: (-11.0, -4.6),
+            bounds: Some([
+              ExtentBound(
+                point1: (-246.0, -79.0),
+                point2: (-274.0, -53.0),
+                name: "E1 bunkers",
+              ),
+              ExtentBound(
+                point1: (238.0, -26.0),
+                point2: (126.0, 45.0),
+                name: "bunkers",
               ),
             ]),
           ),
@@ -10689,7 +10976,7 @@
     normalizedName: "shoreline",
     name: "Shoreline",
     imagePath: "maps/shoreline.png",
-    imageSize: (1559.5, 1032.0),
+    imageSize: (1559.5717, 1032.4935),
     logicalSize: (1560.0, 1033.0),
     author: Some("Shebuka"),
     authorLink: Some("https://github.com/the-hideout/tarkov-dev-svg-maps/"),
@@ -10698,6 +10985,26 @@
     bounds: Some(((504.0, -415.0), (-1056.0, 618.0))),
     heightRange: Some((-1000.0, -1.0)),
     layers: Some([
+      Layer(
+        name: "2nd Floor",
+        svgLayer: Some("Second_Floor"),
+        show: false,
+        extents: [
+          Extent(
+            height: (-1.0, 2.0),
+          ),
+        ],
+      ),
+      Layer(
+        name: "3rd Floor",
+        svgLayer: Some("Third_Floor"),
+        show: false,
+        extents: [
+          Extent(
+            height: (2.0, 1000.0),
+          ),
+        ],
+      ),
       Layer(
         name: "Underground",
         svgLayer: Some("Underground_Level"),
@@ -10717,26 +11024,6 @@
                 name: "admin",
               ),
             ]),
-          ),
-        ],
-      ),
-      Layer(
-        name: "2nd Floor",
-        svgLayer: Some("Second_Floor"),
-        show: false,
-        extents: [
-          Extent(
-            height: (-1.0, 2.0),
-          ),
-        ],
-      ),
-      Layer(
-        name: "3rd Floor",
-        svgLayer: Some("Third_Floor"),
-        show: false,
-        extents: [
-          Extent(
-            height: (2.0, 1000.0),
           ),
         ],
       ),
@@ -11442,7 +11729,7 @@
         ],
       ),
       Spawn(
-        position: (-456.0833, -47.87, 393.009033),
+        position: (-456.0833, -47.989, 393.009033),
         sides: [
           "pmc",
         ],
@@ -11847,7 +12134,7 @@
         ],
       ),
       Spawn(
-        position: (-450.129944, -48.0, 392.460022),
+        position: (-450.129944, -48.115, 392.460022),
         sides: [
           "pmc",
         ],
@@ -11955,7 +12242,7 @@
         ],
       ),
       Spawn(
-        position: (334.301331, -42.59, -263.523132),
+        position: (334.301331, -42.708, -263.523132),
         sides: [
           "pmc",
         ],
@@ -12110,10 +12397,72 @@
     ]),
   ),
   Map(
+    normalizedName: "terminal",
+    name: "Terminal",
+    imagePath: "maps/terminal.png",
+    imageSize: (887.701, 1043.9554),
+    logicalSize: (896.0, 1055.0),
+    author: Some("Shebuka"),
+    authorLink: Some("https://github.com/the-hideout/tarkov-dev-svg-maps/"),
+    transform: Some((0.2, 0.0, 0.2, 0.0)),
+    coordinateRotation: Some(180.0),
+    bounds: Some(((463.0, -580.0), (-433.0, 475.0))),
+    layers: Some([]),
+    labels: Some([]),
+    spawns: Some([
+      Spawn(
+        position: (125.918, -60.073, -419.363953),
+        sides: [
+          "pmc",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (127.574005, -60.067, -417.348938),
+        sides: [
+          "pmc",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (125.011017, -60.07, -418.758972),
+        sides: [
+          "pmc",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (127.623016, -60.066, -419.16394),
+        sides: [
+          "pmc",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+      Spawn(
+        position: (128.899017, -60.067, -420.03595),
+        sides: [
+          "pmc",
+        ],
+        categories: [
+          "player",
+        ],
+      ),
+    ]),
+    extracts: Some([]),
+  ),
+  Map(
     normalizedName: "woods",
     name: "Woods",
     imagePath: "maps/woods.png",
-    imageSize: (1401.5, 1420.5),
+    imageSize: (1472.7926, 1420.5995),
     logicalSize: (1407.0, 1356.0),
     author: Some("Shebuka"),
     authorLink: Some("https://github.com/the-hideout/tarkov-dev-svg-maps/"),

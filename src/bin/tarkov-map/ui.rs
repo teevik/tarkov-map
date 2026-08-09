@@ -87,6 +87,54 @@ impl TarkovMapApp {
 
         ui.add_space(12.0);
 
+        if let Some(map) = self.maps.get(self.selected_map).cloned() {
+            let available_layers: Vec<_> = map
+                .layers
+                .iter()
+                .flatten()
+                .enumerate()
+                .filter(|(_, layer)| layer.image_path.is_some())
+                .map(|(index, layer)| (index, layer.name.clone()))
+                .collect();
+
+            if !available_layers.is_empty() {
+                ui.strong("Floor");
+                ui.separator();
+                ui.checkbox(&mut self.auto_layer, "Follow player height");
+
+                let default_layer = available_layers
+                    .iter()
+                    .find(|(index, _)| {
+                        map.layers
+                            .as_ref()
+                            .and_then(|layers| layers.get(*index))
+                            .is_some_and(|layer| layer.show)
+                    })
+                    .map(|(index, _)| *index)
+                    .unwrap_or(available_layers[0].0);
+                let selected_layer = self
+                    .selected_layers
+                    .entry(map.normalized_name.clone())
+                    .or_insert(default_layer);
+                let selected_text = available_layers
+                    .iter()
+                    .find(|(index, _)| index == selected_layer)
+                    .map(|(_, name)| name.as_str())
+                    .unwrap_or("Default");
+
+                ui.add_enabled_ui(!self.auto_layer, |ui| {
+                    egui::ComboBox::from_id_salt("map_layer")
+                        .selected_text(selected_text)
+                        .show_ui(ui, |ui| {
+                            for (index, name) in &available_layers {
+                                ui.selectable_value(selected_layer, *index, name);
+                            }
+                        });
+                });
+                ui.add_space(12.0);
+            }
+        }
+
         // Overlays section
         ui.strong("Overlays");
         ui.separator();
@@ -263,11 +311,11 @@ impl TarkovMapApp {
     fn show_map(&mut self, ui: &mut egui::Ui, _ctx: &egui::Context, map: &Map) {
         use crate::assets::AssetLoadState;
 
-        let image_path = &map.image_path;
+        let image_path = self.active_image_path(map);
         let logical_size = egui::vec2(map.logical_size[0], map.logical_size[1]);
 
         // Check loading state - errors are shown via toasts
-        match self.asset_cache.get(image_path) {
+        match self.asset_cache.get(&image_path) {
             Some(AssetLoadState::Loading(_)) | None => {
                 ui.centered_and_justified(|ui| ui.spinner());
                 return;
@@ -281,7 +329,7 @@ impl TarkovMapApp {
             Some(AssetLoadState::Ready(_)) => {}
         }
 
-        let Some(texture) = self.get_texture(image_path) else {
+        let Some(texture) = self.get_texture(&image_path) else {
             ui.label("Failed to create texture");
             return;
         };
@@ -343,6 +391,45 @@ impl TarkovMapApp {
         {
             draw_player_marker(ui, map_rect, map, player_pos, self.zoom);
         }
+    }
+
+    fn active_image_path(&self, map: &Map) -> String {
+        let layers = map.layers.as_deref().unwrap_or_default();
+        let automatic_layer = if self.auto_layer {
+            self.player_position.and_then(|player| {
+                layers.iter().position(|layer| {
+                    layer.image_path.is_some()
+                        && layer.extents.iter().any(|extent| {
+                            let height_matches = player.position[1] >= extent.height[0]
+                                && player.position[1] <= extent.height[1];
+                            let bounds_match = extent.bounds.as_ref().is_none_or(|bounds| {
+                                bounds.iter().any(|bound| {
+                                    let min_x = bound.point1[0].min(bound.point2[0]);
+                                    let max_x = bound.point1[0].max(bound.point2[0]);
+                                    let min_z = bound.point1[1].min(bound.point2[1]);
+                                    let max_z = bound.point1[1].max(bound.point2[1]);
+                                    player.position[0] >= min_x
+                                        && player.position[0] <= max_x
+                                        && player.position[2] >= min_z
+                                        && player.position[2] <= max_z
+                                })
+                            });
+                            height_matches && bounds_match
+                        })
+                })
+            })
+        } else {
+            None
+        };
+
+        let selected_layer = automatic_layer
+            .or_else(|| self.selected_layers.get(&map.normalized_name).copied())
+            .or_else(|| layers.iter().position(|layer| layer.show));
+
+        selected_layer
+            .and_then(|index| layers.get(index))
+            .and_then(|layer| layer.image_path.clone())
+            .unwrap_or_else(|| map.image_path.clone())
     }
 
     /// Handles scroll wheel zoom, zooming towards the mouse position.

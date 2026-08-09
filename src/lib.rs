@@ -92,6 +92,10 @@ pub struct Layer {
     /// Display name for the layer.
     pub name: String,
 
+    /// Path to a pre-rendered image for this layer, when it differs from the base map.
+    #[serde(default)]
+    pub image_path: Option<String>,
+
     /// SVG layer identifier.
     #[serde(default)]
     pub svg_layer: Option<String>,
