@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.12](https://github.com/teevik/tarkov-map/compare/v0.1.11...v0.1.12) (2026-08-09)
+
+
+### Features
+
+* update maps ([9d9a62d](https://github.com/teevik/tarkov-map/commit/9d9a62d3abdbefd0174ba39e507f55fea22182e6))
+
 ## [0.1.11](https://github.com/teevik/tarkov-map/compare/v0.1.10...v0.1.11) (2026-03-06)
 
 
