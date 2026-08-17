@@ -359,15 +359,18 @@ impl TarkovMapApp {
     }
 
     /// Renders the map image and overlays.
-    fn show_map(&mut self, ui: &mut egui::Ui, _ctx: &egui::Context, map: &Map) {
+    fn show_map(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, map: &Map) {
         use crate::assets::AssetLoadState;
 
         let image_path = self.active_image_path(map);
         let logical_size = egui::vec2(map.logical_size[0], map.logical_size[1]);
 
+        // Demand-driven: request the active image the first time it is needed.
+        self.request_image(&image_path, ctx);
+
         // Check loading state - errors are shown via toasts
-        match self.asset_cache.get(&image_path) {
-            Some(AssetLoadState::Loading(_)) | None => {
+        match self.asset_cache.state(&image_path) {
+            Some(AssetLoadState::Loading(_)) | Some(AssetLoadState::Decoded(_)) | None => {
                 ui.centered_and_justified(|ui| ui.spinner());
                 return;
             }
@@ -377,7 +380,7 @@ impl TarkovMapApp {
                 });
                 return;
             }
-            Some(AssetLoadState::Ready(_)) => {}
+            Some(AssetLoadState::Uploaded) => {}
         }
 
         let Some(texture) = self.get_texture(&image_path) else {

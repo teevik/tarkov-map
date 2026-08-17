@@ -9,7 +9,7 @@ mod screenshot_watcher;
 mod ui;
 mod updater;
 
-use assets::{AssetLoadState, load_and_decode_image, load_maps};
+use assets::{AssetCache, load_and_decode_image, load_maps};
 use eframe::egui::{self, ColorImage, TextureHandle, TextureOptions};
 use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
 use overlays::OverlayVisibility;
@@ -57,7 +57,7 @@ pub struct TarkovMapApp {
     prev_zoom: f32,
     pan_offset: egui::Vec2,
     overlays: OverlayVisibility,
-    asset_cache: HashMap<String, AssetLoadState>,
+    asset_cache: AssetCache,
     texture_cache: HashMap<String, TextureHandle>,
     toasts: Toasts,
     updater: updater::Updater,
@@ -116,34 +116,9 @@ impl TarkovMapApp {
             })
             .unwrap_or(0);
 
-        let mut asset_cache = HashMap::new();
-
-        // Preload all map images in background threads
-        let asset_paths = maps.iter().flat_map(|map| {
-            std::iter::once(map.image_path.clone()).chain(
-                map.layers
-                    .iter()
-                    .flatten()
-                    .filter_map(|layer| layer.image_path.clone()),
-            )
-        });
-
-        for asset_path in asset_paths {
-            if asset_cache.contains_key(&asset_path) {
-                continue;
-            }
-            let (tx, rx) = mpsc::channel();
-            let ctx = cc.egui_ctx.clone();
-            let path_to_load = asset_path.clone();
-
-            thread::spawn(move || {
-                let result = load_and_decode_image(&path_to_load);
-                let _ = tx.send(result);
-                ctx.request_repaint();
-            });
-
-            asset_cache.insert(asset_path, AssetLoadState::Loading(rx));
-        }
+        // Images load on demand: only the active map or floor is decoded, and
+        // only once it is actually about to be rendered (see `request_image`).
+        let asset_cache = AssetCache::new();
 
         // Initialize screenshot watcher for player position tracking
         let mut screenshot_watcher = ScreenshotWatcher::new(cc.egui_ctx.clone());
@@ -177,38 +152,27 @@ impl TarkovMapApp {
         self.maps.get(self.selected_map)
     }
 
-    /// Polls all loading assets and creates textures for ready ones.
+    /// Requests a demand-driven load for `path` if it has not been requested
+    /// yet. Decoding happens on a background thread that repaints when done.
+    fn request_image(&mut self, path: &str, ctx: &egui::Context) {
+        let ctx = ctx.clone();
+        let path_to_load = path.to_string();
+        self.asset_cache.request(path, move || {
+            let (tx, rx) = mpsc::channel();
+            thread::spawn(move || {
+                let result = load_and_decode_image(&path_to_load);
+                let _ = tx.send(result);
+                ctx.request_repaint();
+            });
+            rx
+        });
+    }
+
+    /// Polls loading assets and creates textures for freshly decoded ones,
+    /// releasing the decoded pixel buffers once the texture is on the GPU.
     fn poll_all_assets(&mut self, ctx: &egui::Context) {
-        let mut updates: Vec<(String, AssetLoadState)> = Vec::new();
-        let mut errors: Vec<String> = Vec::new();
-
-        for (path, state) in &mut self.asset_cache {
-            if let AssetLoadState::Loading(rx) = state {
-                match rx.try_recv() {
-                    Ok(Ok(decoded)) => {
-                        updates.push((path.clone(), AssetLoadState::Ready(decoded)));
-                    }
-                    Ok(Err(err)) => {
-                        let msg = format!("{}: {}", path, err);
-                        errors.push(msg.clone());
-                        updates.push((path.clone(), AssetLoadState::Error(msg)));
-                    }
-                    Err(mpsc::TryRecvError::Disconnected) => {
-                        let msg = format!("{}: channel disconnected", path);
-                        errors.push(msg.clone());
-                        updates.push((path.clone(), AssetLoadState::Error(msg)));
-                    }
-                    Err(mpsc::TryRecvError::Empty) => {}
-                }
-            }
-        }
-
-        for (path, new_state) in updates {
-            self.asset_cache.insert(path, new_state);
-        }
-
-        // Show toasts for any errors that occurred
-        for err in errors {
+        // Show toasts for any decode failures that surfaced this frame.
+        for err in self.asset_cache.poll() {
             self.toasts.add(Toast {
                 kind: ToastKind::Error,
                 text: err.into(),
@@ -219,26 +183,27 @@ impl TarkovMapApp {
             });
         }
 
-        // Create textures for ready assets
-        let ready_paths: Vec<_> = self
-            .asset_cache
-            .iter()
-            .filter_map(|(path, state)| {
-                matches!(state, AssetLoadState::Ready(_))
-                    .then(|| !self.texture_cache.contains_key(path))
-                    .and_then(|not_cached| not_cached.then(|| path.clone()))
-            })
-            .collect();
+        // Upload decoded images to textures. `take_decoded` moves the pixel
+        // buffer out of the cache, and it is dropped at the end of each
+        // iteration once the texture has been created, so no decoded copy is
+        // retained after upload.
+        for path in self.asset_cache.pending_uploads() {
+            let Some(decoded) = self.asset_cache.take_decoded(&path) else {
+                continue;
+            };
 
-        for path in ready_paths {
-            if let Some(AssetLoadState::Ready(decoded)) = self.asset_cache.get(&path) {
-                let image = ColorImage::from_rgba_unmultiplied(
-                    [decoded.width as usize, decoded.height as usize],
-                    &decoded.pixels,
-                );
-                let texture = ctx.load_texture(&path, image, TextureOptions::LINEAR);
-                self.texture_cache.insert(path, texture);
+            // A texture may already exist (e.g. re-decoded after an eviction);
+            // the decoded buffer is still dropped here, releasing it.
+            if self.texture_cache.contains_key(&path) {
+                continue;
             }
+
+            let image = ColorImage::from_rgba_unmultiplied(
+                [decoded.width as usize, decoded.height as usize],
+                &decoded.pixels,
+            );
+            let texture = ctx.load_texture(&path, image, TextureOptions::LINEAR);
+            self.texture_cache.insert(path, texture);
         }
     }
 
