@@ -59,6 +59,16 @@ pub struct MapTransition {
     pub path: String,
     pub since: Instant,
     pub phase: MapTransitionPhase,
+    /// The map being switched away from, kept on screen (and in VRAM) until
+    /// the incoming map has fully faded in.
+    pub outgoing: Option<OutgoingMap>,
+}
+
+/// A previously displayed map image held for the crossfade.
+#[derive(Debug, Clone)]
+pub struct OutgoingMap {
+    pub path: String,
+    pub logical_size: egui::Vec2,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,6 +99,9 @@ pub struct TarkovMapApp {
     /// Map switch transition: which image is loading or being revealed,
     /// and since when. Drives the delayed placeholder and the fade-in.
     map_transition: Option<MapTransition>,
+    /// The map image drawn most recently at full readiness; becomes the
+    /// outgoing side of the next crossfade.
+    last_drawn_map: Option<OutgoingMap>,
     /// Set once the missing-BC-support error has been surfaced, so the toast
     /// doesn't repeat on every switch.
     bc_unsupported_notified: bool,
@@ -165,6 +178,7 @@ impl TarkovMapApp {
             demo: demo::DemoWalker::from_env(),
             player_position,
             map_transition: None,
+            last_drawn_map: None,
             bc_unsupported_notified: false,
             clear_settings_on_close: false,
         }
@@ -198,14 +212,20 @@ impl TarkovMapApp {
     }
 
     /// Active-image-only retention: frees every texture other than the one
-    /// the current selection displays, releasing both the egui registration
-    /// and the underlying VRAM, and forgets the path in the asset cache so a
-    /// later visit reloads through the normal loading path.
+    /// the current selection displays (plus, briefly, the outgoing map of an
+    /// in-progress crossfade), releasing both the egui registration and the
+    /// underlying VRAM, and forgets the path in the asset cache so a later
+    /// visit reloads through the normal loading path.
     fn free_inactive_textures(&mut self, frame: &mut eframe::Frame, active: Option<&str>) {
+        let outgoing = self
+            .map_transition
+            .as_ref()
+            .and_then(|t| t.outgoing.as_ref())
+            .map(|o| o.path.clone());
         let stale: Vec<String> = self
             .texture_cache
             .keys()
-            .filter(|path| Some(path.as_str()) != active)
+            .filter(|path| Some(path.as_str()) != active && Some(path.as_str()) != outgoing.as_deref())
             .cloned()
             .collect();
 

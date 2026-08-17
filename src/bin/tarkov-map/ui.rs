@@ -1,6 +1,6 @@
 //! UI rendering methods for the Tarkov Map application.
 
-use crate::{MapTransition, MapTransitionPhase, TarkovMapApp};
+use crate::{MapTransition, MapTransitionPhase, OutgoingMap, TarkovMapApp};
 use crate::colors;
 use crate::constants::{
     CENTER_ZOOM, FRESH_FIX_MAX_AGE, MAP_PLACEHOLDER_DELAY, MAP_REVEAL_DURATION,
@@ -356,66 +356,106 @@ impl TarkovMapApp {
             });
     }
 
-    /// Shown while the selected map's texture is not ready. Nothing is drawn
-    /// for the first moments; only a load that drags on gets a quiet
-    /// placeholder, so the common fast path never flashes.
-    fn show_map_loading(&mut self, ui: &mut egui::Ui, map: &Map, image_path: &str) {
+    /// Starts (or continues) the transition into `image_path`, capturing the
+    /// last fully drawn map as the outgoing side of the crossfade when the
+    /// image actually changes.
+    fn begin_transition(&mut self, image_path: &str, phase: MapTransitionPhase) -> Instant {
         let now = Instant::now();
-        let started = match &self.map_transition {
-            Some(t) if t.path == image_path && t.phase == MapTransitionPhase::Loading => t.since,
-            _ => {
-                self.map_transition = Some(MapTransition {
-                    path: image_path.to_owned(),
-                    since: now,
-                    phase: MapTransitionPhase::Loading,
-                });
-                now
-            }
-        };
-
-        if now.duration_since(started) >= MAP_PLACEHOLDER_DELAY {
-            ui.centered_and_justified(|ui| {
-                ui.label(
-                    egui::RichText::new(format!("Loading {}…", map.name))
-                        .size(16.0)
-                        .color(ui.visuals().weak_text_color()),
-                );
-            });
-        } else {
-            // Wake up once the delay elapses so the placeholder can appear.
-            ui.ctx()
-                .request_repaint_after(MAP_PLACEHOLDER_DELAY - now.duration_since(started));
-        }
-    }
-
-    /// Opacity for the map this frame: ramps 0 → 1 over
-    /// [`MAP_REVEAL_DURATION`] after `image_path` becomes ready, then stays 1.
-    fn map_reveal_opacity(&mut self, ui: &egui::Ui, image_path: &str) -> f32 {
-        let now = Instant::now();
-        let since = match &mut self.map_transition {
-            Some(t) if t.path == image_path && t.phase == MapTransitionPhase::Reveal => t.since,
+        match &mut self.map_transition {
+            Some(t) if t.path == image_path && t.phase == phase => t.since,
             Some(t) if t.path == image_path => {
-                // Loading → Reveal for the same image: start the fade now.
-                t.phase = MapTransitionPhase::Reveal;
+                // Loading → Reveal for the same image: keep the outgoing map,
+                // restart the clock for the fade.
+                t.phase = phase;
                 t.since = now;
                 now
             }
             _ => {
+                let outgoing = self
+                    .last_drawn_map
+                    .clone()
+                    .filter(|o| o.path != image_path && self.texture_cache.contains_key(&o.path));
                 self.map_transition = Some(MapTransition {
                     path: image_path.to_owned(),
                     since: now,
-                    phase: MapTransitionPhase::Reveal,
+                    phase,
+                    outgoing,
                 });
                 now
             }
-        };
+        }
+    }
 
-        let t = now.duration_since(since).as_secs_f32() / MAP_REVEAL_DURATION.as_secs_f32();
-        if t < 1.0 {
-            ui.ctx().request_repaint();
-            // Ease-out: fast start, gentle landing.
-            1.0 - (1.0 - t).powi(2)
+    /// Paints the outgoing map fitted to `viewport_rect` at `opacity`.
+    fn paint_outgoing(&self, ui: &egui::Ui, viewport_rect: egui::Rect, opacity: f32) {
+        let Some(outgoing) = self.map_transition.as_ref().and_then(|t| t.outgoing.as_ref()) else {
+            return;
+        };
+        let Some((texture_id, uv)) = self.get_texture(&outgoing.path) else {
+            return;
+        };
+        let fit = (viewport_rect.width() / outgoing.logical_size.x)
+            .min(viewport_rect.height() / outgoing.logical_size.y);
+        let rect = egui::Rect::from_center_size(viewport_rect.center(), outgoing.logical_size * fit);
+        ui.painter().with_clip_rect(viewport_rect).image(
+            texture_id,
+            rect,
+            uv,
+            egui::Color32::WHITE.gamma_multiply(opacity),
+        );
+    }
+
+    /// Shown while the selected map's texture is not ready. The outgoing map
+    /// stays on screen and dims a little so the click registers; only a load
+    /// that drags on gets a quiet "Loading …" placeholder on top, so the
+    /// common fast path never flashes.
+    fn show_map_loading(&mut self, ui: &mut egui::Ui, map: &Map, image_path: &str) {
+        let started = self.begin_transition(image_path, MapTransitionPhase::Loading);
+        let elapsed = Instant::now().duration_since(started);
+
+        let (viewport_rect, _) =
+            ui.allocate_exact_size(ui.available_size(), egui::Sense::hover());
+        let dim_t = (elapsed.as_secs_f32() / MAP_PLACEHOLDER_DELAY.as_secs_f32()).min(1.0);
+        self.paint_outgoing(ui, viewport_rect, 1.0 - 0.6 * dim_t);
+
+        if elapsed >= MAP_PLACEHOLDER_DELAY {
+            ui.painter().text(
+                viewport_rect.center(),
+                egui::Align2::CENTER_CENTER,
+                format!("Loading {}…", map.name),
+                egui::FontId::proportional(16.0),
+                ui.visuals().weak_text_color(),
+            );
         } else {
+            // Keep dimming, then wake once the delay elapses.
+            ui.ctx().request_repaint();
+        }
+    }
+
+    /// Crossfade progress for the map this frame: ramps 0 → 1 over
+    /// [`MAP_REVEAL_DURATION`] after `image_path` becomes ready, painting the
+    /// outgoing map underneath at the complementary opacity. Returns the
+    /// incoming map's opacity; the outgoing map is released once it hits 1.
+    fn map_reveal_opacity(
+        &mut self,
+        ui: &egui::Ui,
+        viewport_rect: egui::Rect,
+        image_path: &str,
+    ) -> f32 {
+        let since = self.begin_transition(image_path, MapTransitionPhase::Reveal);
+        let t = Instant::now().duration_since(since).as_secs_f32()
+            / MAP_REVEAL_DURATION.as_secs_f32();
+
+        if t < 1.0 {
+            // Ease-out: fast start, gentle landing.
+            let opacity = 1.0 - (1.0 - t).powi(2);
+            self.paint_outgoing(ui, viewport_rect, 1.0 - opacity);
+            ui.ctx().request_repaint();
+            opacity
+        } else {
+            if let Some(t) = &mut self.map_transition {
+                t.outgoing = None;
+            }
             1.0
         }
     }
@@ -451,13 +491,18 @@ impl TarkovMapApp {
             return;
         };
 
-        // Soft reveal: the freshly loaded map (and its overlays) fades in
-        // instead of popping. Opacity applies to everything painted below.
-        ui.multiply_opacity(self.map_reveal_opacity(ui, &image_path));
-
         let (viewport_rect, response) =
             ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
         let viewport_size = viewport_rect.size();
+
+        // Crossfade: the outgoing map is painted underneath, fading out, while
+        // everything painted below (map and overlays) fades in.
+        let opacity = self.map_reveal_opacity(ui, viewport_rect, &image_path);
+        ui.multiply_opacity(opacity);
+        self.last_drawn_map = Some(OutgoingMap {
+            path: image_path.clone(),
+            logical_size,
+        });
 
         // Calculate base scale to fit map in viewport at zoom 1.0
         let fit_scale = (viewport_size.x / logical_size.x).min(viewport_size.y / logical_size.y);
