@@ -12,3 +12,9 @@ pub const ZOOM_MAX: f32 = 10.0;
 
 /// Zoom speed multiplier for scroll/keyboard zoom.
 pub const ZOOM_SPEED: f32 = 1.2;
+
+/// Budget for retained map textures, in decoded bytes (width × height × 4).
+///
+/// The largest bundled images decode to 64 MB (4096×4096 RGBA); this holds a
+/// full floor set of the biggest map plus a couple of recently viewed maps.
+pub const TEXTURE_BUDGET_BYTES: usize = 512 * 1024 * 1024;

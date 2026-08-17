@@ -365,8 +365,10 @@ impl TarkovMapApp {
         let image_path = self.active_image_path(map);
         let logical_size = egui::vec2(map.logical_size[0], map.logical_size[1]);
 
-        // Demand-driven: request the active image the first time it is needed.
+        // Demand-driven: request the active image the first time it is needed,
+        // and mark it displayed so the residency budget never evicts it.
         self.request_image(&image_path, ctx);
+        self.texture_residency.touch(&image_path);
 
         // Check loading state - errors are shown via toasts
         match self.asset_cache.state(&image_path) {

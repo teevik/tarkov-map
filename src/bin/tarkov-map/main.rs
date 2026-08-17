@@ -5,6 +5,7 @@ mod colors;
 mod constants;
 mod coordinates;
 mod overlays;
+mod residency;
 mod screenshot_watcher;
 mod ui;
 mod updater;
@@ -13,6 +14,7 @@ use assets::{AssetCache, load_and_decode_image, load_maps};
 use eframe::egui::{self, ColorImage, TextureHandle, TextureOptions};
 use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
 use overlays::OverlayVisibility;
+use residency::TextureResidency;
 use screenshot_watcher::{PlayerPosition, ScreenshotWatcher};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -59,6 +61,7 @@ pub struct TarkovMapApp {
     overlays: OverlayVisibility,
     asset_cache: AssetCache,
     texture_cache: HashMap<String, TextureHandle>,
+    texture_residency: TextureResidency,
     toasts: Toasts,
     updater: updater::Updater,
     screenshot_watcher: Option<ScreenshotWatcher>,
@@ -140,6 +143,7 @@ impl TarkovMapApp {
             overlays: settings.overlays,
             asset_cache,
             texture_cache: HashMap::new(),
+            texture_residency: TextureResidency::new(constants::TEXTURE_BUDGET_BYTES),
             toasts,
             updater,
             screenshot_watcher,
@@ -203,7 +207,25 @@ impl TarkovMapApp {
                 &decoded.pixels,
             );
             let texture = ctx.load_texture(&path, image, TextureOptions::LINEAR);
+            self.texture_residency.insert(&path, decoded.pixels.len());
             self.texture_cache.insert(path, texture);
+        }
+    }
+
+    /// Evicts least-recently-displayed textures that push retention past the
+    /// budget. Runs at the end of each frame, after the render pass has
+    /// touched the displayed texture and uploads have registered — what is on
+    /// screen is never evicted, and any overshoot lasts at most one frame.
+    /// Evicted paths are forgotten by the asset cache too, so selecting them
+    /// again reloads through the normal loading path.
+    fn enforce_texture_budget(&mut self) {
+        for path in self.texture_residency.take_evictions() {
+            self.texture_cache.remove(&path);
+            let forgotten = self.asset_cache.evict(&path);
+            // Residency only tracks uploaded textures; a mismatch here means
+            // the three path-keyed structures have drifted out of sync.
+            debug_assert!(forgotten, "evicted texture was not Uploaded: {path}");
+            log::debug!("evicted map texture over budget: {path}");
         }
     }
 
@@ -232,6 +254,7 @@ impl eframe::App for TarkovMapApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.texture_residency.begin_frame();
         self.poll_all_assets(ctx);
         self.poll_player_position();
         self.handle_keyboard_input(ctx);
@@ -239,6 +262,10 @@ impl eframe::App for TarkovMapApp {
 
         // Render custom window frame with title bar
         self.show_custom_frame(ctx);
+
+        // The render pass above touched the displayed texture; now the budget
+        // can be enforced without ever evicting what is on screen.
+        self.enforce_texture_budget();
 
         self.prev_zoom = self.zoom;
 

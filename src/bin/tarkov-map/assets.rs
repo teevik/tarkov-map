@@ -170,6 +170,22 @@ impl AssetCache {
             .collect()
     }
 
+    /// Forgets an `Uploaded` path entirely so a later [`request`] reloads it
+    /// through the normal loading path. Returns `true` if an entry was
+    /// evicted. In-flight (`Loading`/`Decoded`) and `Error` entries are left
+    /// alone: evicting a load mid-flight would leak its result, and errors are
+    /// retained to avoid retry loops.
+    ///
+    /// [`request`]: AssetCache::request
+    pub fn evict(&mut self, path: &str) -> bool {
+        if matches!(self.states.get(path), Some(AssetLoadState::Uploaded)) {
+            self.states.remove(path);
+            true
+        } else {
+            false
+        }
+    }
+
     /// Takes the decoded image for `path`, transitioning it to `Uploaded` and
     /// releasing the cache's hold on the pixel buffer. Returns `None` if the
     /// path is not currently in the `Decoded` state.
@@ -306,6 +322,49 @@ mod tests {
             cache.take_decoded("maps/customs.png").is_none(),
             "an uploaded path yields no further pixel buffers"
         );
+    }
+
+    #[test]
+    fn evict_forgets_an_uploaded_path_so_it_reloads() {
+        let mut cache = AssetCache::new();
+        cache.request("maps/customs.png", || ready_channel(Ok(decoded())));
+        cache.poll();
+        cache.take_decoded("maps/customs.png");
+
+        assert!(cache.evict("maps/customs.png"), "uploaded paths are evictable");
+        assert!(
+            cache.state("maps/customs.png").is_none(),
+            "an evicted path is forgotten entirely"
+        );
+
+        let mut spawned = false;
+        let started = cache.request("maps/customs.png", || {
+            spawned = true;
+            ready_channel(Ok(decoded()))
+        });
+        assert!(started && spawned, "an evicted path reloads via the normal path");
+    }
+
+    #[test]
+    fn evict_leaves_inflight_and_failed_loads_alone() {
+        let mut cache = AssetCache::new();
+        cache.request("maps/loading.png", || ready_channel(Ok(decoded())));
+        cache.request("maps/broken.png", || {
+            ready_channel(Err(ImageLoadError::AssetNotFound("maps/broken.png".into())))
+        });
+        cache.poll(); // loading.png -> Decoded, broken.png -> Error
+
+        assert!(!cache.evict("maps/loading.png"), "decoded pixels are not evicted");
+        assert!(!cache.evict("maps/broken.png"), "errors are kept to avoid retry loops");
+        assert!(!cache.evict("maps/never-requested.png"));
+        assert!(matches!(
+            cache.state("maps/loading.png"),
+            Some(AssetLoadState::Decoded(_))
+        ));
+        assert!(matches!(
+            cache.state("maps/broken.png"),
+            Some(AssetLoadState::Error(_))
+        ));
     }
 
     #[test]
