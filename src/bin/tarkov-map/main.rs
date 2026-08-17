@@ -38,10 +38,10 @@ struct AppSettings {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            schema_version: 1,
+            schema_version: 2,
             selected_map_normalized_name: None,
             selected_layers: HashMap::new(),
-            auto_layer: true,
+            auto_layer: false,
             overlays: OverlayVisibility::default(),
         }
     }
@@ -70,10 +70,19 @@ pub struct TarkovMapApp {
 
 impl TarkovMapApp {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let settings: AppSettings = cc
+        let mut settings: AppSettings = cc
             .storage
             .and_then(|storage| eframe::get_value(storage, SETTINGS_STORAGE_KEY))
             .unwrap_or_default();
+
+        // Version 1 enabled automatic floor tracking and populated
+        // manual selections merely by rendering the sidebar. Start them on the
+        // main floor instead; tracking can still be enabled explicitly.
+        if settings.schema_version < 2 {
+            settings.selected_layers.clear();
+            settings.auto_layer = false;
+            settings.schema_version = 2;
+        }
 
         let updater = updater::Updater::new(cc.egui_ctx.clone());
 

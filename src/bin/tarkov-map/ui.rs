@@ -4,9 +4,50 @@ use crate::TarkovMapApp;
 use crate::colors;
 use crate::constants::{SIDEBAR_WIDTH, TITLE_BAR_HEIGHT, ZOOM_MAX, ZOOM_MIN, ZOOM_SPEED};
 use crate::overlays::{draw_extracts, draw_labels, draw_player_marker, draw_spawns};
+use crate::screenshot_watcher::PlayerPosition;
 use crate::{APP_TITLE, APP_VERSION};
 use eframe::egui::{self, ViewportCommand};
 use tarkov_map::Map;
+
+fn resolve_active_image_path<'a>(
+    map: &'a Map,
+    auto_layer: bool,
+    manual_layer: Option<usize>,
+    player: Option<&PlayerPosition>,
+) -> &'a str {
+    let layers = map.layers.as_deref().unwrap_or_default();
+    let selected_layer = if auto_layer {
+        player.and_then(|player| {
+            layers.iter().position(|layer| {
+                layer.image_path.is_some()
+                    && layer.extents.iter().any(|extent| {
+                        let height_matches = player.position[1] >= extent.height[0]
+                            && player.position[1] <= extent.height[1];
+                        let bounds_match = extent.bounds.as_ref().is_none_or(|bounds| {
+                            bounds.iter().any(|bound| {
+                                let min_x = bound.point1[0].min(bound.point2[0]);
+                                let max_x = bound.point1[0].max(bound.point2[0]);
+                                let min_z = bound.point1[1].min(bound.point2[1]);
+                                let max_z = bound.point1[1].max(bound.point2[1]);
+                                player.position[0] >= min_x
+                                    && player.position[0] <= max_x
+                                    && player.position[2] >= min_z
+                                    && player.position[2] <= max_z
+                            })
+                        });
+                        height_matches && bounds_match
+                    })
+            })
+        })
+    } else {
+        manual_layer
+    };
+
+    selected_layer
+        .and_then(|index| layers.get(index))
+        .and_then(|layer| layer.image_path.as_deref())
+        .unwrap_or(&map.image_path)
+}
 
 impl TarkovMapApp {
     /// Handles keyboard shortcuts for zoom and overlay toggles.
@@ -102,32 +143,39 @@ impl TarkovMapApp {
                 ui.separator();
                 ui.checkbox(&mut self.auto_layer, "Follow player height");
 
-                let default_layer = available_layers
-                    .iter()
-                    .find(|(index, _)| {
-                        map.layers
-                            .as_ref()
-                            .and_then(|layers| layers.get(*index))
-                            .is_some_and(|layer| layer.show)
-                    })
-                    .map(|(index, _)| *index)
-                    .unwrap_or(available_layers[0].0);
                 let selected_layer = self
                     .selected_layers
-                    .entry(map.normalized_name.clone())
-                    .or_insert(default_layer);
-                let selected_text = available_layers
-                    .iter()
-                    .find(|(index, _)| index == selected_layer)
+                    .get(&map.normalized_name)
+                    .copied()
+                    .filter(|selected| available_layers.iter().any(|(index, _)| index == selected));
+                let selected_text = selected_layer
+                    .and_then(|selected| {
+                        available_layers
+                            .iter()
+                            .find(|(index, _)| *index == selected)
+                    })
                     .map(|(_, name)| name.as_str())
-                    .unwrap_or("Default");
+                    .unwrap_or("Main Floor");
 
                 ui.add_enabled_ui(!self.auto_layer, |ui| {
                     egui::ComboBox::from_id_salt("map_layer")
                         .selected_text(selected_text)
                         .show_ui(ui, |ui| {
+                            if ui
+                                .selectable_label(selected_layer.is_none(), "Main Floor")
+                                .clicked()
+                            {
+                                self.selected_layers.remove(&map.normalized_name);
+                            }
+
                             for (index, name) in &available_layers {
-                                ui.selectable_value(selected_layer, *index, name);
+                                if ui
+                                    .selectable_label(selected_layer == Some(*index), name)
+                                    .clicked()
+                                {
+                                    self.selected_layers
+                                        .insert(map.normalized_name.clone(), *index);
+                                }
                             }
                         });
                 });
@@ -394,42 +442,13 @@ impl TarkovMapApp {
     }
 
     fn active_image_path(&self, map: &Map) -> String {
-        let layers = map.layers.as_deref().unwrap_or_default();
-        let automatic_layer = if self.auto_layer {
-            self.player_position.and_then(|player| {
-                layers.iter().position(|layer| {
-                    layer.image_path.is_some()
-                        && layer.extents.iter().any(|extent| {
-                            let height_matches = player.position[1] >= extent.height[0]
-                                && player.position[1] <= extent.height[1];
-                            let bounds_match = extent.bounds.as_ref().is_none_or(|bounds| {
-                                bounds.iter().any(|bound| {
-                                    let min_x = bound.point1[0].min(bound.point2[0]);
-                                    let max_x = bound.point1[0].max(bound.point2[0]);
-                                    let min_z = bound.point1[1].min(bound.point2[1]);
-                                    let max_z = bound.point1[1].max(bound.point2[1]);
-                                    player.position[0] >= min_x
-                                        && player.position[0] <= max_x
-                                        && player.position[2] >= min_z
-                                        && player.position[2] <= max_z
-                                })
-                            });
-                            height_matches && bounds_match
-                        })
-                })
-            })
-        } else {
-            None
-        };
-
-        let selected_layer = automatic_layer
-            .or_else(|| self.selected_layers.get(&map.normalized_name).copied())
-            .or_else(|| layers.iter().position(|layer| layer.show));
-
-        selected_layer
-            .and_then(|index| layers.get(index))
-            .and_then(|layer| layer.image_path.clone())
-            .unwrap_or_else(|| map.image_path.clone())
+        resolve_active_image_path(
+            map,
+            self.auto_layer,
+            self.selected_layers.get(&map.normalized_name).copied(),
+            self.player_position.as_ref(),
+        )
+        .to_owned()
     }
 
     /// Handles scroll wheel zoom, zooming towards the mouse position.
@@ -809,6 +828,59 @@ impl TarkovMapApp {
                 center + egui::vec2(size, 0.0),
             ],
             stroke,
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn map(normalized_name: &str) -> Map {
+        crate::assets::load_maps()
+            .expect("map fixtures should load")
+            .into_iter()
+            .find(|map| map.normalized_name == normalized_name)
+            .expect("requested map fixture should exist")
+    }
+
+    #[test]
+    fn automatic_mode_ignores_manual_layer_without_player_position() {
+        for map in crate::assets::load_maps().expect("map fixtures should load") {
+            assert_eq!(
+                resolve_active_image_path(&map, true, Some(0), None),
+                map.image_path,
+                "{} should fall back to its base map",
+                map.normalized_name
+            );
+        }
+    }
+
+    #[test]
+    fn automatic_mode_uses_a_matching_player_floor() {
+        let map = map("ground-zero");
+        let player = PlayerPosition {
+            position: [0.0, 30.0, 0.0],
+            yaw: 0.0,
+        };
+
+        assert_eq!(
+            resolve_active_image_path(&map, true, None, Some(&player)),
+            "maps/ground-zero-layer-0.png"
+        );
+    }
+
+    #[test]
+    fn manual_mode_defaults_to_main_floor_and_honors_explicit_layer() {
+        let map = map("reserve");
+
+        assert_eq!(
+            resolve_active_image_path(&map, false, None, None),
+            "maps/reserve.png"
+        );
+        assert_eq!(
+            resolve_active_image_path(&map, false, Some(4), None),
+            "maps/reserve-layer-4.png"
         );
     }
 }
