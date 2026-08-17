@@ -24,6 +24,14 @@ _Avoid_: Layer (reserved for tarkov.dev's per-floor tile sets, which are not mod
 A named group of Overlays that share a heading in the sidebar. Purely presentational: a category has no visibility of its own and no behaviour beyond grouping its Overlays.
 _Avoid_: Section (the sidebar's top-level headings such as "Map" and "Overlays"), group, layer group
 
+**Trail**:
+The recent Player Positions on the current Map, drawn as an Overlay behind the newest one. A Trail belongs to one Map and is discarded when another Map is selected.
+_Avoid_: History, breadcrumbs, path
+
+**Map Suggestion**:
+An offer to switch Maps, made when a Player Position falls outside the selected Map but inside exactly one other Map. The player accepts or dismisses it; the app never switches Maps on its own.
+_Avoid_: Auto-detect, auto-switch
+
 ## Not modelled
 
 - **Floors / layers**: tarkov.dev exposes per-floor tile sets with height extents. This project renders the Main Floor only; there is no floor selector and no height-based floor matching. Do not reintroduce layer support "for completeness".
