@@ -30,7 +30,6 @@ const SETTINGS_STORAGE_KEY: &str = "app_settings";
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 struct AppSettings {
-    schema_version: u32,
     selected_map_normalized_name: Option<String>,
     overlays: OverlayVisibility,
 }
@@ -38,7 +37,6 @@ struct AppSettings {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            schema_version: 2,
             selected_map_normalized_name: None,
             overlays: OverlayVisibility::default(),
         }
