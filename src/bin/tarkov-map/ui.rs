@@ -210,26 +210,23 @@ impl TarkovMapApp {
     /// Labelled X / Y / Z readout in even columns.
     fn coordinate_row(ui: &mut egui::Ui, [x, y, z]: [f64; 3]) {
         let weak = ui.visuals().weak_text_color();
-        let column = ui.available_width() / 3.0;
-        ui.horizontal(|ui| {
-            for (axis, value) in [("X", x), ("Y", y), ("Z", z)] {
-                ui.allocate_ui_with_layout(
-                    egui::vec2(column, 16.0),
-                    egui::Layout::left_to_right(egui::Align::Center),
-                    |ui| {
-                        ui.spacing_mut().item_spacing.x = 4.0;
+        let axes = [("X", x), ("Y", y), ("Z", z)];
+        ui.columns(3, |columns| {
+            for (column, (axis, value)) in columns.iter_mut().zip(axes) {
+                column
+                    .horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = 6.0;
                         ui.label(egui::RichText::new(axis).size(10.5).color(weak));
                         ui.label(
                             egui::RichText::new(format!("{value:.1}"))
                                 .monospace()
                                 .size(12.0),
                         );
-                    },
-                );
+                    })
+                    .response
+                    .on_hover_text("Game coordinates; Y is height.");
             }
-        })
-        .response
-        .on_hover_text("Game coordinates; Y is height.");
+        });
     }
 
     /// Renders a triangle-style overlay toggle (for player marker).
@@ -436,12 +433,8 @@ impl TarkovMapApp {
         ui.set_clip_rect(viewport_rect);
 
         // Draw map image
-        ui.painter().image(
-            texture_id,
-            map_rect,
-            texture_uv,
-            egui::Color32::WHITE,
-        );
+        ui.painter()
+            .image(texture_id, map_rect, texture_uv, egui::Color32::WHITE);
 
         // Draw overlays
         let overlays = self.overlays;
