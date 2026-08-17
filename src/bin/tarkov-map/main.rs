@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, mpsc};
 use std::thread;
+use std::time::Instant;
 use tarkov_map::{Map, TarkovMaps};
 
 const APP_ID: &str = "tarkov-map";
@@ -52,6 +53,22 @@ struct MapTexture {
     uv: egui::Rect,
 }
 
+/// Phase of the transition into a newly selected map image.
+#[derive(Debug, Clone)]
+pub struct MapTransition {
+    pub path: String,
+    pub since: Instant,
+    pub phase: MapTransitionPhase,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MapTransitionPhase {
+    /// Waiting for the texture; the placeholder appears after a short delay.
+    Loading,
+    /// Texture is up; the map fades in.
+    Reveal,
+}
+
 /// Main application state for the Tarkov Map viewer.
 pub struct TarkovMapApp {
     maps: TarkovMaps,
@@ -69,6 +86,9 @@ pub struct TarkovMapApp {
     screenshot_watcher: Option<ScreenshotWatcher>,
     demo: Option<demo::DemoWalker>,
     player_position: Option<PlayerPosition>,
+    /// Map switch transition: which image is loading or being revealed,
+    /// and since when. Drives the delayed placeholder and the fade-in.
+    map_transition: Option<MapTransition>,
     /// Set once the missing-BC-support error has been surfaced, so the toast
     /// doesn't repeat on every switch.
     bc_unsupported_notified: bool,
@@ -144,6 +164,7 @@ impl TarkovMapApp {
             screenshot_watcher,
             demo: demo::DemoWalker::from_env(),
             player_position,
+            map_transition: None,
             bc_unsupported_notified: false,
             clear_settings_on_close: false,
         }

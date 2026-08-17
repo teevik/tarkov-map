@@ -24,3 +24,10 @@ pub const CENTER_ZOOM: f32 = 2.5;
 
 /// A position fix older than this is shown as stale in the position card.
 pub const FRESH_FIX_MAX_AGE: std::time::Duration = std::time::Duration::from_secs(120);
+
+/// How long a map load may take before the "Loading …" placeholder appears.
+/// Fast loads (the common case) show nothing at all, avoiding a flash.
+pub const MAP_PLACEHOLDER_DELAY: std::time::Duration = std::time::Duration::from_millis(300);
+
+/// Duration of the fade-in when a newly selected map becomes ready.
+pub const MAP_REVEAL_DURATION: std::time::Duration = std::time::Duration::from_millis(220);

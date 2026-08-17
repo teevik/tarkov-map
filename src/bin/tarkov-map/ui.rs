@@ -1,17 +1,17 @@
 //! UI rendering methods for the Tarkov Map application.
 
-use crate::TarkovMapApp;
+use crate::{MapTransition, MapTransitionPhase, TarkovMapApp};
 use crate::colors;
 use crate::constants::{
-    CENTER_ZOOM, FRESH_FIX_MAX_AGE, POINTS_PER_SCROLL_NOTCH, SIDEBAR_WIDTH, TITLE_BAR_HEIGHT,
-    ZOOM_MAX, ZOOM_MIN, ZOOM_SPEED,
+    CENTER_ZOOM, FRESH_FIX_MAX_AGE, MAP_PLACEHOLDER_DELAY, MAP_REVEAL_DURATION,
+    POINTS_PER_SCROLL_NOTCH, SIDEBAR_WIDTH, TITLE_BAR_HEIGHT, ZOOM_MAX, ZOOM_MIN, ZOOM_SPEED,
 };
 use crate::coordinates::game_to_display;
 use crate::overlays::{draw_extracts, draw_labels, draw_player_marker, draw_spawns};
 use crate::screenshot_watcher::ScreenshotWatcher;
 use crate::{APP_TITLE, APP_VERSION};
 use eframe::egui::{self, ViewportCommand};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tarkov_map::Map;
 
 /// Formats a fix age for the position card: "just now", "12 s ago", "5 min ago", "2 h ago".
@@ -356,6 +356,70 @@ impl TarkovMapApp {
             });
     }
 
+    /// Shown while the selected map's texture is not ready. Nothing is drawn
+    /// for the first moments; only a load that drags on gets a quiet
+    /// placeholder, so the common fast path never flashes.
+    fn show_map_loading(&mut self, ui: &mut egui::Ui, map: &Map, image_path: &str) {
+        let now = Instant::now();
+        let started = match &self.map_transition {
+            Some(t) if t.path == image_path && t.phase == MapTransitionPhase::Loading => t.since,
+            _ => {
+                self.map_transition = Some(MapTransition {
+                    path: image_path.to_owned(),
+                    since: now,
+                    phase: MapTransitionPhase::Loading,
+                });
+                now
+            }
+        };
+
+        if now.duration_since(started) >= MAP_PLACEHOLDER_DELAY {
+            ui.centered_and_justified(|ui| {
+                ui.label(
+                    egui::RichText::new(format!("Loading {}…", map.name))
+                        .size(16.0)
+                        .color(ui.visuals().weak_text_color()),
+                );
+            });
+        } else {
+            // Wake up once the delay elapses so the placeholder can appear.
+            ui.ctx()
+                .request_repaint_after(MAP_PLACEHOLDER_DELAY - now.duration_since(started));
+        }
+    }
+
+    /// Opacity for the map this frame: ramps 0 → 1 over
+    /// [`MAP_REVEAL_DURATION`] after `image_path` becomes ready, then stays 1.
+    fn map_reveal_opacity(&mut self, ui: &egui::Ui, image_path: &str) -> f32 {
+        let now = Instant::now();
+        let since = match &mut self.map_transition {
+            Some(t) if t.path == image_path && t.phase == MapTransitionPhase::Reveal => t.since,
+            Some(t) if t.path == image_path => {
+                // Loading → Reveal for the same image: start the fade now.
+                t.phase = MapTransitionPhase::Reveal;
+                t.since = now;
+                now
+            }
+            _ => {
+                self.map_transition = Some(MapTransition {
+                    path: image_path.to_owned(),
+                    since: now,
+                    phase: MapTransitionPhase::Reveal,
+                });
+                now
+            }
+        };
+
+        let t = now.duration_since(since).as_secs_f32() / MAP_REVEAL_DURATION.as_secs_f32();
+        if t < 1.0 {
+            ui.ctx().request_repaint();
+            // Ease-out: fast start, gentle landing.
+            1.0 - (1.0 - t).powi(2)
+        } else {
+            1.0
+        }
+    }
+
     /// Renders the map image and overlays.
     fn show_map(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, map: &Map) {
         use crate::assets::AssetLoadState;
@@ -370,7 +434,7 @@ impl TarkovMapApp {
         // Check loading state - errors are shown via toasts
         match self.asset_cache.state(&image_path) {
             Some(AssetLoadState::Loading(_)) | Some(AssetLoadState::Decoded(_)) | None => {
-                ui.centered_and_justified(|ui| ui.spinner());
+                self.show_map_loading(ui, map, &image_path);
                 return;
             }
             Some(AssetLoadState::Error(msg)) => {
@@ -386,6 +450,10 @@ impl TarkovMapApp {
             ui.label("Failed to create texture");
             return;
         };
+
+        // Soft reveal: the freshly loaded map (and its overlays) fades in
+        // instead of popping. Opacity applies to everything painted below.
+        ui.multiply_opacity(self.map_reveal_opacity(ui, &image_path));
 
         let (viewport_rect, response) =
             ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
