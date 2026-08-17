@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.14](https://github.com/teevik/tarkov-map/compare/v0.1.13...v0.1.14) (2026-08-17)
+
+
+### Features
+
+* bound retained map texture memory with a budgeted LRU ([fcf612b](https://github.com/teevik/tarkov-map/commit/fcf612baa1c018e6ce784ee3066f2017d1516bda)), closes [#15](https://github.com/teevik/tarkov-map/issues/15)
+* load map images on demand instead of preloading all ([59c2fc8](https://github.com/teevik/tarkov-map/commit/59c2fc89c25a676d3169e733632bcd81db1d2ac2)), closes [#14](https://github.com/teevik/tarkov-map/issues/14)
+* ship GPU-compressed BC7 map textures with active-image-only retention ([baf6b77](https://github.com/teevik/tarkov-map/commit/baf6b774fb54635f55cdf41317953c88d317ba16)), closes [#24](https://github.com/teevik/tarkov-map/issues/24)
+* update all dependencies, migrate to eframe/egui 0.36 ([32f1f9e](https://github.com/teevik/tarkov-map/commit/32f1f9e6656faa7840f21dfa83b1f61dc3f32da9)), closes [#23](https://github.com/teevik/tarkov-map/issues/23)
+
 ## [0.1.13](https://github.com/teevik/tarkov-map/compare/v0.1.12...v0.1.13) (2026-08-17)
 
 
