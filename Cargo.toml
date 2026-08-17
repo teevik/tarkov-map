@@ -7,7 +7,7 @@ default-run = "tarkov-map"
 
 [dependencies]
 base64 = "0.23.1"
-eframe = { version = "0.36.1", default-features = false, features = ["accesskit", "default_fonts", "glow", "links", "persistence", "wayland", "x11"] }
+eframe = { version = "0.36.1", default-features = false, features = ["accesskit", "default_fonts", "wgpu", "links", "persistence", "wayland", "x11"] }
 egui_extras = { version = "0.36.1", features = ["svg", "image"] }
 ico = "0.5"
 image = { version = "0.25.10", default-features = false, features = ["png"] }
@@ -17,7 +17,7 @@ serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 tokio = { version = "1.53.1", features = ["full"] }
 ron = "0.12.2"
-rust-embed = { version = "8.12.0", features = ["compression"] }
+rust-embed = { version = "8.12.0", features = ["compression", "include-exclude"] }
 indicatif = "0.18.6"
 clap = { version = "4.6.3", features = ["derive"] }
 resvg = "0.48.1"
@@ -27,11 +27,27 @@ egui-toast = "0.22.0"
 self_update = { version = "0.44.0", features = ["reqwest", "rustls"], default-features = false }
 serde_with = "3.21.0"
 notify = "8.0.0"
+zstd = "0.13"
+texture2ddecoder = "0.1"
 regex = "1.13"
 dirs = "6.0"
+intel_tex_2 = { version = "0.4", optional = true }
 open = "5.4"
 
 [build-dependencies]
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"
+
+[features]
+# BC7 encoding for asset generation; pulls in a prebuilt C++ ISPC kernel, so
+# it is gated to keep normal app builds free of native C++ linkage.
+encode = ["dep:intel_tex_2"]
+
+[[bin]]
+name = "fetch_maps"
+required-features = ["encode"]
+
+[[bin]]
+name = "tarkov-map"
+path = "src/bin/tarkov-map/main.rs"

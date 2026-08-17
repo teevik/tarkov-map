@@ -4,6 +4,8 @@
 //! the tarkov-dev project, including map metadata, layers, labels, spawn points,
 //! and extraction points.
 
+pub mod bc7z;
+
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 

@@ -1,3 +1,6 @@
 /target
 .direnv
 result
+
+# fetch_maps PNG intermediates: shipped as .bc7z containers instead
+assets/maps/*.png

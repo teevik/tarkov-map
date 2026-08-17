@@ -2,7 +2,7 @@
   Map(
     normalizedName: "streets-of-tarkov",
     name: "Streets of Tarkov",
-    imagePath: "maps/streets-of-tarkov.png",
+    imagePath: "maps/streets-of-tarkov.bc7z",
     imageSize: (605.0, 831.5),
     logicalSize: (603.0, 827.0),
     author: Some("Shebuka"),
@@ -2161,7 +2161,7 @@
   Map(
     normalizedName: "ground-zero",
     name: "Ground Zero",
-    imagePath: "maps/ground-zero.png",
+    imagePath: "maps/ground-zero.bc7z",
     imageSize: (348.5, 488.0),
     logicalSize: (348.0, 488.0),
     altMaps: Some([
@@ -2176,7 +2176,7 @@
     layers: Some([
       Layer(
         name: "2nd Floor",
-        imagePath: Some("maps/ground-zero-layer-0.png"),
+        imagePath: Some("maps/ground-zero-layer-0.bc7z"),
         svgLayer: Some("Second_Floor"),
         tilePath: Some("https://assets.tarkov.dev/maps/groundzero/2nd/{z}/{x}/{y}.png"),
         show: false,
@@ -2198,7 +2198,7 @@
       ),
       Layer(
         name: "3rd Floor",
-        imagePath: Some("maps/ground-zero-layer-1.png"),
+        imagePath: Some("maps/ground-zero-layer-1.bc7z"),
         svgLayer: Some("Third_Floor"),
         tilePath: Some("https://assets.tarkov.dev/maps/groundzero/3rd/{z}/{x}/{y}.png"),
         show: false,
@@ -2210,7 +2210,7 @@
       ),
       Layer(
         name: "Garage",
-        imagePath: Some("maps/ground-zero-layer-2.png"),
+        imagePath: Some("maps/ground-zero-layer-2.bc7z"),
         svgLayer: Some("Underground_Level"),
         tilePath: Some("https://assets.tarkov.dev/maps/groundzero/garage/{z}/{x}/{y}.png"),
         show: false,
@@ -3237,7 +3237,7 @@
   Map(
     normalizedName: "customs",
     name: "Customs",
-    imagePath: "maps/customs.png",
+    imagePath: "maps/customs.bc7z",
     imageSize: (1062.0, 535.0),
     logicalSize: (1070.0, 544.0),
     author: Some("Shebuka"),
@@ -3249,7 +3249,7 @@
     layers: Some([
       Layer(
         name: "2nd Floor",
-        imagePath: Some("maps/customs-layer-0.png"),
+        imagePath: Some("maps/customs-layer-0.bc7z"),
         svgLayer: Some("Second_Floor"),
         tilePath: Some("https://assets.tarkov.dev/maps/customs_0.16/2nd/{z}/{x}/{y}.png"),
         show: false,
@@ -3373,7 +3373,7 @@
       ),
       Layer(
         name: "3rd Floor",
-        imagePath: Some("maps/customs-layer-1.png"),
+        imagePath: Some("maps/customs-layer-1.bc7z"),
         svgLayer: Some("Third_Floor"),
         tilePath: Some("https://assets.tarkov.dev/maps/customs_0.16/3rd/{z}/{x}/{y}.png"),
         show: false,
@@ -3422,7 +3422,7 @@
       ),
       Layer(
         name: "4th Floor",
-        imagePath: Some("maps/customs-layer-2.png"),
+        imagePath: Some("maps/customs-layer-2.bc7z"),
         tilePath: Some("https://assets.tarkov.dev/maps/customs_0.16/4th/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -3440,7 +3440,7 @@
       ),
       Layer(
         name: "Underground",
-        imagePath: Some("maps/customs-layer-3.png"),
+        imagePath: Some("maps/customs-layer-3.bc7z"),
         svgLayer: Some("Underground_Level"),
         tilePath: Some("https://assets.tarkov.dev/maps/customs_0.16/underground/{z}/{x}/{y}.png"),
         show: false,
@@ -4817,7 +4817,7 @@
   Map(
     normalizedName: "factory",
     name: "Factory",
-    imagePath: "maps/factory.png",
+    imagePath: "maps/factory.bc7z",
     imageSize: (130.5, 141.0),
     logicalSize: (142.5, 131.9),
     altMaps: Some([
@@ -4832,7 +4832,7 @@
     layers: Some([
       Layer(
         name: "2nd Floor",
-        imagePath: Some("maps/factory-layer-0.png"),
+        imagePath: Some("maps/factory-layer-0.bc7z"),
         svgLayer: Some("Second_Floor"),
         tilePath: Some("https://assets.tarkov.dev/maps/factory/2nd/{z}/{x}/{y}.png"),
         show: false,
@@ -4844,7 +4844,7 @@
       ),
       Layer(
         name: "3rd Floor",
-        imagePath: Some("maps/factory-layer-1.png"),
+        imagePath: Some("maps/factory-layer-1.bc7z"),
         svgLayer: Some("Third_Floor"),
         tilePath: Some("https://assets.tarkov.dev/maps/factory/3rd/{z}/{x}/{y}.png"),
         show: false,
@@ -4856,7 +4856,7 @@
       ),
       Layer(
         name: "Tunnels",
-        imagePath: Some("maps/factory-layer-2.png"),
+        imagePath: Some("maps/factory-layer-2.bc7z"),
         svgLayer: Some("Basement"),
         tilePath: Some("https://assets.tarkov.dev/maps/factory/tunnels/{z}/{x}/{y}.png"),
         show: false,
@@ -5873,7 +5873,7 @@
   Map(
     normalizedName: "icebreaker",
     name: "Icebreaker",
-    imagePath: "maps/icebreaker.png",
+    imagePath: "maps/icebreaker.bc7z",
     imageSize: (256.0, 256.0),
     logicalSize: (142.5, 131.9),
     author: Some("TarkovBOT.eu"),
@@ -5885,7 +5885,7 @@
     layers: Some([
       Layer(
         name: "Infirmary",
-        imagePath: Some("maps/icebreaker.png"),
+        imagePath: Some("maps/icebreaker.bc7z"),
         tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/06_infirmary/{z}/{x}/{y}.png"),
         show: true,
         extents: [
@@ -5896,7 +5896,7 @@
       ),
       Layer(
         name: "Helipad",
-        imagePath: Some("maps/icebreaker-layer-1.png"),
+        imagePath: Some("maps/icebreaker-layer-1.bc7z"),
         tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/07_helipad/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -5907,7 +5907,7 @@
       ),
       Layer(
         name: "Gym/Canteen",
-        imagePath: Some("maps/icebreaker-layer-2.png"),
+        imagePath: Some("maps/icebreaker-layer-2.bc7z"),
         tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/08_gym-canteen/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -5918,7 +5918,7 @@
       ),
       Layer(
         name: "Accommodation (lower)",
-        imagePath: Some("maps/icebreaker-layer-3.png"),
+        imagePath: Some("maps/icebreaker-layer-3.bc7z"),
         tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/09_accommodation_lower/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -5929,7 +5929,7 @@
       ),
       Layer(
         name: "Accommodation (mid)",
-        imagePath: Some("maps/icebreaker-layer-4.png"),
+        imagePath: Some("maps/icebreaker-layer-4.bc7z"),
         tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/10_accommodation_mid/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -5940,7 +5940,7 @@
       ),
       Layer(
         name: "Accommodation (upper)",
-        imagePath: Some("maps/icebreaker-layer-5.png"),
+        imagePath: Some("maps/icebreaker-layer-5.bc7z"),
         tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/11_accommodation_upper/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -5951,7 +5951,7 @@
       ),
       Layer(
         name: "Officers\' Deck",
-        imagePath: Some("maps/icebreaker-layer-6.png"),
+        imagePath: Some("maps/icebreaker-layer-6.bc7z"),
         tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/12_officers_deck/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -5962,7 +5962,7 @@
       ),
       Layer(
         name: "Stairs (blocked)",
-        imagePath: Some("maps/icebreaker-layer-7.png"),
+        imagePath: Some("maps/icebreaker-layer-7.bc7z"),
         tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/13_stairs_blocked/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -5973,7 +5973,7 @@
       ),
       Layer(
         name: "Bridge",
-        imagePath: Some("maps/icebreaker-layer-8.png"),
+        imagePath: Some("maps/icebreaker-layer-8.bc7z"),
         tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/14_bridge/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -5984,7 +5984,7 @@
       ),
       Layer(
         name: "Bridge Roof",
-        imagePath: Some("maps/icebreaker-layer-9.png"),
+        imagePath: Some("maps/icebreaker-layer-9.bc7z"),
         tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/15_bridge_roof/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -5995,7 +5995,7 @@
       ),
       Layer(
         name: "Control Room",
-        imagePath: Some("maps/icebreaker-layer-10.png"),
+        imagePath: Some("maps/icebreaker-layer-10.bc7z"),
         tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/00_control_room/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -6006,7 +6006,7 @@
       ),
       Layer(
         name: "Engine Room",
-        imagePath: Some("maps/icebreaker-layer-11.png"),
+        imagePath: Some("maps/icebreaker-layer-11.bc7z"),
         tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/01_engine_room/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -6017,7 +6017,7 @@
       ),
       Layer(
         name: "Engine Room (upper)",
-        imagePath: Some("maps/icebreaker-layer-12.png"),
+        imagePath: Some("maps/icebreaker-layer-12.bc7z"),
         tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/02_engine_room_upper/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -6028,7 +6028,7 @@
       ),
       Layer(
         name: "Fuel Pumps (lower)",
-        imagePath: Some("maps/icebreaker-layer-13.png"),
+        imagePath: Some("maps/icebreaker-layer-13.bc7z"),
         tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/03_fuel_pumps_lower/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -6039,7 +6039,7 @@
       ),
       Layer(
         name: "Fuel Pumps",
-        imagePath: Some("maps/icebreaker-layer-14.png"),
+        imagePath: Some("maps/icebreaker-layer-14.bc7z"),
         tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/04_fuel_pumps/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -6050,7 +6050,7 @@
       ),
       Layer(
         name: "Storage/Security",
-        imagePath: Some("maps/icebreaker-layer-15.png"),
+        imagePath: Some("maps/icebreaker-layer-15.bc7z"),
         tilePath: Some("https://assets.tarkov.dev/maps/icebreaker/05_storage_ecurity/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -6086,7 +6086,7 @@
   Map(
     normalizedName: "interchange",
     name: "Interchange",
-    imagePath: "maps/interchange.png",
+    imagePath: "maps/interchange.bc7z",
     imageSize: (1127.5, 947.0),
     logicalSize: (1031.0, 868.0),
     author: Some("Shebuka"),
@@ -7878,7 +7878,7 @@
   Map(
     normalizedName: "the-lab",
     name: "The Lab",
-    imagePath: "maps/the-lab.png",
+    imagePath: "maps/the-lab.bc7z",
     imageSize: (175.0, 175.0),
     logicalSize: (207.0, 284.0),
     altMaps: Some([
@@ -7893,7 +7893,7 @@
     layers: Some([
       Layer(
         name: "Second Level",
-        imagePath: Some("maps/the-lab-layer-0.png"),
+        imagePath: Some("maps/the-lab-layer-0.bc7z"),
         tilePath: Some("https://assets.tarkov.dev/maps/labs_v4/2nd/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -7911,7 +7911,7 @@
       ),
       Layer(
         name: "Technical",
-        imagePath: Some("maps/the-lab-layer-1.png"),
+        imagePath: Some("maps/the-lab-layer-1.bc7z"),
         tilePath: Some("https://assets.tarkov.dev/maps/labs_v4/technical/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -8813,7 +8813,7 @@
   Map(
     normalizedName: "the-labyrinth",
     name: "The Labyrinth",
-    imagePath: "maps/the-labyrinth.png",
+    imagePath: "maps/the-labyrinth.bc7z",
     imageSize: (256.0, 256.0),
     logicalSize: (105.0, 113.0),
     author: Some("Tarkov.dev"),
@@ -8885,7 +8885,7 @@
   Map(
     normalizedName: "lighthouse",
     name: "Lighthouse",
-    imagePath: "maps/lighthouse.png",
+    imagePath: "maps/lighthouse.bc7z",
     imageSize: (1059.0, 1722.5),
     logicalSize: (1060.0, 1723.0),
     author: Some("Shebuka"),
@@ -9696,7 +9696,7 @@
   Map(
     normalizedName: "reserve",
     name: "Reserve",
-    imagePath: "maps/reserve.png",
+    imagePath: "maps/reserve.bc7z",
     imageSize: (827.0, 761.0),
     logicalSize: (592.0, 537.0),
     author: Some("Shebuka"),
@@ -9708,7 +9708,7 @@
     layers: Some([
       Layer(
         name: "2nd Floor",
-        imagePath: Some("maps/reserve-layer-0.png"),
+        imagePath: Some("maps/reserve-layer-0.bc7z"),
         tilePath: Some("https://assets.tarkov.dev/maps/reserve/2nd/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -9831,7 +9831,7 @@
       ),
       Layer(
         name: "3rd Floor",
-        imagePath: Some("maps/reserve-layer-1.png"),
+        imagePath: Some("maps/reserve-layer-1.bc7z"),
         tilePath: Some("https://assets.tarkov.dev/maps/reserve/3rd/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -9899,7 +9899,7 @@
       ),
       Layer(
         name: "4th Floor",
-        imagePath: Some("maps/reserve-layer-2.png"),
+        imagePath: Some("maps/reserve-layer-2.bc7z"),
         tilePath: Some("https://assets.tarkov.dev/maps/reserve/4th/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -9947,7 +9947,7 @@
       ),
       Layer(
         name: "5th Floor",
-        imagePath: Some("maps/reserve-layer-3.png"),
+        imagePath: Some("maps/reserve-layer-3.bc7z"),
         tilePath: Some("https://assets.tarkov.dev/maps/reserve/5th/{z}/{x}/{y}.png"),
         show: false,
         extents: [
@@ -9965,7 +9965,7 @@
       ),
       Layer(
         name: "Bunkers",
-        imagePath: Some("maps/reserve-layer-4.png"),
+        imagePath: Some("maps/reserve-layer-4.bc7z"),
         svgLayer: Some("Bunkers"),
         tilePath: Some("https://assets.tarkov.dev/maps/reserve/bunkers/{z}/{x}/{y}.png"),
         show: false,
@@ -10975,7 +10975,7 @@
   Map(
     normalizedName: "shoreline",
     name: "Shoreline",
-    imagePath: "maps/shoreline.png",
+    imagePath: "maps/shoreline.bc7z",
     imageSize: (1559.5, 1032.0),
     logicalSize: (1560.0, 1033.0),
     author: Some("Shebuka"),
@@ -12399,7 +12399,7 @@
   Map(
     normalizedName: "terminal",
     name: "Terminal",
-    imagePath: "maps/terminal.png",
+    imagePath: "maps/terminal.bc7z",
     imageSize: (887.5, 1043.5),
     logicalSize: (896.0, 1055.0),
     author: Some("Shebuka"),
@@ -12461,7 +12461,7 @@
   Map(
     normalizedName: "woods",
     name: "Woods",
-    imagePath: "maps/woods.png",
+    imagePath: "maps/woods.bc7z",
     imageSize: (1472.5, 1420.5),
     logicalSize: (1407.0, 1356.0),
     author: Some("Shebuka"),

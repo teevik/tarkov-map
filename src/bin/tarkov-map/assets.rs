@@ -9,8 +9,12 @@ use thiserror::Error;
 /// Embeds all assets from the assets/ directory into the binary.
 /// In debug mode, assets are loaded from the filesystem for faster iteration.
 /// In release mode, assets are compressed and embedded in the binary.
+///
+/// Map images ship as `.bc7z` containers; PNGs under `maps/` are fetch_maps
+/// intermediates and are never embedded.
 #[derive(RustEmbed)]
 #[folder = "assets/"]
+#[exclude = "maps/*.png"]
 pub struct Assets;
 
 /// Errors that can occur when loading map data.
@@ -32,45 +36,32 @@ pub enum ImageLoadError {
     #[error("failed to decode image '{path}': {source}")]
     DecodeError {
         path: String,
-        source: image::ImageError,
+        source: tarkov_map::bc7z::Bc7zError,
     },
 }
 
-/// Decoded image data ready for texture creation.
-pub struct DecodedImage {
-    pub pixels: Vec<u8>,
-    pub width: u32,
-    pub height: u32,
-}
+/// A loaded map image: BC7 blocks ready for direct GPU upload.
+pub use tarkov_map::bc7z::Bc7Image;
 
 /// State of an asset in the demand-driven loading pipeline.
 pub enum AssetLoadState {
-    /// Asset is being decoded on a background thread.
-    Loading(mpsc::Receiver<Result<DecodedImage, ImageLoadError>>),
-    /// Asset has been decoded; the pixel buffer is awaiting texture upload.
-    Decoded(DecodedImage),
-    /// A texture has been created and the decoded pixel buffer released.
+    /// Asset is being decompressed on a background thread.
+    Loading(mpsc::Receiver<Result<Bc7Image, ImageLoadError>>),
+    /// Asset has been decompressed; the block buffer is awaiting texture upload.
+    Decoded(Bc7Image),
+    /// A texture has been created and the block buffer released.
     Uploaded,
     /// Loading failed; stores the error message (already displayed via toast).
     Error(String),
 }
 
-/// Loads and decodes an image from embedded assets.
-pub fn load_and_decode_image(path: &str) -> Result<DecodedImage, ImageLoadError> {
+/// Loads and decompresses a `.bc7z` map image from embedded assets.
+pub fn load_and_decode_image(path: &str) -> Result<Bc7Image, ImageLoadError> {
     let file = Assets::get(path).ok_or_else(|| ImageLoadError::AssetNotFound(path.to_string()))?;
 
-    let img =
-        image::load_from_memory(&file.data).map_err(|source| ImageLoadError::DecodeError {
-            path: path.to_string(),
-            source,
-        })?;
-    let rgba = img.to_rgba8();
-    let (width, height) = rgba.dimensions();
-
-    Ok(DecodedImage {
-        pixels: rgba.into_raw(),
-        width,
-        height,
+    tarkov_map::bc7z::unpack(&file.data).map_err(|source| ImageLoadError::DecodeError {
+        path: path.to_string(),
+        source,
     })
 }
 
@@ -109,7 +100,7 @@ impl AssetCache {
     /// path is seen for the first time.
     pub fn request<F>(&mut self, path: &str, spawn: F) -> bool
     where
-        F: FnOnce() -> mpsc::Receiver<Result<DecodedImage, ImageLoadError>>,
+        F: FnOnce() -> mpsc::Receiver<Result<Bc7Image, ImageLoadError>>,
     {
         if self.states.contains_key(path) {
             return false;
@@ -189,7 +180,7 @@ impl AssetCache {
     /// Takes the decoded image for `path`, transitioning it to `Uploaded` and
     /// releasing the cache's hold on the pixel buffer. Returns `None` if the
     /// path is not currently in the `Decoded` state.
-    pub fn take_decoded(&mut self, path: &str) -> Option<DecodedImage> {
+    pub fn take_decoded(&mut self, path: &str) -> Option<Bc7Image> {
         let state = self.states.get_mut(path)?;
         if !matches!(state, AssetLoadState::Decoded(_)) {
             return None;
@@ -205,19 +196,19 @@ impl AssetCache {
 mod tests {
     use super::*;
 
-    fn decoded() -> DecodedImage {
-        DecodedImage {
-            pixels: vec![1, 2, 3, 4],
-            width: 1,
-            height: 1,
+    fn decoded() -> Bc7Image {
+        Bc7Image {
+            pixel_size: [1, 1],
+            padded_size: [4, 4],
+            blocks: vec![0; Bc7Image::expected_len([4, 4])],
         }
     }
 
     /// Delivers a result down a fresh channel and hands the receiver to
     /// `request`, mimicking a background decode that has already finished.
     fn ready_channel(
-        result: Result<DecodedImage, ImageLoadError>,
-    ) -> mpsc::Receiver<Result<DecodedImage, ImageLoadError>> {
+        result: Result<Bc7Image, ImageLoadError>,
+    ) -> mpsc::Receiver<Result<Bc7Image, ImageLoadError>> {
         let (tx, rx) = mpsc::channel();
         tx.send(result).unwrap();
         rx

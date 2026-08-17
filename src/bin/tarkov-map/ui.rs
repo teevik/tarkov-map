@@ -225,8 +225,10 @@ impl TarkovMapApp {
         let demo = self.demo.is_some();
         let watching = self.screenshot_watcher.is_some() || demo;
 
-        // Status line: coloured dot + short state, age on the right.
-        let (dot_color, state, detail): (egui::Color32, &str, Option<String>) = match position {
+        // Status line: coloured dot + short state, age on the right. The age
+        // carries the status colour once the fix is stale, so "old" is visible
+        // at a glance without reading.
+        let (dot_color, state, age_text): (egui::Color32, &str, Option<String>) = match position {
             Some(pos) => {
                 let age = pos.age();
                 let fresh = age < FRESH_FIX_MAX_AGE;
@@ -247,6 +249,7 @@ impl TarkovMapApp {
             None if watching => (colors::TRACKING_STALE, "Waiting", None),
             None => (colors::TRACKING_OFF, "Not tracking", None),
         };
+        let stale = position.is_some_and(|pos| pos.age() >= FRESH_FIX_MAX_AGE);
 
         let card = egui::Frame::group(ui.style())
             .inner_margin(egui::Margin::symmetric(10, 8))
@@ -255,26 +258,26 @@ impl TarkovMapApp {
             ui.set_width(ui.available_width());
             ui.horizontal(|ui| {
                 let (rect, _) =
-                    ui.allocate_exact_size(egui::vec2(10.0, 10.0), egui::Sense::hover());
-                ui.painter().circle_filled(rect.center(), 4.0, dot_color);
+                    ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
+                ui.painter().circle_filled(rect.center(), 5.0, dot_color);
                 ui.strong(state);
-                if let Some(detail) = detail {
+                if let Some(age_text) = age_text {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        ui.weak(detail);
+                        let mut text = egui::RichText::new(age_text);
+                        text = if stale {
+                            text.color(colors::TRACKING_STALE)
+                        } else {
+                            text.weak()
+                        };
+                        ui.label(text);
                     });
                 }
             });
 
             match position {
                 Some(pos) => {
-                    let [x, y, z] = pos.position;
-                    ui.label(
-                        egui::RichText::new(format!("{x:>7.1}  {y:>6.1}  {z:>7.1}"))
-                            .monospace()
-                            .size(11.5)
-                            .color(ui.visuals().weak_text_color()),
-                    )
-                    .on_hover_text("Game coordinates: X  Y (height)  Z");
+                    ui.add_space(2.0);
+                    Self::coordinate_row(ui, pos.position);
                 }
                 None if watching => {
                     ui.weak("Take a screenshot in raid to place your marker.");
@@ -297,6 +300,31 @@ impl TarkovMapApp {
             ui.ctx()
                 .request_repaint_after(std::time::Duration::from_secs(1));
         }
+    }
+
+    /// Labelled X / Y / Z readout in even columns.
+    fn coordinate_row(ui: &mut egui::Ui, [x, y, z]: [f64; 3]) {
+        let weak = ui.visuals().weak_text_color();
+        let column = ui.available_width() / 3.0;
+        ui.horizontal(|ui| {
+            for (axis, value) in [("X", x), ("Y", y), ("Z", z)] {
+                ui.allocate_ui_with_layout(
+                    egui::vec2(column, 16.0),
+                    egui::Layout::left_to_right(egui::Align::Center),
+                    |ui| {
+                        ui.spacing_mut().item_spacing.x = 4.0;
+                        ui.label(egui::RichText::new(axis).size(10.5).color(weak));
+                        ui.label(
+                            egui::RichText::new(format!("{value:.1}"))
+                                .monospace()
+                                .size(12.0),
+                        );
+                    },
+                );
+            }
+        })
+        .response
+        .on_hover_text("Game coordinates; Y is height.");
     }
 
     /// Renders a triangle-style overlay toggle (for player marker).
@@ -433,10 +461,9 @@ impl TarkovMapApp {
         let image_path = self.active_image_path(map);
         let logical_size = egui::vec2(map.logical_size[0], map.logical_size[1]);
 
-        // Demand-driven: request the active image the first time it is needed,
-        // and mark it displayed so the residency budget never evicts it.
+        // Demand-driven: request the active image the first time it is needed.
+        // Retention is active-image-only; anything else was freed in `logic`.
         self.request_image(&image_path, ctx);
-        self.texture_residency.touch(&image_path);
 
         // Check loading state - errors are shown via toasts
         match self.asset_cache.state(&image_path) {
@@ -453,11 +480,10 @@ impl TarkovMapApp {
             Some(AssetLoadState::Uploaded) => {}
         }
 
-        let Some(texture) = self.get_texture(&image_path) else {
+        let Some((texture_id, texture_uv)) = self.get_texture(&image_path) else {
             ui.label("Failed to create texture");
             return;
         };
-        let texture_id = texture.id();
 
         let (viewport_rect, response) =
             ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
@@ -508,7 +534,7 @@ impl TarkovMapApp {
         ui.painter().image(
             texture_id,
             map_rect,
-            egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+            texture_uv,
             egui::Color32::WHITE,
         );
 
@@ -538,7 +564,7 @@ impl TarkovMapApp {
         }
     }
 
-    fn active_image_path(&self, map: &Map) -> String {
+    pub(crate) fn active_image_path(&self, map: &Map) -> String {
         resolve_active_image_path(
             map,
             self.auto_layer,
@@ -962,7 +988,7 @@ mod tests {
 
         assert_eq!(
             resolve_active_image_path(&map, true, None, Some(&player)),
-            "maps/ground-zero-layer-0.png"
+            "maps/ground-zero-layer-0.bc7z"
         );
     }
 
@@ -972,11 +998,11 @@ mod tests {
 
         assert_eq!(
             resolve_active_image_path(&map, false, None, None),
-            "maps/reserve.png"
+            "maps/reserve.bc7z"
         );
         assert_eq!(
             resolve_active_image_path(&map, false, Some(4), None),
-            "maps/reserve-layer-4.png"
+            "maps/reserve-layer-4.bc7z"
         );
     }
 }

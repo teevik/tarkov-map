@@ -71,6 +71,12 @@ pub enum FetchError {
 
     #[error("map '{name}' is missing maxZoom")]
     MissingMaxZoom { name: String },
+
+    #[error("bc7z container error: {0}")]
+    Bc7z(#[from] tarkov_map::bc7z::Bc7zError),
+
+    #[error("missing PNG source for '{path}' — run a full fetch first")]
+    MissingPngSource { path: String },
 }
 
 /// Result of downloading a single tile.
@@ -87,6 +93,11 @@ struct Args {
     /// Reduce tile map zoom level from max (0 = max quality, higher = smaller files)
     #[arg(long, default_value = "2")]
     tile_zoom_offset: i32,
+
+    /// Skip fetching: re-encode the existing PNGs referenced by maps.ron into
+    /// .bc7z containers and rewrite maps.ron to point at them.
+    #[arg(long)]
+    convert_only: bool,
 }
 
 const MAPS_JSON_URL: &str =
@@ -417,6 +428,161 @@ async fn fetch_api_map_data(client: &reqwest::Client) -> Result<ApiMapData, Fetc
 
 fn repo_path(path: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(path)
+}
+
+/// Encodes one PNG into a `.bc7z` container: premultiply alpha (the app's
+/// texture convention; also stops BC7 blocks leaking color into transparent
+/// regions), pad to multiples of 4, BC7-compress, zstd-pack.
+fn encode_png_to_bc7z(png_path: &std::path::Path) -> Result<Vec<u8>, FetchError> {
+    let mut rgba = image::open(png_path)?.to_rgba8();
+    let (width, height) = rgba.dimensions();
+
+    for px in rgba.chunks_exact_mut(4) {
+        let alpha = px[3] as u32;
+        px[0] = (px[0] as u32 * alpha / 255) as u8;
+        px[1] = (px[1] as u32 * alpha / 255) as u8;
+        px[2] = (px[2] as u32 * alpha / 255) as u8;
+    }
+
+    let padded = [width.div_ceil(4) * 4, height.div_ceil(4) * 4];
+    if padded != [width, height] {
+        let mut canvas = RgbaImage::new(padded[0], padded[1]);
+        image::imageops::overlay(&mut canvas, &rgba, 0, 0);
+        rgba = canvas;
+    }
+
+    let blocks = intel_tex_2::bc7::compress_blocks(
+        &intel_tex_2::bc7::alpha_basic_settings(),
+        &intel_tex_2::RgbaSurface {
+            width: padded[0],
+            height: padded[1],
+            stride: padded[0] * 4,
+            data: &rgba,
+        },
+    );
+
+    Ok(tarkov_map::bc7z::pack(&tarkov_map::bc7z::Bc7Image {
+        pixel_size: [width, height],
+        padded_size: padded,
+        blocks,
+    })?)
+}
+
+/// Maps an `image_path` entry (either `maps/X.png` or `maps/X.bc7z`) to its
+/// PNG source stem, e.g. `maps/customs`.
+fn image_path_stem(entry: &str) -> &str {
+    entry
+        .strip_suffix(".png")
+        .or_else(|| entry.strip_suffix(".bc7z"))
+        .unwrap_or(entry)
+}
+
+/// Encodes every image referenced by `maps` into a `.bc7z` next to its PNG
+/// source and rewrites the `image_path` entries to point at the containers.
+/// Existing up-to-date containers are skipped unless `force` is set.
+fn encode_all_assets(maps: &mut TarkovMaps, force: bool) -> Result<(), FetchError> {
+    use std::collections::BTreeSet;
+    use std::sync::Mutex;
+
+    let mut stems = BTreeSet::new();
+    for map in maps.iter() {
+        stems.insert(image_path_stem(&map.image_path).to_owned());
+        for layer in map.layers.iter().flatten() {
+            if let Some(path) = &layer.image_path {
+                stems.insert(image_path_stem(path).to_owned());
+            }
+        }
+    }
+
+    let jobs: Vec<String> = stems
+        .iter()
+        .filter(|stem| force || !repo_path(&format!("assets/{stem}.bc7z")).exists())
+        .cloned()
+        .collect();
+
+    if !jobs.is_empty() {
+        println!("Encoding {} images to BC7+zstd...", jobs.len());
+        let progress = ProgressBar::new(jobs.len() as u64);
+        progress.set_style(
+            ProgressStyle::default_bar()
+                .template("{spinner:.green} [{bar:40.cyan/blue}] {pos}/{len} encoded ({eta})")?
+                .progress_chars("=>-"),
+        );
+
+        let queue = Mutex::new(jobs.into_iter());
+        let failures: Mutex<Vec<FetchError>> = Mutex::new(Vec::new());
+        let workers = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(4);
+
+        std::thread::scope(|scope| {
+            for _ in 0..workers {
+                scope.spawn(|| {
+                    loop {
+                        let Some(stem) = queue.lock().unwrap().next() else {
+                            return;
+                        };
+                        let png = repo_path(&format!("assets/{stem}.png"));
+                        let result = if png.exists() {
+                            encode_png_to_bc7z(&png).and_then(|container| {
+                                Ok(std::fs::write(
+                                    repo_path(&format!("assets/{stem}.bc7z")),
+                                    container,
+                                )?)
+                            })
+                        } else {
+                            Err(FetchError::MissingPngSource {
+                                path: format!("assets/{stem}.png"),
+                            })
+                        };
+                        if let Err(error) = result {
+                            failures.lock().unwrap().push(error);
+                        }
+                        progress.inc(1);
+                    }
+                });
+            }
+        });
+        progress.finish_and_clear();
+
+        let failures = failures.into_inner().unwrap();
+        if !failures.is_empty() {
+            for error in failures.iter().skip(1) {
+                eprintln!("  encoding also failed: {error}");
+            }
+            return Err(failures.into_iter().next().unwrap());
+        }
+    }
+
+    // Rewrite entries to the containers.
+    for map in maps.iter_mut() {
+        map.image_path = format!("{}.bc7z", image_path_stem(&map.image_path));
+        for layer in map.layers.iter_mut().flatten() {
+            if let Some(path) = &mut layer.image_path {
+                *path = format!("{}.bc7z", image_path_stem(path));
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn write_maps_ron(maps: &TarkovMaps) -> Result<(), FetchError> {
+    let pretty_config = PrettyConfig::new()
+        .depth_limit(10)
+        .indentor("  ".to_owned())
+        .struct_names(true)
+        .enumerate_arrays(false);
+
+    let ron_string = ron::ser::to_string_pretty(maps, pretty_config)?;
+    println!("Serialized to {} bytes of RON", ron_string.len());
+
+    std::fs::create_dir_all(repo_path(MAPS_DIR))?;
+
+    let output_path = repo_path(MAPS_RON_PATH);
+    std::fs::write(&output_path, &ron_string)?;
+    println!("Wrote maps to {}", output_path.display());
+    Ok(())
 }
 
 struct ImageResult {
@@ -792,6 +958,16 @@ async fn main() -> Result<(), FetchError> {
 
     let args = Args::parse();
 
+    if args.convert_only {
+        println!("Convert-only: encoding existing PNGs referenced by maps.ron");
+        let ron_string = std::fs::read_to_string(repo_path(MAPS_RON_PATH))?;
+        let mut maps: TarkovMaps =
+            ron::from_str(&ron_string).map_err(|e| e.code)?;
+        encode_all_assets(&mut maps, args.force)?;
+        write_maps_ron(&maps)?;
+        return Ok(());
+    }
+
     if args.force {
         println!("Force mode enabled - re-processing all assets");
     }
@@ -875,20 +1051,8 @@ async fn main() -> Result<(), FetchError> {
         maps.len()
     );
 
-    let pretty_config = PrettyConfig::new()
-        .depth_limit(10)
-        .indentor("  ".to_owned())
-        .struct_names(true)
-        .enumerate_arrays(false);
-
-    let ron_string = ron::ser::to_string_pretty(&maps, pretty_config)?;
-    println!("Serialized to {} bytes of RON", ron_string.len());
-
-    std::fs::create_dir_all(repo_path(MAPS_DIR))?;
-
-    let output_path = repo_path(MAPS_RON_PATH);
-    std::fs::write(&output_path, &ron_string)?;
-    println!("Wrote maps to {}", output_path.display());
+    encode_all_assets(&mut maps, args.force)?;
+    write_maps_ron(&maps)?;
 
     println!("\nMaps:");
     for map in &maps {

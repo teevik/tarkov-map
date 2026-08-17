@@ -18,12 +18,6 @@ pub const ZOOM_SPEED: f32 = 1.2;
 /// deltas multiply back up to one zoom step per notch.
 pub const POINTS_PER_SCROLL_NOTCH: f32 = 40.0;
 
-/// Budget for retained map textures, in decoded bytes (width × height × 4).
-///
-/// The largest bundled images decode to 64 MB (4096×4096 RGBA); this holds a
-/// full floor set of the biggest map plus a couple of recently viewed maps.
-pub const TEXTURE_BUDGET_BYTES: usize = 512 * 1024 * 1024;
-
 /// Zoom applied when centering on the player from the fit view, so that
 /// "center" visibly means something.
 pub const CENTER_ZOOM: f32 = 2.5;

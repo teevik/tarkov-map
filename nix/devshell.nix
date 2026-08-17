@@ -15,6 +15,10 @@ pkgs.mkShell rec {
 
     # opengl
     libGL
+
+    # vulkan (wgpu backend; the nixpkgs loader finds system ICDs in
+    # /run/opengl-driver/share on NixOS)
+    vulkan-loader
   ];
 
   LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath packages}";
