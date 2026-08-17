@@ -247,7 +247,7 @@ impl TarkovMapApp {
             ui.painter().add(egui::Shape::convex_polygon(
                 points,
                 color,
-                egui::Stroke::new(1.0, color.gamma_multiply(0.5)),
+                egui::Stroke::new(1.0_f32, color.gamma_multiply(0.5)),
             ));
             let label_response = ui
                 .label(label)
@@ -272,8 +272,11 @@ impl TarkovMapApp {
                 ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::click());
             let center = rect.center();
             ui.painter().circle_filled(center, 5.0, color);
-            ui.painter()
-                .circle_stroke(center, 5.0, egui::Stroke::new(1.0, egui::Color32::GRAY));
+            ui.painter().circle_stroke(
+                center,
+                5.0,
+                egui::Stroke::new(1.0_f32, egui::Color32::GRAY),
+            );
             let label_response = ui
                 .label(label)
                 .interact(egui::Sense::click())
@@ -294,7 +297,7 @@ impl TarkovMapApp {
             ui.painter().rect_stroke(
                 rect,
                 2.0,
-                egui::Stroke::new(1.0, color.gamma_multiply(0.5)),
+                egui::Stroke::new(1.0_f32, color.gamma_multiply(0.5)),
                 egui::StrokeKind::Inside,
             );
             let label_response = ui
@@ -774,7 +777,7 @@ impl TarkovMapApp {
     /// Draws a close (X) icon.
     fn draw_close_icon(painter: &egui::Painter, center: egui::Pos2, color: egui::Color32) {
         let size = 4.5;
-        let stroke = egui::Stroke::new(1.0, color);
+        let stroke = egui::Stroke::new(1.0_f32, color);
         painter.line_segment(
             [
                 center + egui::vec2(-size, -size),
@@ -794,7 +797,7 @@ impl TarkovMapApp {
     /// Draws a maximize (square) icon.
     fn draw_maximize_icon(painter: &egui::Painter, center: egui::Pos2, color: egui::Color32) {
         let size = 4.5;
-        let stroke = egui::Stroke::new(1.0, color);
+        let stroke = egui::Stroke::new(1.0_f32, color);
         let rect = egui::Rect::from_center_size(center, egui::vec2(size * 2.0, size * 2.0));
         painter.rect_stroke(rect, 0.0, stroke, egui::StrokeKind::Inside);
     }
@@ -802,7 +805,7 @@ impl TarkovMapApp {
     /// Draws a restore (overlapping squares) icon.
     fn draw_restore_icon(painter: &egui::Painter, center: egui::Pos2, color: egui::Color32) {
         let size = 4.0;
-        let stroke = egui::Stroke::new(1.0, color);
+        let stroke = egui::Stroke::new(1.0_f32, color);
         // Back square (offset up-right)
         let back_rect = egui::Rect::from_min_size(
             center + egui::vec2(-size + 2.0, -size - 2.0),
@@ -821,7 +824,7 @@ impl TarkovMapApp {
     /// Draws a minimize (horizontal line) icon.
     fn draw_minimize_icon(painter: &egui::Painter, center: egui::Pos2, color: egui::Color32) {
         let size = 5.0;
-        let stroke = egui::Stroke::new(1.0, color);
+        let stroke = egui::Stroke::new(1.0_f32, color);
         painter.line_segment(
             [
                 center + egui::vec2(-size, 0.0),

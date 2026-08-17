@@ -101,7 +101,7 @@ pub fn draw_spawns(
             pos,
             radius,
             colors::SPAWN_FILL,
-            egui::Stroke::new(1.5, colors::SPAWN_STROKE),
+            egui::Stroke::new(1.5_f32, colors::SPAWN_STROKE),
         );
     }
 }
@@ -152,7 +152,7 @@ pub fn draw_extracts(
         painter.rect_stroke(
             rect,
             2.0,
-            egui::Stroke::new(2.0, stroke_color),
+            egui::Stroke::new(2.0_f32, stroke_color),
             egui::StrokeKind::Outside,
         );
 
@@ -214,7 +214,7 @@ pub fn draw_player_marker(
         pos,
         circle_radius,
         colors::PLAYER_MARKER_FILL,
-        egui::Stroke::new(2.0, colors::PLAYER_MARKER_STROKE),
+        egui::Stroke::new(2.0_f32, colors::PLAYER_MARKER_STROKE),
     );
 
     // Calculate triangle center position (outside the circle, in direction of yaw)
@@ -243,6 +243,6 @@ pub fn draw_player_marker(
     painter.add(egui::Shape::convex_polygon(
         points,
         colors::PLAYER_MARKER_FILL,
-        egui::Stroke::new(1.5, colors::PLAYER_MARKER_STROKE),
+        egui::Stroke::new(1.5_f32, colors::PLAYER_MARKER_STROKE),
     ));
 }
