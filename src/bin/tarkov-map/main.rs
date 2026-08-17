@@ -11,7 +11,7 @@ mod ui;
 mod updater;
 
 use assets::{AssetCache, Bc7Image, load_and_decode_image, load_maps};
-use eframe::egui::{self, ColorImage, TextureHandle, TextureOptions};
+use eframe::egui;
 use eframe::egui_wgpu::{self, wgpu};
 use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
 use overlays::OverlayVisibility;
@@ -45,30 +45,13 @@ impl Default for AppSettings {
     }
 }
 
-/// A GPU texture for one map image, plus the UV rect cropping off the
-/// transparent padding BC7 block alignment adds.
+/// A map image's BC7 texture, uploaded through wgpu and compressed in VRAM,
+/// plus the UV rect cropping off the transparent padding BC7 block alignment
+/// adds.
 struct MapTexture {
-    kind: MapTextureKind,
+    id: egui::TextureId,
+    texture: wgpu::Texture,
     uv: egui::Rect,
-}
-
-enum MapTextureKind {
-    /// BC7 blocks uploaded directly through wgpu; stays compressed in VRAM.
-    Native {
-        id: egui::TextureId,
-        texture: wgpu::Texture,
-    },
-    /// CPU-decoded RGBA fallback for adapters without BC texture support.
-    Cpu(TextureHandle),
-}
-
-impl MapTexture {
-    fn id(&self) -> egui::TextureId {
-        match &self.kind {
-            MapTextureKind::Native { id, .. } => *id,
-            MapTextureKind::Cpu(handle) => handle.id(),
-        }
-    }
 }
 
 /// Main application state for the Tarkov Map viewer.
@@ -88,6 +71,9 @@ pub struct TarkovMapApp {
     screenshot_watcher: Option<ScreenshotWatcher>,
     demo: Option<demo::DemoWalker>,
     player_position: Option<PlayerPosition>,
+    /// Set once the missing-BC-support error has been surfaced, so the toast
+    /// doesn't repeat on every switch.
+    bc_unsupported_notified: bool,
 
     /// Flag to clear settings on app close (triggered by File -> Clear Settings).
     pub clear_settings_on_close: bool,
@@ -160,6 +146,7 @@ impl TarkovMapApp {
             screenshot_watcher,
             demo: demo::DemoWalker::from_env(),
             player_position,
+            bc_unsupported_notified: false,
             clear_settings_on_close: false,
         }
     }
@@ -205,16 +192,10 @@ impl TarkovMapApp {
 
         for path in stale {
             if let Some(map_texture) = self.texture_cache.remove(&path) {
-                match map_texture.kind {
-                    MapTextureKind::Native { id, texture } => {
-                        if let Some(render_state) = frame.wgpu_render_state() {
-                            render_state.renderer.write().free_texture(&id);
-                        }
-                        texture.destroy();
-                    }
-                    // Dropping the handle releases egui's managed texture.
-                    MapTextureKind::Cpu(_) => {}
+                if let Some(render_state) = frame.wgpu_render_state() {
+                    render_state.renderer.write().free_texture(&map_texture.id);
                 }
+                map_texture.texture.destroy();
             }
             self.asset_cache.evict(&path);
             log::debug!("freed inactive map texture: {path}");
@@ -224,7 +205,7 @@ impl TarkovMapApp {
     /// Polls loading assets and uploads the active image's BC7 blocks once
     /// decompressed. Non-active results are dropped without upload (the user
     /// switched away mid-load); the block buffer is released either way.
-    fn poll_all_assets(&mut self, ctx: &egui::Context, frame: &eframe::Frame, active: Option<&str>) {
+    fn poll_all_assets(&mut self, frame: &eframe::Frame, active: Option<&str>) {
         // Show toasts for any decode failures that surfaced this frame.
         for err in self.asset_cache.poll() {
             self.toasts.add(Toast {
@@ -249,21 +230,45 @@ impl TarkovMapApp {
                 continue;
             }
 
-            let map_texture = self.upload_texture(&path, decoded, ctx, frame);
-            self.texture_cache.insert(path, map_texture);
+            if let Some(map_texture) = self.upload_texture(&path, decoded, frame) {
+                self.texture_cache.insert(path, map_texture);
+            }
         }
     }
 
-    /// Creates a GPU texture from BC7 blocks: uploaded compressed when the
-    /// device supports BC texture compression, otherwise CPU-decoded to RGBA
-    /// as a correctness fallback.
+    /// Creates a GPU texture from BC7 blocks, uploaded compressed. BC texture
+    /// compression is mandatory on the DX11-class hardware Tarkov itself
+    /// requires; without it (software rasterizers, broken drivers) the map
+    /// cannot be shown and an error is surfaced once.
     fn upload_texture(
         &mut self,
         path: &str,
         image: Bc7Image,
-        ctx: &egui::Context,
         frame: &eframe::Frame,
-    ) -> MapTexture {
+    ) -> Option<MapTexture> {
+        let render_state = frame.wgpu_render_state().filter(|render_state| {
+            render_state
+                .device
+                .features()
+                .contains(wgpu::Features::TEXTURE_COMPRESSION_BC)
+        });
+        let Some(render_state) = render_state else {
+            if !self.bc_unsupported_notified {
+                self.bc_unsupported_notified = true;
+                log::error!("GPU lacks BC texture compression; cannot display maps");
+                self.toasts.add(Toast {
+                    kind: ToastKind::Error,
+                    text: "This GPU lacks BC texture compression; maps cannot be displayed."
+                        .into(),
+                    options: ToastOptions::default()
+                        .duration_in_seconds(10.0)
+                        .show_icon(true),
+                    ..Default::default()
+                });
+            }
+            return None;
+        };
+
         let [width, height] = image.padded_size;
         let uv = egui::Rect::from_min_max(
             egui::pos2(0.0, 0.0),
@@ -272,93 +277,54 @@ impl TarkovMapApp {
                 image.pixel_size[1] as f32 / height as f32,
             ),
         );
-
-        let native = frame.wgpu_render_state().filter(|render_state| {
-            render_state
-                .device
-                .features()
-                .contains(wgpu::Features::TEXTURE_COMPRESSION_BC)
-        });
-
         let size = wgpu::Extent3d {
             width,
             height,
             depth_or_array_layers: 1,
         };
 
-        let kind = match native {
-            Some(render_state) => {
-                let texture = render_state.device.create_texture(&wgpu::TextureDescriptor {
-                    label: Some(path),
-                    size,
-                    mip_level_count: 1,
-                    sample_count: 1,
-                    dimension: wgpu::TextureDimension::D2,
-                    // Non-sRGB on purpose: egui renders in gamma space and
-                    // expects raw (gamma-encoded) samples — an Srgb format
-                    // here double-converts and darkens the map.
-                    format: wgpu::TextureFormat::Bc7RgbaUnorm,
-                    usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-                    view_formats: &[],
-                });
-                render_state.queue.write_texture(
-                    wgpu::TexelCopyTextureInfo {
-                        texture: &texture,
-                        mip_level: 0,
-                        origin: wgpu::Origin3d::ZERO,
-                        aspect: wgpu::TextureAspect::All,
-                    },
-                    &image.blocks,
-                    wgpu::TexelCopyBufferLayout {
-                        offset: 0,
-                        bytes_per_row: Some(width / 4 * 16), // 16 bytes per 4x4 BC7 block
-                        rows_per_image: Some(height / 4),
-                    },
-                    size,
-                );
-                let view = texture.create_view(&Default::default());
-                let id = render_state.renderer.write().register_native_texture(
-                    &render_state.device,
-                    &view,
-                    wgpu::FilterMode::Linear,
-                );
-                MapTextureKind::Native { id, texture }
-            }
-            None => {
-                // Rare fallback (pre-DX11-class adapters): decode on the CPU.
-                log::warn!("BC texture compression unavailable; CPU-decoding {path}");
-                let mut pixels = vec![0u32; (width * height) as usize];
-                let kind = texture2ddecoder::decode_bc7(
-                    &image.blocks,
-                    width as usize,
-                    height as usize,
-                    &mut pixels,
-                );
-                if let Err(err) = kind {
-                    log::error!("CPU BC7 decode failed for {path}: {err}");
-                }
-                // texture2ddecoder emits 0xAARRGGBB words; the source data is
-                // already premultiplied, matching egui's texture convention.
-                let rgba: Vec<u8> = pixels
-                    .iter()
-                    .flat_map(|px| {
-                        let [b, g, r, a] = px.to_le_bytes();
-                        [r, g, b, a]
-                    })
-                    .collect();
-                let color =
-                    ColorImage::from_rgba_premultiplied([width as usize, height as usize], &rgba);
-                MapTextureKind::Cpu(ctx.load_texture(path, color, TextureOptions::LINEAR))
-            }
-        };
+        let texture = render_state.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some(path),
+            size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            // Non-sRGB on purpose: egui renders in gamma space and
+            // expects raw (gamma-encoded) samples — an Srgb format
+            // here double-converts and darkens the map.
+            format: wgpu::TextureFormat::Bc7RgbaUnorm,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+        render_state.queue.write_texture(
+            wgpu::TexelCopyTextureInfo {
+                texture: &texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            &image.blocks,
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(width / 4 * 16), // 16 bytes per 4x4 BC7 block
+                rows_per_image: Some(height / 4),
+            },
+            size,
+        );
+        let view = texture.create_view(&Default::default());
+        let id = render_state.renderer.write().register_native_texture(
+            &render_state.device,
+            &view,
+            wgpu::FilterMode::Linear,
+        );
 
-        MapTexture { kind, uv }
+        Some(MapTexture { id, texture, uv })
     }
 
     fn get_texture(&self, path: &str) -> Option<(egui::TextureId, egui::Rect)> {
         self.texture_cache
             .get(path)
-            .map(|texture| (texture.id(), texture.uv))
+            .map(|texture| (texture.id, texture.uv))
     }
 
     fn reset_view(&mut self) {
@@ -391,7 +357,7 @@ impl eframe::App for TarkovMapApp {
 
         let active = self.active_image_path_now();
         self.free_inactive_textures(frame, active.as_deref());
-        self.poll_all_assets(ctx, frame, active.as_deref());
+        self.poll_all_assets(frame, active.as_deref());
 
         self.handle_keyboard_input(ctx);
         self.updater.poll(ctx, &mut self.toasts);

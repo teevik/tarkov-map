@@ -214,6 +214,37 @@ mod tests {
         rx
     }
 
+    /// Guards against schema drift between the app's Map type and the
+    /// bundled maps.ron (e.g. fields removed from one but not the other).
+    #[test]
+    fn bundled_maps_parse_and_reference_bundled_images() {
+        let maps = load_maps().expect("bundled maps.ron should parse");
+        assert!(!maps.is_empty(), "bundled maps.ron should contain maps");
+        for map in &maps {
+            assert!(
+                Assets::get(&map.image_path).is_some(),
+                "{} references missing asset {}",
+                map.normalized_name,
+                map.image_path
+            );
+        }
+    }
+
+    /// Main Floor only: every embedded map image must be some map's
+    /// `image_path`. Catches per-floor images being reintroduced under
+    /// `assets/maps/` without anything able to display them.
+    #[test]
+    fn every_bundled_image_is_a_map_main_floor() {
+        let maps = load_maps().expect("bundled maps.ron should parse");
+        let referenced: std::collections::HashSet<&str> =
+            maps.iter().map(|map| map.image_path.as_str()).collect();
+        let orphans: Vec<_> = Assets::iter()
+            .filter(|path| path.starts_with("maps/"))
+            .filter(|path| !referenced.contains(path.as_ref()))
+            .collect();
+        assert!(orphans.is_empty(), "embedded images no map uses: {orphans:?}");
+    }
+
     #[test]
     fn request_starts_a_load() {
         let mut cache = AssetCache::new();
