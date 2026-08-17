@@ -1,7 +1,7 @@
 //! Data models for the Tarkov Map viewer.
 //!
 //! This crate defines the core types used to represent interactive maps from
-//! the tarkov-dev project, including map metadata, layers, labels, spawn points,
+//! the tarkov-dev project, including map metadata, labels, spawn points,
 //! and extraction points.
 
 pub mod bc7z;
@@ -65,14 +65,6 @@ pub struct Map {
     #[serde(default)]
     pub bounds: Option<[[f64; 2]; 2]>,
 
-    /// Default height range `[min, max]` for layer visibility.
-    #[serde(default)]
-    pub height_range: Option<[f64; 2]>,
-
-    /// Map layers (floors, underground areas, etc.).
-    #[serde(default)]
-    pub layers: Option<Vec<Layer>>,
-
     /// Map labels and annotations.
     #[serde(default)]
     pub labels: Option<Vec<Label>>,
@@ -84,61 +76,6 @@ pub struct Map {
     /// Extraction points.
     #[serde(default)]
     pub extracts: Option<Vec<Extract>>,
-}
-
-/// A map layer representing a floor level or area.
-#[skip_serializing_none]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Layer {
-    /// Display name for the layer.
-    pub name: String,
-
-    /// Path to a pre-rendered image for this layer, when it differs from the base map.
-    #[serde(default)]
-    pub image_path: Option<String>,
-
-    /// SVG layer identifier.
-    #[serde(default)]
-    pub svg_layer: Option<String>,
-
-    /// Tile path template for this layer.
-    #[serde(default)]
-    pub tile_path: Option<String>,
-
-    /// Whether this layer is visible by default.
-    #[serde(default)]
-    pub show: bool,
-
-    /// Height/bounds extents that trigger this layer's visibility.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub extents: Vec<Extent>,
-}
-
-/// Defines visibility conditions for a layer based on height and bounds.
-#[skip_serializing_none]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Extent {
-    /// Height range `[min, max]` for this extent.
-    pub height: [f64; 2],
-
-    /// Optional bounds within this extent that trigger layer visibility.
-    #[serde(default)]
-    pub bounds: Option<Vec<ExtentBound>>,
-}
-
-/// A rectangular bound area within an extent.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExtentBound {
-    /// First corner point `[x, y]`.
-    pub point1: [f64; 2],
-
-    /// Second corner point `[x, y]`.
-    pub point2: [f64; 2],
-
-    /// Name/identifier for this bound area.
-    pub name: String,
 }
 
 /// A text label/annotation on the map.

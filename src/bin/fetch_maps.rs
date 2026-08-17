@@ -19,7 +19,7 @@ use tokio::fs as async_fs;
 use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
 
-use tarkov_map::{Extent, ExtentBound, Extract, Label, Layer, Map, Spawn, TarkovMaps};
+use tarkov_map::{Extract, Label, Map, Spawn, TarkovMaps};
 
 /// Errors that can occur during the fetch_maps process.
 #[derive(Error, Debug)]
@@ -147,70 +147,7 @@ struct FetchedMap {
     #[serde(default)]
     tile_path: Option<String>,
     #[serde(default)]
-    height_range: Option<[f64; 2]>,
-    #[serde(default)]
-    layers: Option<Vec<FetchedLayer>>,
-    #[serde(default)]
     labels: Option<Vec<FetchedLabel>>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct FetchedLayer {
-    name: String,
-    #[serde(skip)]
-    image_path: Option<String>,
-    #[serde(default)]
-    svg_layer: Option<String>,
-    #[serde(default)]
-    tile_path: Option<String>,
-    #[serde(default)]
-    show: bool,
-    #[serde(default)]
-    extents: Vec<FetchedExtent>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct FetchedExtent {
-    height: [f64; 2],
-    #[serde(default)]
-    bounds: Option<Vec<FetchedExtentBound>>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(from = "Vec<serde_json::Value>")]
-struct FetchedExtentBound {
-    point1: [f64; 2],
-    point2: [f64; 2],
-    name: String,
-}
-
-impl From<Vec<serde_json::Value>> for FetchedExtentBound {
-    fn from(values: Vec<serde_json::Value>) -> Self {
-        let parse_point = |idx: usize| -> [f64; 2] {
-            values
-                .get(idx)
-                .and_then(|v| v.as_array())
-                .map(|arr| {
-                    [
-                        arr.first().and_then(|v| v.as_f64()).unwrap_or(0.0),
-                        arr.get(1).and_then(|v| v.as_f64()).unwrap_or(0.0),
-                    ]
-                })
-                .unwrap_or([0.0, 0.0])
-        };
-
-        Self {
-            point1: parse_point(0),
-            point2: parse_point(1),
-            name: values
-                .get(2)
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_owned(),
-        }
-    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -295,38 +232,6 @@ where
         Some(other) => Err(D::Error::custom(format!(
             "expected number or string for rotation, got: {other:?}"
         ))),
-    }
-}
-
-impl From<FetchedLayer> for Layer {
-    fn from(f: FetchedLayer) -> Self {
-        Self {
-            name: f.name,
-            image_path: f.image_path,
-            svg_layer: f.svg_layer,
-            tile_path: f.tile_path,
-            show: f.show,
-            extents: f.extents.into_iter().map(Into::into).collect(),
-        }
-    }
-}
-
-impl From<FetchedExtent> for Extent {
-    fn from(f: FetchedExtent) -> Self {
-        Self {
-            height: f.height,
-            bounds: f.bounds.map(|b| b.into_iter().map(Into::into).collect()),
-        }
-    }
-}
-
-impl From<FetchedExtentBound> for ExtentBound {
-    fn from(f: FetchedExtentBound) -> Self {
-        Self {
-            point1: f.point1,
-            point2: f.point2,
-            name: f.name,
-        }
     }
 }
 
@@ -487,11 +392,6 @@ fn encode_all_assets(maps: &mut TarkovMaps, force: bool) -> Result<(), FetchErro
     let mut stems = BTreeSet::new();
     for map in maps.iter() {
         stems.insert(image_path_stem(&map.image_path).to_owned());
-        for layer in map.layers.iter().flatten() {
-            if let Some(path) = &layer.image_path {
-                stems.insert(image_path_stem(path).to_owned());
-            }
-        }
     }
 
     let jobs: Vec<String> = stems
@@ -557,11 +457,6 @@ fn encode_all_assets(maps: &mut TarkovMaps, force: bool) -> Result<(), FetchErro
     // Rewrite entries to the containers.
     for map in maps.iter_mut() {
         map.image_path = format!("{}.bc7z", image_path_stem(&map.image_path));
-        for layer in map.layers.iter_mut().flatten() {
-            if let Some(path) = &mut layer.image_path {
-                *path = format!("{}.bc7z", image_path_stem(path));
-            }
-        }
     }
 
     Ok(())
@@ -786,7 +681,7 @@ async fn convert_group(
         maps,
     } = fetched;
 
-    let Some(mut interactive) = maps.into_iter().find(|m| m.projection == "interactive") else {
+    let Some(interactive) = maps.into_iter().find(|m| m.projection == "interactive") else {
         return Ok(None);
     };
 
@@ -882,52 +777,6 @@ async fn convert_group(
         })
         .unwrap_or(result.image_size);
 
-    if let Some(layers) = &mut interactive.layers {
-        for (index, layer) in layers.iter_mut().enumerate() {
-            let Some(tile_template) = layer.tile_path.as_deref() else {
-                continue;
-            };
-
-            if interactive.tile_path.as_deref() == Some(tile_template) {
-                layer.image_path = Some(result.image_path.clone());
-                continue;
-            }
-
-            let min_zoom = interactive
-                .min_zoom
-                .ok_or_else(|| FetchError::MissingMinZoom {
-                    name: normalized_name.clone(),
-                })?;
-            let max_zoom = interactive
-                .max_zoom
-                .ok_or_else(|| FetchError::MissingMaxZoom {
-                    name: normalized_name.clone(),
-                })?;
-            let tile_size = interactive.tile_size.unwrap_or(256);
-            let asset_name = format!("{normalized_name}-layer-{index}");
-
-            match process_tile_map(
-                client,
-                &asset_name,
-                tile_template,
-                tile_size,
-                min_zoom,
-                max_zoom,
-                tile_zoom_offset,
-                multi_progress,
-                force,
-            )
-            .await
-            {
-                Ok(layer_result) => layer.image_path = Some(layer_result.image_path),
-                Err(error) => multi_progress.println(format!(
-                    "  Warning: failed to process {normalized_name} layer '{}': {error}",
-                    layer.name
-                ))?,
-            }
-        }
-    }
-
     Ok(Some(Map {
         normalized_name: normalized_name.clone(),
         name,
@@ -940,10 +789,6 @@ async fn convert_group(
         transform: interactive.transform,
         coordinate_rotation: interactive.coordinate_rotation,
         bounds: interactive.bounds,
-        height_range: interactive.height_range,
-        layers: interactive
-            .layers
-            .map(|l| l.into_iter().map(Into::into).collect()),
         labels: interactive
             .labels
             .map(|l| l.into_iter().map(Into::into).collect()),
@@ -961,8 +806,7 @@ async fn main() -> Result<(), FetchError> {
     if args.convert_only {
         println!("Convert-only: encoding existing PNGs referenced by maps.ron");
         let ron_string = std::fs::read_to_string(repo_path(MAPS_RON_PATH))?;
-        let mut maps: TarkovMaps =
-            ron::from_str(&ron_string).map_err(|e| e.code)?;
+        let mut maps: TarkovMaps = ron::from_str(&ron_string).map_err(|e| e.code)?;
         encode_all_assets(&mut maps, args.force)?;
         write_maps_ron(&maps)?;
         return Ok(());

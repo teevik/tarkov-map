@@ -8,7 +8,7 @@ use crate::constants::{
 };
 use crate::coordinates::game_to_display;
 use crate::overlays::{draw_extracts, draw_labels, draw_player_marker, draw_spawns};
-use crate::screenshot_watcher::{PlayerPosition, ScreenshotWatcher};
+use crate::screenshot_watcher::ScreenshotWatcher;
 use crate::{APP_TITLE, APP_VERSION};
 use eframe::egui::{self, ViewportCommand};
 use std::time::Duration;
@@ -23,46 +23,6 @@ fn format_age(age: Duration) -> String {
         60..=3599 => format!("{} min ago", secs / 60),
         _ => format!("{} h ago", secs / 3600),
     }
-}
-
-fn resolve_active_image_path<'a>(
-    map: &'a Map,
-    auto_layer: bool,
-    manual_layer: Option<usize>,
-    player: Option<&PlayerPosition>,
-) -> &'a str {
-    let layers = map.layers.as_deref().unwrap_or_default();
-    let selected_layer = if auto_layer {
-        player.and_then(|player| {
-            layers.iter().position(|layer| {
-                layer.image_path.is_some()
-                    && layer.extents.iter().any(|extent| {
-                        let height_matches = player.position[1] >= extent.height[0]
-                            && player.position[1] <= extent.height[1];
-                        let bounds_match = extent.bounds.as_ref().is_none_or(|bounds| {
-                            bounds.iter().any(|bound| {
-                                let min_x = bound.point1[0].min(bound.point2[0]);
-                                let max_x = bound.point1[0].max(bound.point2[0]);
-                                let min_z = bound.point1[1].min(bound.point2[1]);
-                                let max_z = bound.point1[1].max(bound.point2[1]);
-                                player.position[0] >= min_x
-                                    && player.position[0] <= max_x
-                                    && player.position[2] >= min_z
-                                    && player.position[2] <= max_z
-                            })
-                        });
-                        height_matches && bounds_match
-                    })
-            })
-        })
-    } else {
-        manual_layer
-    };
-
-    selected_layer
-        .and_then(|index| layers.get(index))
-        .and_then(|layer| layer.image_path.as_deref())
-        .unwrap_or(&map.image_path)
 }
 
 impl TarkovMapApp {
@@ -87,7 +47,7 @@ impl TarkovMapApp {
         });
     }
 
-    /// Renders the sidebar content: position tracking, map selector, floor, overlays.
+    /// Renders the sidebar content: position tracking, map selector, overlays.
     fn show_sidebar_content(&mut self, ui: &mut egui::Ui) {
         ui.add_space(6.0);
 
@@ -110,61 +70,6 @@ impl TarkovMapApp {
 
             if self.selected_map != prev_selected {
                 self.reset_view();
-            }
-        }
-
-        if let Some(map) = self.maps.get(self.selected_map).cloned() {
-            let available_layers: Vec<_> = map
-                .layers
-                .iter()
-                .flatten()
-                .enumerate()
-                .filter(|(_, layer)| layer.image_path.is_some())
-                .map(|(index, layer)| (index, layer.name.clone()))
-                .collect();
-
-            if !available_layers.is_empty() {
-                Self::section_header(ui, "Floor");
-                ui.checkbox(&mut self.auto_layer, "Match player's floor")
-                    .on_hover_text("Switch floors automatically from the player's height");
-
-                let selected_layer = self
-                    .selected_layers
-                    .get(&map.normalized_name)
-                    .copied()
-                    .filter(|selected| available_layers.iter().any(|(index, _)| index == selected));
-                let selected_text = selected_layer
-                    .and_then(|selected| {
-                        available_layers
-                            .iter()
-                            .find(|(index, _)| *index == selected)
-                    })
-                    .map(|(_, name)| name.as_str())
-                    .unwrap_or("Main Floor");
-
-                ui.add_enabled_ui(!self.auto_layer, |ui| {
-                    egui::ComboBox::from_id_salt("map_layer")
-                        .selected_text(selected_text)
-                        .width(ui.available_width())
-                        .show_ui(ui, |ui| {
-                            if ui
-                                .selectable_label(selected_layer.is_none(), "Main Floor")
-                                .clicked()
-                            {
-                                self.selected_layers.remove(&map.normalized_name);
-                            }
-
-                            for (index, name) in &available_layers {
-                                if ui
-                                    .selectable_label(selected_layer == Some(*index), name)
-                                    .clicked()
-                                {
-                                    self.selected_layers
-                                        .insert(map.normalized_name.clone(), *index);
-                                }
-                            }
-                        });
-                });
             }
         }
 
@@ -458,7 +363,7 @@ impl TarkovMapApp {
     fn show_map(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, map: &Map) {
         use crate::assets::AssetLoadState;
 
-        let image_path = self.active_image_path(map);
+        let image_path = map.image_path.clone();
         let logical_size = egui::vec2(map.logical_size[0], map.logical_size[1]);
 
         // Demand-driven: request the active image the first time it is needed.
@@ -562,16 +467,6 @@ impl TarkovMapApp {
         {
             draw_player_marker(ui, map_rect, map, player_pos, self.zoom);
         }
-    }
-
-    pub(crate) fn active_image_path(&self, map: &Map) -> String {
-        resolve_active_image_path(
-            map,
-            self.auto_layer,
-            self.selected_layers.get(&map.normalized_name).copied(),
-            self.player_position.as_ref(),
-        )
-        .to_owned()
     }
 
     /// Handles scroll wheel zoom, zooming towards the mouse position.
@@ -949,60 +844,6 @@ impl TarkovMapApp {
                 center + egui::vec2(size, 0.0),
             ],
             stroke,
-        );
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn map(normalized_name: &str) -> Map {
-        crate::assets::load_maps()
-            .expect("map fixtures should load")
-            .into_iter()
-            .find(|map| map.normalized_name == normalized_name)
-            .expect("requested map fixture should exist")
-    }
-
-    #[test]
-    fn automatic_mode_ignores_manual_layer_without_player_position() {
-        for map in crate::assets::load_maps().expect("map fixtures should load") {
-            assert_eq!(
-                resolve_active_image_path(&map, true, Some(0), None),
-                map.image_path,
-                "{} should fall back to its base map",
-                map.normalized_name
-            );
-        }
-    }
-
-    #[test]
-    fn automatic_mode_uses_a_matching_player_floor() {
-        let map = map("ground-zero");
-        let player = PlayerPosition {
-            position: [0.0, 30.0, 0.0],
-            yaw: 0.0,
-            taken_at: std::time::SystemTime::now(),
-        };
-
-        assert_eq!(
-            resolve_active_image_path(&map, true, None, Some(&player)),
-            "maps/ground-zero-layer-0.bc7z"
-        );
-    }
-
-    #[test]
-    fn manual_mode_defaults_to_main_floor_and_honors_explicit_layer() {
-        let map = map("reserve");
-
-        assert_eq!(
-            resolve_active_image_path(&map, false, None, None),
-            "maps/reserve.bc7z"
-        );
-        assert_eq!(
-            resolve_active_image_path(&map, false, Some(4), None),
-            "maps/reserve-layer-4.bc7z"
         );
     }
 }

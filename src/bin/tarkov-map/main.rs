@@ -32,8 +32,6 @@ const SETTINGS_STORAGE_KEY: &str = "app_settings";
 struct AppSettings {
     schema_version: u32,
     selected_map_normalized_name: Option<String>,
-    selected_layers: HashMap<String, usize>,
-    auto_layer: bool,
     overlays: OverlayVisibility,
 }
 
@@ -42,8 +40,6 @@ impl Default for AppSettings {
         Self {
             schema_version: 2,
             selected_map_normalized_name: None,
-            selected_layers: HashMap::new(),
-            auto_layer: false,
             overlays: OverlayVisibility::default(),
         }
     }
@@ -79,8 +75,6 @@ impl MapTexture {
 pub struct TarkovMapApp {
     maps: TarkovMaps,
     selected_map: usize,
-    selected_layers: HashMap<String, usize>,
-    auto_layer: bool,
     /// One-shot request to center the view on the player marker this frame.
     center_on_player: bool,
     zoom: f32,
@@ -101,19 +95,10 @@ pub struct TarkovMapApp {
 
 impl TarkovMapApp {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let mut settings: AppSettings = cc
+        let settings: AppSettings = cc
             .storage
             .and_then(|storage| eframe::get_value(storage, SETTINGS_STORAGE_KEY))
             .unwrap_or_default();
-
-        // Version 1 enabled automatic floor tracking and populated
-        // manual selections merely by rendering the sidebar. Start them on the
-        // main floor instead; tracking can still be enabled explicitly.
-        if settings.schema_version < 2 {
-            settings.selected_layers.clear();
-            settings.auto_layer = false;
-            settings.schema_version = 2;
-        }
 
         let updater = updater::Updater::new(cc.egui_ctx.clone());
 
@@ -163,8 +148,6 @@ impl TarkovMapApp {
         Self {
             maps,
             selected_map,
-            selected_layers: settings.selected_layers,
-            auto_layer: settings.auto_layer,
             center_on_player: false,
             zoom: 1.0,
             prev_zoom: 1.0,
@@ -201,11 +184,11 @@ impl TarkovMapApp {
         });
     }
 
-    /// The image path the current map/floor selection resolves to.
+    /// The image path the current map selection resolves to (its Main Floor).
     fn active_image_path_now(&self) -> Option<String> {
         self.maps
             .get(self.selected_map)
-            .map(|map| self.active_image_path(map))
+            .map(|map| map.image_path.clone())
     }
 
     /// Active-image-only retention: frees every texture other than the one
@@ -403,7 +386,7 @@ impl eframe::App for TarkovMapApp {
     }
 
     fn logic(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        // Position first: with floor tracking on, it decides the active image.
+        // Position first so a fresh fix is drawn this frame.
         self.poll_player_position();
 
         let active = self.active_image_path_now();
@@ -438,8 +421,6 @@ impl eframe::App for TarkovMapApp {
 
         let settings = AppSettings {
             selected_map_normalized_name,
-            selected_layers: self.selected_layers.clone(),
-            auto_layer: self.auto_layer,
             overlays: self.overlays,
             ..Default::default()
         };
