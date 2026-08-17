@@ -1,5 +1,5 @@
 /// Width of the sidebar panel in pixels.
-pub const SIDEBAR_WIDTH: f32 = 200.0;
+pub const SIDEBAR_WIDTH: f32 = 220.0;
 
 /// Height of the custom title bar in pixels.
 pub const TITLE_BAR_HEIGHT: f32 = 32.0;
@@ -23,3 +23,10 @@ pub const POINTS_PER_SCROLL_NOTCH: f32 = 40.0;
 /// The largest bundled images decode to 64 MB (4096×4096 RGBA); this holds a
 /// full floor set of the biggest map plus a couple of recently viewed maps.
 pub const TEXTURE_BUDGET_BYTES: usize = 512 * 1024 * 1024;
+
+/// Zoom applied when centering on the player from the fit view, so that
+/// "center" visibly means something.
+pub const FOLLOW_ZOOM: f32 = 2.5;
+
+/// A position fix older than this is shown as stale in the position card.
+pub const FRESH_FIX_MAX_AGE: std::time::Duration = std::time::Duration::from_secs(120);

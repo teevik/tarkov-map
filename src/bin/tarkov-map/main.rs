@@ -34,6 +34,7 @@ struct AppSettings {
     selected_map_normalized_name: Option<String>,
     selected_layers: HashMap<String, usize>,
     auto_layer: bool,
+    follow_player: bool,
     overlays: OverlayVisibility,
 }
 
@@ -44,6 +45,7 @@ impl Default for AppSettings {
             selected_map_normalized_name: None,
             selected_layers: HashMap::new(),
             auto_layer: false,
+            follow_player: false,
             overlays: OverlayVisibility::default(),
         }
     }
@@ -55,6 +57,10 @@ pub struct TarkovMapApp {
     selected_map: usize,
     selected_layers: HashMap<String, usize>,
     auto_layer: bool,
+    /// Recenter the view on the player whenever a new fix arrives.
+    follow_player: bool,
+    /// One-shot request to center the view on the player marker this frame.
+    center_on_player: bool,
     zoom: f32,
     prev_zoom: f32,
     pan_offset: egui::Vec2,
@@ -137,6 +143,8 @@ impl TarkovMapApp {
             selected_map,
             selected_layers: settings.selected_layers,
             auto_layer: settings.auto_layer,
+            follow_player: settings.follow_player,
+            center_on_player: settings.follow_player,
             zoom: 1.0,
             prev_zoom: 1.0,
             pan_offset: egui::Vec2::ZERO,
@@ -243,6 +251,12 @@ impl TarkovMapApp {
         if let Some(watcher) = &mut self.screenshot_watcher
             && let Some(position) = watcher.poll()
         {
+            let is_new_fix = self
+                .player_position
+                .is_none_or(|previous| previous.taken_at != position.taken_at);
+            if is_new_fix && self.follow_player {
+                self.center_on_player = true;
+            }
             self.player_position = Some(position);
         }
     }
@@ -291,6 +305,7 @@ impl eframe::App for TarkovMapApp {
             selected_map_normalized_name,
             selected_layers: self.selected_layers.clone(),
             auto_layer: self.auto_layer,
+            follow_player: self.follow_player,
             overlays: self.overlays,
             ..Default::default()
         };

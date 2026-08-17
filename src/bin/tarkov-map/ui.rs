@@ -3,13 +3,27 @@
 use crate::TarkovMapApp;
 use crate::colors;
 use crate::constants::{
-    POINTS_PER_SCROLL_NOTCH, SIDEBAR_WIDTH, TITLE_BAR_HEIGHT, ZOOM_MAX, ZOOM_MIN, ZOOM_SPEED,
+    FOLLOW_ZOOM, FRESH_FIX_MAX_AGE, POINTS_PER_SCROLL_NOTCH, SIDEBAR_WIDTH, TITLE_BAR_HEIGHT,
+    ZOOM_MAX, ZOOM_MIN, ZOOM_SPEED,
 };
+use crate::coordinates::game_to_display;
 use crate::overlays::{draw_extracts, draw_labels, draw_player_marker, draw_spawns};
-use crate::screenshot_watcher::PlayerPosition;
+use crate::screenshot_watcher::{PlayerPosition, ScreenshotWatcher};
 use crate::{APP_TITLE, APP_VERSION};
 use eframe::egui::{self, ViewportCommand};
+use std::time::Duration;
 use tarkov_map::Map;
+
+/// Formats a fix age for the position card: "just now", "12 s ago", "5 min ago", "2 h ago".
+fn format_age(age: Duration) -> String {
+    let secs = age.as_secs();
+    match secs {
+        0..=2 => "just now".to_string(),
+        3..=59 => format!("{secs} s ago"),
+        60..=3599 => format!("{} min ago", secs / 60),
+        _ => format!("{} h ago", secs / 3600),
+    }
+}
 
 fn resolve_active_image_path<'a>(
     map: &'a Map,
@@ -67,19 +81,26 @@ impl TarkovMapApp {
             if i.key_pressed(egui::Key::L) {
                 self.overlays.labels = !self.overlays.labels;
             }
+            if i.key_pressed(egui::Key::C) {
+                self.center_on_player = true;
+            }
+            if i.key_pressed(egui::Key::F) {
+                self.follow_player = !self.follow_player;
+                self.center_on_player = self.follow_player;
+            }
         });
     }
 
-    /// Renders the sidebar content: map selector and overlay toggles.
+    /// Renders the sidebar content: position tracking, map selector, floor, overlays.
     fn show_sidebar_content(&mut self, ui: &mut egui::Ui) {
-        ui.add_space(4.0);
+        ui.add_space(6.0);
 
-        // Maps section
-        ui.strong("Maps");
-        ui.separator();
+        self.show_position_card(ui);
+
+        Self::section_header(ui, "Map");
 
         if self.maps.is_empty() {
-            ui.label("No maps loaded");
+            ui.weak("No maps loaded");
         } else {
             let prev_selected = self.selected_map;
             for (idx, map) in self.maps.iter().enumerate() {
@@ -93,10 +114,9 @@ impl TarkovMapApp {
 
             if self.selected_map != prev_selected {
                 self.reset_view();
+                self.center_on_player = self.follow_player;
             }
         }
-
-        ui.add_space(12.0);
 
         if let Some(map) = self.maps.get(self.selected_map).cloned() {
             let available_layers: Vec<_> = map
@@ -109,9 +129,9 @@ impl TarkovMapApp {
                 .collect();
 
             if !available_layers.is_empty() {
-                ui.strong("Floor");
-                ui.separator();
-                ui.checkbox(&mut self.auto_layer, "Follow player height");
+                Self::section_header(ui, "Floor");
+                ui.checkbox(&mut self.auto_layer, "Match player's floor")
+                    .on_hover_text("Switch floors automatically from the player's height");
 
                 let selected_layer = self
                     .selected_layers
@@ -130,6 +150,7 @@ impl TarkovMapApp {
                 ui.add_enabled_ui(!self.auto_layer, |ui| {
                     egui::ComboBox::from_id_salt("map_layer")
                         .selected_text(selected_text)
+                        .width(ui.available_width())
                         .show_ui(ui, |ui| {
                             if ui
                                 .selectable_label(selected_layer.is_none(), "Main Floor")
@@ -149,13 +170,10 @@ impl TarkovMapApp {
                             }
                         });
                 });
-                ui.add_space(12.0);
             }
         }
 
-        // Overlays section
-        ui.strong("Overlays");
-        ui.separator();
+        Self::section_header(ui, "Overlays");
 
         Self::overlay_toggle_circle(
             ui,
@@ -190,9 +208,115 @@ impl TarkovMapApp {
         Self::overlay_toggle_triangle(
             ui,
             &mut self.overlays.player_marker,
-            "Player Position",
+            "Player marker",
             colors::PLAYER_MARKER_FILL,
         );
+    }
+
+    /// A quiet uppercase eyebrow that separates sidebar sections.
+    fn section_header(ui: &mut egui::Ui, title: &str) {
+        ui.add_space(14.0);
+        ui.label(
+            egui::RichText::new(title.to_uppercase())
+                .size(11.0)
+                .color(ui.visuals().weak_text_color()),
+        );
+        ui.add_space(2.0);
+    }
+
+    /// The position card: is tracking working, how fresh is the fix, and
+    /// the controls that act on it (follow, center).
+    fn show_position_card(&mut self, ui: &mut egui::Ui) {
+        let position = self.player_position;
+        let watching = self.screenshot_watcher.is_some();
+
+        // Status line: coloured dot + short state, age on the right.
+        let (dot_color, state, detail): (egui::Color32, &str, Option<String>) = match position {
+            Some(pos) => {
+                let age = pos.age();
+                let fresh = age < FRESH_FIX_MAX_AGE;
+                (
+                    if fresh {
+                        colors::TRACKING_LIVE
+                    } else {
+                        colors::TRACKING_STALE
+                    },
+                    if fresh { "Live" } else { "Stale" },
+                    Some(format_age(age)),
+                )
+            }
+            None if watching => (colors::TRACKING_STALE, "Waiting", None),
+            None => (colors::TRACKING_OFF, "Not tracking", None),
+        };
+
+        let card = egui::Frame::group(ui.style())
+            .inner_margin(egui::Margin::symmetric(10, 8))
+            .corner_radius(6);
+        card.show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.horizontal(|ui| {
+                let (rect, _) =
+                    ui.allocate_exact_size(egui::vec2(10.0, 10.0), egui::Sense::hover());
+                ui.painter().circle_filled(rect.center(), 4.0, dot_color);
+                ui.strong(state);
+                if let Some(detail) = detail {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.weak(detail);
+                    });
+                }
+            });
+
+            match position {
+                Some(pos) => {
+                    let [x, y, z] = pos.position;
+                    ui.label(
+                        egui::RichText::new(format!("{x:>7.1}  {y:>6.1}  {z:>7.1}"))
+                            .monospace()
+                            .size(11.5)
+                            .color(ui.visuals().weak_text_color()),
+                    )
+                    .on_hover_text("Game coordinates: X  Y (height)  Z");
+                }
+                None if watching => {
+                    ui.weak("Take a screenshot in raid to place your marker.");
+                }
+                None => {
+                    ui.weak("Screenshots folder not found:");
+                    let path = ScreenshotWatcher::screenshots_path()
+                        .map(|p| p.display().to_string())
+                        .unwrap_or_else(|| "Documents folder unavailable".to_string());
+                    ui.add(
+                        egui::Label::new(egui::RichText::new(path).monospace().size(10.5).weak())
+                            .wrap(),
+                    );
+                }
+            }
+
+            ui.add_space(6.0);
+            ui.horizontal(|ui| {
+                let follow = ui
+                    .checkbox(&mut self.follow_player, "Follow")
+                    .on_hover_text("Recenter on the player after every screenshot (F)");
+                if follow.changed() && self.follow_player {
+                    self.center_on_player = true;
+                }
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui
+                        .add_enabled(position.is_some(), egui::Button::new("Center"))
+                        .on_hover_text("Center the view on the player (C)")
+                        .clicked()
+                    {
+                        self.center_on_player = true;
+                    }
+                });
+            });
+        });
+
+        // The age readout ticks; keep it honest without spinning the CPU.
+        if position.is_some() {
+            ui.ctx()
+                .request_repaint_after(std::time::Duration::from_secs(1));
+        }
     }
 
     /// Renders a triangle-style overlay toggle (for player marker).
@@ -283,7 +407,7 @@ impl TarkovMapApp {
     /// Renders the floating zoom controls panel.
     fn show_zoom_controls(&mut self, ctx: &egui::Context, panel_rect: egui::Rect) {
         let margin = 12.0;
-        let panel_width = 160.0;
+        let panel_width = 220.0;
         let panel_height = 36.0;
 
         let anchor_pos = egui::pos2(
@@ -306,6 +430,16 @@ impl TarkovMapApp {
                             );
                             if ui.button("Fit").on_hover_text("Reset view (0)").clicked() {
                                 self.reset_view();
+                            }
+                            if ui
+                                .add_enabled(
+                                    self.player_position.is_some(),
+                                    egui::Button::new("Center"),
+                                )
+                                .on_hover_text("Center on player (C)")
+                                .clicked()
+                            {
+                                self.center_on_player = true;
                             }
                         });
                     });
@@ -361,6 +495,27 @@ impl TarkovMapApp {
         // Handle drag panning
         if response.dragged() {
             self.pan_offset += response.drag_delta();
+        }
+
+        // Center on the player when asked (Center button, C, F, or a fresh fix
+        // while following). From the fit view, zoom in so centering means
+        // something; otherwise keep whatever zoom the user chose.
+        if self.center_on_player {
+            self.center_on_player = false;
+            if let Some(player) = self.player_position {
+                if self.zoom <= ZOOM_MIN {
+                    self.zoom = FOLLOW_ZOOM;
+                }
+                let display_size = logical_size * fit_scale * self.zoom;
+                let map_rect = egui::Rect::from_center_size(
+                    viewport_rect.center() + self.pan_offset,
+                    display_size,
+                );
+                let game_pos = [player.position[0], player.position[2]];
+                if let Some(player_pos) = game_to_display(map, map_rect, game_pos) {
+                    self.pan_offset += viewport_rect.center() - player_pos;
+                }
+            }
         }
 
         let display_size = logical_size * fit_scale * self.zoom;
@@ -512,7 +667,7 @@ impl TarkovMapApp {
             )
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    ui.label("Scroll: Zoom | Drag: Pan | +/-: Zoom | 0: Fit | L: Labels");
+                    ui.weak("Scroll: Zoom · Drag: Pan · +/−: Zoom · 0: Fit · C: Center · F: Follow · L: Labels");
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if let Some(map) = &selected_map {
@@ -820,6 +975,7 @@ mod tests {
         let player = PlayerPosition {
             position: [0.0, 30.0, 0.0],
             yaw: 0.0,
+            taken_at: std::time::SystemTime::now(),
         };
 
         assert_eq!(

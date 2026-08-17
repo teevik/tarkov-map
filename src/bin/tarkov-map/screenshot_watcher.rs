@@ -10,6 +10,7 @@ use regex::Regex;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
+use std::time::SystemTime;
 
 /// Player position and rotation data extracted from a screenshot filename.
 #[derive(Debug, Clone, Copy)]
@@ -18,6 +19,19 @@ pub struct PlayerPosition {
     pub position: [f64; 3],
     /// Yaw rotation in radians (direction the player is facing)
     pub yaw: f32,
+    /// When this fix was taken: the screenshot's modification time when known,
+    /// otherwise the moment it was observed.
+    pub taken_at: SystemTime,
+}
+
+impl PlayerPosition {
+    /// Age of this fix relative to now. Saturates at zero if the clock ran
+    /// backwards.
+    pub fn age(&self) -> std::time::Duration {
+        SystemTime::now()
+            .duration_since(self.taken_at)
+            .unwrap_or_default()
+    }
 }
 
 /// Watches the Tarkov screenshots folder for new screenshots and extracts player position.
@@ -105,7 +119,7 @@ impl ScreenshotWatcher {
     }
 
     /// Returns the path to the Tarkov screenshots folder.
-    fn screenshots_path() -> Option<PathBuf> {
+    pub fn screenshots_path() -> Option<PathBuf> {
         let documents = dirs::document_dir()?;
         Some(documents.join("Escape from Tarkov").join("Screenshots"))
     }
@@ -145,10 +159,14 @@ impl ScreenshotWatcher {
         let qw: f32 = caps.name("qw")?.as_str().parse().ok()?;
 
         let yaw = quaternion_to_yaw(qx, qy, qz, qw);
+        let taken_at = fs::metadata(path)
+            .and_then(|meta| meta.modified())
+            .unwrap_or_else(|_| SystemTime::now());
 
         Some(PlayerPosition {
             position: [x, y, z],
             yaw,
+            taken_at,
         })
     }
 
