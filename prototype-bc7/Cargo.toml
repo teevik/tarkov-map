@@ -1,0 +1,29 @@
+# PROTOTYPE — throwaway code answering: is BC7+zstd fast enough for
+# single-texture retention? Not part of the main crate. Delete freely.
+[package]
+name = "prototype-bc7"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+image = { version = "0.25", default-features = false, features = ["png"] }
+zstd = "0.13"
+intel_tex_2 = "0.4"
+texture2ddecoder = "0.1"
+eframe = { version = "0.33.3", features = ["wgpu"] }
+
+[profile.release]
+debug = false
+
+[[bin]]
+name = "gpu"
+path = "src/gpu.rs"
+
+[[bin]]
+name = "prototype-bc7"
+path = "src/main.rs"
+
+[[bin]]
+name = "gpu-wgpu"
+path = "src/gpu_wgpu.rs"
