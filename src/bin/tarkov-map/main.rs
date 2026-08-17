@@ -4,6 +4,7 @@ mod assets;
 mod colors;
 mod constants;
 mod coordinates;
+mod demo;
 mod overlays;
 mod residency;
 mod screenshot_watcher;
@@ -71,6 +72,7 @@ pub struct TarkovMapApp {
     toasts: Toasts,
     updater: updater::Updater,
     screenshot_watcher: Option<ScreenshotWatcher>,
+    demo: Option<demo::DemoWalker>,
     player_position: Option<PlayerPosition>,
 
     /// Flag to clear settings on app close (triggered by File -> Clear Settings).
@@ -155,6 +157,7 @@ impl TarkovMapApp {
             toasts,
             updater,
             screenshot_watcher,
+            demo: demo::DemoWalker::from_env(),
             player_position,
             clear_settings_on_close: false,
         }
@@ -248,9 +251,13 @@ impl TarkovMapApp {
 
     /// Polls the screenshot watcher for player position updates.
     fn poll_player_position(&mut self) {
-        if let Some(watcher) = &mut self.screenshot_watcher
-            && let Some(position) = watcher.poll()
-        {
+        let demo_fix = match (&mut self.demo, self.maps.get(self.selected_map)) {
+            (Some(demo), Some(map)) => demo.poll(map),
+            _ => None,
+        };
+        let watcher_fix = self.screenshot_watcher.as_mut().and_then(|w| w.poll());
+
+        if let Some(position) = demo_fix.or(watcher_fix) {
             let is_new_fix = self
                 .player_position
                 .is_none_or(|previous| previous.taken_at != position.taken_at);

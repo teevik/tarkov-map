@@ -228,7 +228,8 @@ impl TarkovMapApp {
     /// the controls that act on it (follow, center).
     fn show_position_card(&mut self, ui: &mut egui::Ui) {
         let position = self.player_position;
-        let watching = self.screenshot_watcher.is_some();
+        let demo = self.demo.is_some();
+        let watching = self.screenshot_watcher.is_some() || demo;
 
         // Status line: coloured dot + short state, age on the right.
         let (dot_color, state, detail): (egui::Color32, &str, Option<String>) = match position {
@@ -241,7 +242,11 @@ impl TarkovMapApp {
                     } else {
                         colors::TRACKING_STALE
                     },
-                    if fresh { "Live" } else { "Stale" },
+                    match (fresh, demo) {
+                        (_, true) => "Demo",
+                        (true, false) => "Live",
+                        (false, false) => "Stale",
+                    },
                     Some(format_age(age)),
                 )
             }
