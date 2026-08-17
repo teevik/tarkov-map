@@ -118,7 +118,7 @@ impl TarkovMapApp {
             })
             .unwrap_or(0);
 
-        // Images load on demand: only the active map or floor is decoded, and
+        // Images load on demand: only the selected map's Main Floor is decoded, and
         // only once it is actually about to be rendered (see `request_image`).
         let asset_cache = AssetCache::new();
 
