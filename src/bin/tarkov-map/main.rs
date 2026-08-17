@@ -253,15 +253,17 @@ impl eframe::App for TarkovMapApp {
         egui::Rgba::TRANSPARENT.to_array() // Don't paint behind rounded corners
     }
 
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.texture_residency.begin_frame();
         self.poll_all_assets(ctx);
         self.poll_player_position();
         self.handle_keyboard_input(ctx);
         self.updater.poll(ctx, &mut self.toasts);
+    }
 
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         // Render custom window frame with title bar
-        self.show_custom_frame(ctx);
+        self.show_custom_frame(ui);
 
         // The render pass above touched the displayed texture; now the budget
         // can be enforced without ever evicting what is on screen.
@@ -270,7 +272,7 @@ impl eframe::App for TarkovMapApp {
         self.prev_zoom = self.zoom;
 
         // Show toasts
-        self.toasts.show(ctx);
+        self.toasts.show(ui);
     }
 
     fn save(&mut self, storage: &mut dyn eframe::Storage) {

@@ -13,6 +13,11 @@ pub const ZOOM_MAX: f32 = 10.0;
 /// Zoom speed multiplier for scroll/keyboard zoom.
 pub const ZOOM_SPEED: f32 = 1.2;
 
+/// Points one wheel notch scrolls in egui (`line_scroll_speed` on native).
+/// Scroll-zoom scales [`ZOOM_SPEED`] by delta/notch so the smoothed per-frame
+/// deltas multiply back up to one zoom step per notch.
+pub const POINTS_PER_SCROLL_NOTCH: f32 = 40.0;
+
 /// Budget for retained map textures, in decoded bytes (width × height × 4).
 ///
 /// The largest bundled images decode to 64 MB (4096×4096 RGBA); this holds a

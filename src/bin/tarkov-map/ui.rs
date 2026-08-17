@@ -2,7 +2,9 @@
 
 use crate::TarkovMapApp;
 use crate::colors;
-use crate::constants::{SIDEBAR_WIDTH, TITLE_BAR_HEIGHT, ZOOM_MAX, ZOOM_MIN, ZOOM_SPEED};
+use crate::constants::{
+    POINTS_PER_SCROLL_NOTCH, SIDEBAR_WIDTH, TITLE_BAR_HEIGHT, ZOOM_MAX, ZOOM_MIN, ZOOM_SPEED,
+};
 use crate::overlays::{draw_extracts, draw_labels, draw_player_marker, draw_spawns};
 use crate::screenshot_watcher::PlayerPosition;
 use crate::{APP_TITLE, APP_VERSION};
@@ -66,38 +68,6 @@ impl TarkovMapApp {
                 self.overlays.labels = !self.overlays.labels;
             }
         });
-    }
-
-    /// Renders the bottom status bar with controls hint and map author info.
-    pub fn show_status_bar(&self, ctx: &egui::Context, selected_map: &Option<Map>) {
-        egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.label("Scroll: Zoom | Drag: Pan | +/-: Zoom | 0: Fit | L: Labels");
-
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if let Some(map) = selected_map {
-                        if let Some(link) = &map.author_link {
-                            ui.hyperlink_to(map.author.as_deref().unwrap_or("Map author"), link);
-                            ui.label("Map by:");
-                        } else if let Some(author) = &map.author {
-                            ui.label(format!("Map by: {author}"));
-                        }
-                    }
-                });
-            });
-        });
-    }
-
-    /// Renders the left sidebar panel.
-    pub fn show_sidebar(&mut self, ctx: &egui::Context) {
-        egui::SidePanel::left("sidebar")
-            .exact_width(SIDEBAR_WIDTH)
-            .resizable(false)
-            .show(ctx, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    self.show_sidebar_content(ui);
-                });
-            });
     }
 
     /// Renders the sidebar content: map selector and overlay toggles.
@@ -310,22 +280,6 @@ impl TarkovMapApp {
         });
     }
 
-    /// Renders the central panel containing the map view.
-    pub fn show_central_panel(&mut self, ctx: &egui::Context, selected_map: Option<Map>) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            let Some(map) = selected_map else {
-                ui.centered_and_justified(|ui| {
-                    ui.label("No map data.\nRun `cargo run --bin fetch_maps` to generate assets.");
-                });
-                return;
-            };
-
-            let panel_rect = ui.max_rect();
-            self.show_map(ui, ctx, &map);
-            self.show_zoom_controls(ctx, panel_rect);
-        });
-    }
-
     /// Renders the floating zoom controls panel.
     fn show_zoom_controls(&mut self, ctx: &egui::Context, panel_rect: egui::Rect) {
         let margin = 12.0;
@@ -462,17 +416,16 @@ impl TarkovMapApp {
     /// Handles scroll wheel zoom, zooming towards the mouse position.
     fn handle_scroll_zoom(&mut self, ui: &mut egui::Ui, viewport_rect: egui::Rect) -> bool {
         let hover_pos = ui.input(|i| i.pointer.hover_pos());
-        let scroll_delta = ui.input(|i| i.raw_scroll_delta.y);
+        let scroll_delta = ui.input(|i| i.smooth_scroll_delta.y);
 
         if scroll_delta == 0.0 || !hover_pos.is_some_and(|p| viewport_rect.contains(p)) {
             return false;
         }
 
-        let zoom_factor = if scroll_delta > 0.0 {
-            ZOOM_SPEED
-        } else {
-            1.0 / ZOOM_SPEED
-        };
+        // The smoothed delta spreads one wheel notch over a few frames;
+        // scaling the zoom factor by magnitude makes the per-frame factors
+        // multiply back up to one ZOOM_SPEED step per notch.
+        let zoom_factor = ZOOM_SPEED.powf(scroll_delta / POINTS_PER_SCROLL_NOTCH);
         let new_zoom = (self.zoom * zoom_factor).clamp(ZOOM_MIN, ZOOM_MAX);
 
         // Zoom towards mouse position
@@ -498,51 +451,48 @@ impl TarkovMapApp {
     }
 
     /// Renders the complete custom window frame with title bar and content.
-    pub fn show_custom_frame(&mut self, ctx: &egui::Context) {
-        let is_maximized = ctx.input(|i| i.viewport().maximized.unwrap_or(false));
+    /// Expects the root viewport `Ui` (no margin or background), as handed to
+    /// [`eframe::App::ui`].
+    pub fn show_custom_frame(&mut self, ui: &mut egui::Ui) {
+        let is_maximized = ui.input(|i| i.viewport().maximized.unwrap_or(false));
 
         // When maximized, no border radius or stroke (like native Windows)
         let corner_radius = if is_maximized { 0.0 } else { 10.0 };
         let panel_frame = egui::Frame::new()
-            .fill(ctx.style().visuals.window_fill())
+            .fill(ui.global_style().visuals.window_fill())
             .corner_radius(corner_radius)
             .stroke(if is_maximized {
                 egui::Stroke::NONE
             } else {
-                ctx.style().visuals.widgets.noninteractive.fg_stroke
+                ui.global_style().visuals.widgets.noninteractive.fg_stroke
             })
             .outer_margin(if is_maximized { 0.0 } else { 1.0 });
 
-        egui::CentralPanel::default()
-            .frame(egui::Frame::NONE)
-            .show(ctx, |ui| {
-                panel_frame.show(ui, |ui| {
-                    let app_rect = ui.max_rect();
-                    ui.expand_to_include_rect(app_rect);
+        panel_frame.show(ui, |ui| {
+            let app_rect = ui.max_rect();
+            ui.expand_to_include_rect(app_rect);
 
-                    // Title bar area
-                    let title_bar_rect = {
-                        let mut rect = app_rect;
-                        rect.max.y = rect.min.y + TITLE_BAR_HEIGHT;
-                        rect
-                    };
+            // Title bar area
+            let title_bar_rect = {
+                let mut rect = app_rect;
+                rect.max.y = rect.min.y + TITLE_BAR_HEIGHT;
+                rect
+            };
 
-                    // Content area (below title bar)
-                    let content_rect = {
-                        let mut rect = app_rect;
-                        rect.min.y = title_bar_rect.max.y;
-                        rect
-                    };
+            // Content area (below title bar)
+            let content_rect = {
+                let mut rect = app_rect;
+                rect.min.y = title_bar_rect.max.y;
+                rect
+            };
 
-                    // Render title bar
-                    self.show_title_bar(ui, title_bar_rect, is_maximized, corner_radius);
+            // Render title bar
+            self.show_title_bar(ui, title_bar_rect, is_maximized, corner_radius);
 
-                    // Render content in the remaining area
-                    let mut content_ui =
-                        ui.new_child(egui::UiBuilder::new().max_rect(content_rect));
-                    self.show_frame_content(&mut content_ui, is_maximized);
-                });
-            });
+            // Render content in the remaining area
+            let mut content_ui = ui.new_child(egui::UiBuilder::new().max_rect(content_rect));
+            self.show_frame_content(&mut content_ui, is_maximized);
+        });
     }
 
     /// Renders the content inside the custom frame (sidebar, central panel, status bar).
@@ -552,7 +502,7 @@ impl TarkovMapApp {
 
         // Status bar at bottom (no corner radius when maximized)
         let status_corner_radius = if is_maximized { 0 } else { 10 };
-        egui::TopBottomPanel::bottom("status_bar")
+        egui::Panel::bottom("status_bar")
             .frame(
                 egui::Frame::side_top_panel(ui.style()).corner_radius(egui::CornerRadius {
                     sw: status_corner_radius,
@@ -560,7 +510,7 @@ impl TarkovMapApp {
                     ..Default::default()
                 }),
             )
-            .show_inside(ui, |ui| {
+            .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label("Scroll: Zoom | Drag: Pan | +/-: Zoom | 0: Fit | L: Labels");
 
@@ -581,17 +531,17 @@ impl TarkovMapApp {
             });
 
         // Sidebar on left
-        egui::SidePanel::left("sidebar")
-            .exact_width(SIDEBAR_WIDTH)
+        egui::Panel::left("sidebar")
+            .exact_size(SIDEBAR_WIDTH)
             .resizable(false)
-            .show_inside(ui, |ui| {
+            .show(ui, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     self.show_sidebar_content(ui);
                 });
             });
 
         // Central panel with map
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             let Some(map) = selected_map else {
                 ui.centered_and_justified(|ui| {
                     ui.label("No map data.\nRun `cargo run --bin fetch_maps` to generate assets.");
