@@ -27,9 +27,6 @@ pub const LABEL_TEXT: Color32 = Color32::from_rgba_premultiplied(255, 255, 255, 
 pub const LABEL_SHADOW: Color32 = Color32::from_rgba_premultiplied(0, 0, 0, 180);
 pub const EXTRACT_TEXT_SHADOW: Color32 = Color32::from_rgba_premultiplied(0, 0, 0, 200);
 
-// Player marker halo: a light ring so the marker reads on any map colour.
-pub const PLAYER_MARKER_HALO: Color32 = Color32::from_rgba_premultiplied(255, 255, 255, 230);
-
 // Position tracking status
 pub const TRACKING_LIVE: Color32 = Color32::from_rgb(92, 214, 122);
 pub const TRACKING_STALE: Color32 = Color32::from_rgb(230, 170, 60);

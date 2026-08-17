@@ -3,7 +3,7 @@
 use crate::TarkovMapApp;
 use crate::colors;
 use crate::constants::{
-    FOLLOW_ZOOM, FRESH_FIX_MAX_AGE, POINTS_PER_SCROLL_NOTCH, SIDEBAR_WIDTH, TITLE_BAR_HEIGHT,
+    CENTER_ZOOM, FRESH_FIX_MAX_AGE, POINTS_PER_SCROLL_NOTCH, SIDEBAR_WIDTH, TITLE_BAR_HEIGHT,
     ZOOM_MAX, ZOOM_MIN, ZOOM_SPEED,
 };
 use crate::coordinates::game_to_display;
@@ -84,10 +84,6 @@ impl TarkovMapApp {
             if i.key_pressed(egui::Key::C) {
                 self.center_on_player = true;
             }
-            if i.key_pressed(egui::Key::F) {
-                self.follow_player = !self.follow_player;
-                self.center_on_player = self.follow_player;
-            }
         });
     }
 
@@ -114,7 +110,6 @@ impl TarkovMapApp {
 
             if self.selected_map != prev_selected {
                 self.reset_view();
-                self.center_on_player = self.follow_player;
             }
         }
 
@@ -224,8 +219,7 @@ impl TarkovMapApp {
         ui.add_space(2.0);
     }
 
-    /// The position card: is tracking working, how fresh is the fix, and
-    /// the controls that act on it (follow, center).
+    /// The position card: is tracking working and how fresh is the fix.
     fn show_position_card(&mut self, ui: &mut egui::Ui) {
         let position = self.player_position;
         let demo = self.demo.is_some();
@@ -296,25 +290,6 @@ impl TarkovMapApp {
                     );
                 }
             }
-
-            ui.add_space(6.0);
-            ui.horizontal(|ui| {
-                let follow = ui
-                    .checkbox(&mut self.follow_player, "Follow")
-                    .on_hover_text("Recenter on the player after every screenshot (F)");
-                if follow.changed() && self.follow_player {
-                    self.center_on_player = true;
-                }
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui
-                        .add_enabled(position.is_some(), egui::Button::new("Center"))
-                        .on_hover_text("Center the view on the player (C)")
-                        .clicked()
-                    {
-                        self.center_on_player = true;
-                    }
-                });
-            });
         });
 
         // The age readout ticks; keep it honest without spinning the CPU.
@@ -502,14 +477,14 @@ impl TarkovMapApp {
             self.pan_offset += response.drag_delta();
         }
 
-        // Center on the player when asked (Center button, C, F, or a fresh fix
-        // while following). From the fit view, zoom in so centering means
-        // something; otherwise keep whatever zoom the user chose.
+        // Center on the player when asked (Center button or C). From the fit
+        // view, zoom in so centering means something; otherwise keep whatever
+        // zoom the user chose.
         if self.center_on_player {
             self.center_on_player = false;
             if let Some(player) = self.player_position {
                 if self.zoom <= ZOOM_MIN {
-                    self.zoom = FOLLOW_ZOOM;
+                    self.zoom = CENTER_ZOOM;
                 }
                 let display_size = logical_size * fit_scale * self.zoom;
                 let map_rect = egui::Rect::from_center_size(
@@ -672,7 +647,9 @@ impl TarkovMapApp {
             )
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    ui.weak("Scroll: Zoom · Drag: Pan · +/−: Zoom · 0: Fit · C: Center · F: Follow · L: Labels");
+                    ui.weak(
+                        "Scroll: Zoom · Drag: Pan · +/−: Zoom · 0: Fit · C: Center · L: Labels",
+                    );
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if let Some(map) = &selected_map {

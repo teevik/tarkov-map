@@ -5,11 +5,7 @@ use crate::coordinates::game_to_display;
 use crate::screenshot_watcher::PlayerPosition;
 use eframe::egui;
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
 use tarkov_map::{Extract, Label, Map, Spawn};
-
-/// How long the marker pulses after a fresh position fix lands.
-pub const PULSE_DURATION: Duration = Duration::from_millis(2400);
 
 /// Paints text with a dark outline so it stays legible over any map colour.
 fn outlined_text(
@@ -212,7 +208,7 @@ pub fn draw_player_marker(
     let painter = ui.painter();
 
     // Sizes scale with zoom
-    let circle_radius = (8.0 * zoom).clamp(7.0, 16.0);
+    let circle_radius = (8.0 * zoom).clamp(6.0, 16.0);
     let triangle_size = (8.0 * zoom).clamp(5.0, 14.0);
     let triangle_offset = circle_radius + triangle_size * 0.6; // Distance from center to triangle
 
@@ -220,34 +216,6 @@ pub fn draw_player_marker(
     // We need to adjust for the map's coordinate rotation to display correctly.
     let coord_rotation = map.coordinate_rotation.unwrap_or(0.0) as f32;
     let adjusted_yaw = player.yaw - coord_rotation.to_radians();
-
-    // Fresh fixes ring outward for a moment so the marker catches the eye
-    // from across the desk. Three staggered rings; repaint until it settles.
-    let age = player.age();
-    if age < PULSE_DURATION {
-        let progress = age.as_secs_f32() / PULSE_DURATION.as_secs_f32();
-        for ring in 0..3 {
-            let t = progress - ring as f32 * 0.22;
-            if !(0.0..1.0).contains(&t) {
-                continue;
-            }
-            let radius = circle_radius + t * circle_radius * 4.5;
-            let alpha = (1.0 - t).powi(2);
-            painter.circle_stroke(
-                pos,
-                radius,
-                egui::Stroke::new(2.0_f32, colors::PLAYER_MARKER_FILL.gamma_multiply(alpha)),
-            );
-        }
-        ui.ctx().request_repaint();
-    }
-
-    // Light halo under the marker so it reads on dark and light map areas alike
-    painter.circle_stroke(
-        pos,
-        circle_radius + 1.5,
-        egui::Stroke::new(3.0_f32, colors::PLAYER_MARKER_HALO),
-    );
 
     // Draw the circle at player position
     painter.circle(

@@ -26,7 +26,7 @@ pub const TEXTURE_BUDGET_BYTES: usize = 512 * 1024 * 1024;
 
 /// Zoom applied when centering on the player from the fit view, so that
 /// "center" visibly means something.
-pub const FOLLOW_ZOOM: f32 = 2.5;
+pub const CENTER_ZOOM: f32 = 2.5;
 
 /// A position fix older than this is shown as stale in the position card.
 pub const FRESH_FIX_MAX_AGE: std::time::Duration = std::time::Duration::from_secs(120);

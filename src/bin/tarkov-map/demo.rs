@@ -2,7 +2,7 @@
 //!
 //! Enabled with the `TARKOV_MAP_DEMO` environment variable. Every few
 //! seconds a new fix is emitted, wandering around the centre of the selected
-//! map, so the position card, marker pulse, Follow and Center can all be
+//! map, so the position card and Center can be
 //! shown without Tarkov installed.
 
 use crate::screenshot_watcher::PlayerPosition;
