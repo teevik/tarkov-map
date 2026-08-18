@@ -51,11 +51,18 @@ impl TarkovMapApp {
     fn show_sidebar_content(&mut self, ui: &mut egui::Ui) {
         ui.add_space(6.0);
 
-        self.show_position_card(ui);
+        // PROTOTYPE (#58): in screenshot mode, drop the position card and map
+        // list so the Overlays toggles fit the frame.
+        let proto_shots = self.proto_shots_active();
+        if !proto_shots {
+            self.show_position_card(ui);
+        }
 
         Self::section_header(ui, "Map");
 
-        if self.maps.is_empty() {
+        if proto_shots {
+            ui.weak("(map list hidden in shot mode)");
+        } else if self.maps.is_empty() {
             ui.weak("No maps loaded");
         } else {
             let prev_selected = self.selected_map;
@@ -111,10 +118,13 @@ impl TarkovMapApp {
             "Player marker",
             colors::PLAYER_MARKER_FILL,
         );
+
+        // PROTOTYPE (#58): the six new toggles with per-variant glyphs.
+        self.show_prototype_sidebar(ui);
     }
 
     /// A quiet uppercase eyebrow that separates sidebar sections.
-    fn section_header(ui: &mut egui::Ui, title: &str) {
+    pub fn section_header(ui: &mut egui::Ui, title: &str) {
         ui.add_space(14.0);
         ui.label(
             egui::RichText::new(title.to_uppercase())
@@ -539,6 +549,9 @@ impl TarkovMapApp {
             }
         }
 
+        // PROTOTYPE (#58): screenshot driver focus.
+        self.proto_apply_focus(map, viewport_rect, fit_scale);
+
         let display_size = logical_size * fit_scale * self.zoom;
         let map_center = viewport_rect.center() + self.pan_offset;
         let map_rect = egui::Rect::from_center_size(map_center, display_size);
@@ -548,6 +561,9 @@ impl TarkovMapApp {
         // Draw map image
         ui.painter()
             .image(texture_id, map_rect, texture_uv, egui::Color32::WHITE);
+
+        // PROTOTYPE (#58): area Overlays beneath every marker.
+        self.proto_draw_areas(ui, map_rect, map, self.zoom);
 
         // Draw overlays
         let overlays = self.overlays;
@@ -566,6 +582,9 @@ impl TarkovMapApp {
         if let Some(extracts) = &map.extracts {
             draw_extracts(ui, map_rect, map, extracts, self.zoom, &overlays);
         }
+
+        // PROTOTYPE (#58): new marker Overlays.
+        self.proto_draw_markers(ui, map_rect, map, self.zoom);
 
         // Draw player position marker
         if overlays.player_marker
@@ -716,6 +735,7 @@ impl TarkovMapApp {
             let panel_rect = ui.max_rect();
             self.show_map(ui, &ctx, &map);
             self.show_zoom_controls(&ctx, panel_rect);
+            self.show_prototype_bar(&ctx, panel_rect);
         });
     }
 
