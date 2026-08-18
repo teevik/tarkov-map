@@ -40,9 +40,13 @@ _Avoid_: Layer (reserved for tarkov.dev's per-floor tile sets, which are not mod
 A named group of Overlays that share a collapsible heading in the sidebar. Purely presentational: a category has no visibility of its own — collapsing it hides its toggles in the sidebar, not the Overlays on the Map — and its only state is whether it is open. A category none of whose Overlays are offered on the current Map is not shown.
 _Avoid_: Section (the sidebar's top-level headings such as "Map" and "Overlays"), group, layer group
 
+**Mob**:
+One named enemy that tarkov.dev lists as a boss on a Map — a real boss (Reshala, Killa), a squad (Raider, Rogue, AF, Black Div.) or a cultist — identified by its translated name. Each Mob present on the current Map is offered as its own Overlay in the Spawns category; escorts and guards are not Mobs.
+_Avoid_: Boss (only some Mobs are bosses), bot, faction, `mob` key (tarkov.dev's raw id, several of which map to one Mob)
+
 **Boss Spawn**:
-A position on a Map where one or more of the named mobs tarkov.dev lists as bosses — including Raiders, Rogues and faction squads such as AF and Black Div. — may appear, each with its map-wide spawn chance. Drawn as the "Bosses" Overlay; escorts are not Boss Spawns.
-_Avoid_: Boss zone, boss location, spawn location (tarkov.dev's zone grouping, which is not modelled)
+A position on a Map where one or more Mobs may appear, each with its map-wide spawn chance. Drawn as one marker listing every Mob whose Overlay is on; hidden when none is.
+_Avoid_: Boss zone, boss location, spawn location (tarkov.dev's zone grouping, which is not modelled), "Bosses" Overlay (there is none — each Mob is its own Overlay)
 
 **Sniper Zone**:
 An area of a Map covered by a stationary marksman, as outlined by tarkov.dev; drawn as its outline on the Map. Drawn as the "Sniper zones" Overlay.
