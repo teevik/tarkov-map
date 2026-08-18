@@ -25,7 +25,7 @@ Whether the newest Player Position is recent enough to trust: Live or Stale, jud
 _Avoid_: Staleness levels, timeout, live mode
 
 **Overlay**:
-One toggleable set of markers drawn over a Map's image (e.g. PMC Extracts, Labels, the Player Position marker). Each Overlay is independently shown or hidden; there is no ordering or stacking between them.
+One toggleable set of markers or areas drawn over a Map's image (e.g. PMC Extracts, Labels, Minefields, the Player Position marker). Each Overlay is independently shown or hidden; the player never orders or stacks them — the app always draws area Overlays beneath marker Overlays.
 _Avoid_: Layer (reserved for tarkov.dev's per-floor tile sets, which are not modelled)
 
 **Overlay Category**:
@@ -35,6 +35,18 @@ _Avoid_: Section (the sidebar's top-level headings such as "Map" and "Overlays")
 **Boss Spawn**:
 A position on a Map where one or more of the named mobs tarkov.dev lists as bosses — including Raiders, Rogues and faction squads such as AF and Black Div. — may appear, each with its map-wide spawn chance. Drawn as the "Bosses" Overlay; escorts are not Boss Spawns.
 _Avoid_: Boss zone, boss location, spawn location (tarkov.dev's zone grouping, which is not modelled)
+
+**Sniper Zone**:
+An area of a Map covered by a stationary marksman, as outlined by tarkov.dev; drawn as its outline on the Map. Drawn as the "Sniper zones" Overlay.
+_Avoid_: Sniper (the mob), sniper hazard, hazard zone
+
+**Minefield**:
+An area of a Map that kills on entry — a mined field, a single mine strip, or Labyrinth's generic hazard patches — as outlined by tarkov.dev; drawn as its outline on the Map, or as a small marker when the outline is too small to see. Drawn as the "Minefields" Overlay.
+_Avoid_: Hazard (tarkov.dev's umbrella type, which also covers Sniper Zones), mine, landmine
+
+**Transit**:
+A point on a Map from which a raid continues on another Map, labelled with the destination Map's name. Drawn as a marker like an Extract; its entry conditions and outline are not modelled.
+_Avoid_: Transfer, portal, exit (an Extract leaves the raid; a Transit continues it)
 
 **Trail**:
 The recent Player Positions on the current Map, drawn as an Overlay behind the newest one. A Trail belongs to one Map and is discarded when another Map is selected.
