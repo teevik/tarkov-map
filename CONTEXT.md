@@ -13,8 +13,16 @@ The base image tarkov.dev shows by default for a Map; the only floor this app fe
 _Avoid_: Layer, base layer, default layer
 
 **Player Position**:
-The player's game-space coordinates and facing, parsed from an in-raid screenshot filename. Height (Y) is displayed but never used to choose what is drawn.
+The player's game-space coordinates, height and heading at one moment, together with when it was taken; parsed from an in-raid screenshot filename. Height (Y) is displayed but never used to choose what is drawn.
 _Avoid_: Fix, marker (the marker is the drawing of a Player Position)
+
+**Position Source**:
+Where Player Positions come from: the screenshots folder in normal use, or the demo walker when running without the game. The app tracks exactly one Position Source at a time.
+_Avoid_: Watcher (the screenshot watcher is one Position Source), tracker
+
+**Freshness**:
+Whether the newest Player Position is recent enough to trust: Live or Stale, judged by its age against a fixed threshold. Freshness is read off the Player Position, never stored or configured.
+_Avoid_: Staleness levels, timeout, live mode
 
 **Overlay**:
 One toggleable set of markers drawn over a Map's image (e.g. PMC Extracts, Labels, the Player Position marker). Each Overlay is independently shown or hidden; there is no ordering or stacking between them.
