@@ -76,6 +76,14 @@ _Avoid_: History, breadcrumbs, path
 An offer to switch Maps, made when a Player Position falls outside the selected Map but inside exactly one other Map. The player accepts or dismisses it; the app never switches Maps on its own.
 _Avoid_: Auto-detect, auto-switch
 
+**Viewport**:
+The part of the selected Map's image the player is looking at — a centre on the image and a zoom, where the smallest zoom fits the whole Map on screen. Only the player moves the Viewport (pan, zoom, reset, centre on the Player Position once); the app never moves it on its own, and it resets when another Map is selected.
+_Avoid_: Camera, view, follow mode (deliberately not offered)
+
+**Map Transition**:
+The changeover from the previously shown Map image to the newly selected one: the newly selected image loads (a placeholder appears only if it takes noticeably long), then fades in over the outgoing image, which is kept until the fade completes.
+_Avoid_: Crossfade (the drawing of a Map Transition), loading state
+
 **Notification**:
 A message the app records for the player about something they should know — an error, an available update, "already up to date" — with a severity of Info, Warning or Error. The toast is the drawing of a Notification, not the Notification itself.
 _Avoid_: Toast, alert, message
