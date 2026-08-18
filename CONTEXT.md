@@ -45,7 +45,7 @@ One named enemy that tarkov.dev lists as a boss on a Map — a real boss (Reshal
 _Avoid_: Boss (only some Mobs are bosses), bot, faction, `mob` key (tarkov.dev's raw id, several of which map to one Mob)
 
 **Boss Spawn**:
-A position on a Map where one or more Mobs may appear, each with its map-wide spawn chance. Drawn as one marker listing every Mob whose Overlay is on; hidden when none is.
+A position on a Map where one or more Mobs may appear, each with its map-wide spawn chance. Drawn as one marker listing every Mob whose Overlay is on; hidden when none is. The marker always draws, but its label is skipped when it would overlap a Boss Spawn or Switch label already drawn at the current zoom (labels reappear as the player zooms in).
 _Avoid_: Boss zone, boss location, spawn location (tarkov.dev's zone grouping, which is not modelled), "Bosses" Overlay (there is none — each Mob is its own Overlay)
 
 **Sniper Zone**:
@@ -61,7 +61,7 @@ A point on a Map from which a raid continues on another Map, labelled with the d
 _Avoid_: Transfer, portal, exit (an Extract leaves the raid; a Transit continues it)
 
 **Switch**:
-A lever, button or console on a Map that the player can operate — powering an elevator, opening a door, disabling a trap or unlocking an Extract — as listed by tarkov.dev, drawn as a marker labelled with its name in the "Switches" Overlay. What a Switch controls is not modelled beyond what its name says.
+A lever, button or console on a Map that the player can operate — powering an elevator, opening a door, disabling a trap or unlocking an Extract — as listed by tarkov.dev, drawn as a marker labelled with its name in the "Switches" Overlay; Switches within a few metres of each other share one marker with their names stacked, and a label that would overlap one already drawn is skipped, as for Boss Spawns. What a Switch controls is not modelled beyond what its name says.
 _Avoid_: Lever, button, console (kinds of Switch), switch-controlled extract (an Extract is drawn the same whether or not a Switch gates it)
 
 **BTR Stop**:
