@@ -25,11 +25,11 @@ Whether the newest Player Position is recent enough to trust: Live or Stale, jud
 _Avoid_: Staleness levels, timeout, live mode
 
 **Overlay**:
-One toggleable set of markers or areas drawn over a Map's image (e.g. PMC Extracts, Labels, Minefields, the Player Position marker). Each Overlay is independently shown or hidden; the player never orders or stacks them — the app always draws area Overlays beneath marker Overlays.
+One toggleable set of markers or areas drawn over a Map's image (e.g. PMC Extracts, Labels, Minefields, the Player Position marker). Each Overlay is independently shown or hidden, and that choice is remembered across Maps and restarts; an Overlay with nothing to draw on the current Map is not offered in the sidebar at all (only the Player Position marker is always offered). The player never orders or stacks Overlays — the app always draws area Overlays beneath marker Overlays.
 _Avoid_: Layer (reserved for tarkov.dev's per-floor tile sets, which are not modelled)
 
 **Overlay Category**:
-A named group of Overlays that share a collapsible heading in the sidebar. Purely presentational: a category has no visibility of its own — collapsing it hides its toggles in the sidebar, not the Overlays on the Map — and its only state is whether it is open.
+A named group of Overlays that share a collapsible heading in the sidebar. Purely presentational: a category has no visibility of its own — collapsing it hides its toggles in the sidebar, not the Overlays on the Map — and its only state is whether it is open. A category none of whose Overlays are offered on the current Map is not shown.
 _Avoid_: Section (the sidebar's top-level headings such as "Map" and "Overlays"), group, layer group
 
 **Boss Spawn**:
