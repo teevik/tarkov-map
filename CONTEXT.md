@@ -21,7 +21,7 @@ One toggleable set of markers drawn over a Map's image (e.g. PMC Extracts, Label
 _Avoid_: Layer (reserved for tarkov.dev's per-floor tile sets, which are not modelled)
 
 **Overlay Category**:
-A named group of Overlays that share a heading in the sidebar. Purely presentational: a category has no visibility of its own and no behaviour beyond grouping its Overlays.
+A named group of Overlays that share a collapsible heading in the sidebar. Purely presentational: a category has no visibility of its own — collapsing it hides its toggles in the sidebar, not the Overlays on the Map — and its only state is whether it is open.
 _Avoid_: Section (the sidebar's top-level headings such as "Map" and "Overlays"), group, layer group
 
 **Trail**:
