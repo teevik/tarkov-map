@@ -24,6 +24,14 @@ _Avoid_: Watcher (the screenshot watcher is one Position Source), tracker
 Whether the newest Player Position is recent enough to trust: Live or Stale, judged by its age against a fixed threshold. Freshness is read off the Player Position, never stored or configured.
 _Avoid_: Staleness levels, timeout, live mode
 
+**Bounds**:
+A Map's playable extent in game space — the box a Player Position is tested against to say whether it lies on that Map (the test Map Suggestion relies on). Bounds describe the ground, not the picture: they need not coincide with the image's edges.
+_Avoid_: Extent, image bounds, svg bounds (a Projection detail), viewport (what the player is looking at on screen)
+
+**Projection**:
+How a Map's game coordinates land on its Main Floor image — one mapping per Map, fixed when the image is fetched, that turns a Player Position or marker position into a spot on the picture (and a heading into a direction on it). There is one Projection per Map, never per floor.
+_Avoid_: Transform (the maths inside a Projection), coordinate rotation, CRS
+
 **Overlay**:
 One toggleable set of markers or areas drawn over a Map's image (e.g. PMC Extracts, Labels, Minefields, the Player Position marker). Each Overlay is independently shown or hidden, and that choice is remembered across Maps and restarts; an Overlay with nothing to draw on the current Map is not offered in the sidebar at all (only the Player Position marker is always offered). The player never orders or stacks Overlays — the app always draws area Overlays beneath marker Overlays.
 _Avoid_: Layer (reserved for tarkov.dev's per-floor tile sets, which are not modelled)
