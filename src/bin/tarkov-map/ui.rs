@@ -73,48 +73,12 @@ impl TarkovMapApp {
             }
         }
 
-        Self::section_header(ui, "Overlays");
-
-        Self::overlay_toggle_circle(
-            ui,
-            &mut self.overlays.labels,
-            "Labels",
-            egui::Color32::WHITE,
-        );
-        Self::overlay_toggle_circle(
-            ui,
-            &mut self.overlays.spawns,
-            "PMC Spawns",
-            colors::SPAWN_FILL,
-        );
-        Self::overlay_toggle_rect(
-            ui,
-            &mut self.overlays.pmc_extracts,
-            "PMC Extracts",
-            colors::PMC_EXTRACT_FILL,
-        );
-        Self::overlay_toggle_rect(
-            ui,
-            &mut self.overlays.scav_extracts,
-            "Scav Extracts",
-            colors::SCAV_EXTRACT_FILL,
-        );
-        Self::overlay_toggle_rect(
-            ui,
-            &mut self.overlays.shared_extracts,
-            "Shared Extracts",
-            colors::SHARED_EXTRACT_FILL,
-        );
-        Self::overlay_toggle_triangle(
-            ui,
-            &mut self.overlays.player_marker,
-            "Player marker",
-            colors::PLAYER_MARKER_FILL,
-        );
+        // PROTOTYPE (#28): categorised overlays variants replace the flat list.
+        self.show_overlays_prototype(ui);
     }
 
     /// A quiet uppercase eyebrow that separates sidebar sections.
-    fn section_header(ui: &mut egui::Ui, title: &str) {
+    pub fn section_header(ui: &mut egui::Ui, title: &str) {
         ui.add_space(14.0);
         ui.label(
             egui::RichText::new(title.to_uppercase())
@@ -716,6 +680,7 @@ impl TarkovMapApp {
             let panel_rect = ui.max_rect();
             self.show_map(ui, &ctx, &map);
             self.show_zoom_controls(&ctx, panel_rect);
+            self.show_prototype_bar(&ctx, panel_rect);
         });
     }
 

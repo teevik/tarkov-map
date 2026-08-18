@@ -6,6 +6,7 @@ mod constants;
 mod coordinates;
 mod demo;
 mod overlays;
+mod prototype_overlays_sidebar; // PROTOTYPE (#28) — throwaway
 mod screenshot_watcher;
 mod ui;
 mod updater;
@@ -105,6 +106,8 @@ pub struct TarkovMapApp {
     /// Set once the missing-BC-support error has been surfaced, so the toast
     /// doesn't repeat on every switch.
     bc_unsupported_notified: bool,
+    /// PROTOTYPE (#28) — throwaway sidebar variants state.
+    pub prototype: prototype_overlays_sidebar::ProtoState,
 
     /// Flag to clear settings on app close (triggered by File -> Clear Settings).
     pub clear_settings_on_close: bool,
@@ -180,6 +183,7 @@ impl TarkovMapApp {
             map_transition: None,
             last_drawn_map: None,
             bc_unsupported_notified: false,
+            prototype: prototype_overlays_sidebar::ProtoState::from_env(),
             clear_settings_on_close: false,
         }
     }
