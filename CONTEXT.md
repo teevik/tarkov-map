@@ -60,6 +60,10 @@ _Avoid_: Transfer, portal, exit (an Extract leaves the raid; a Transit continues
 A lever, button or console on a Map that the player can operate — powering an elevator, opening a door, disabling a trap or unlocking an Extract — as listed by tarkov.dev, drawn as a marker labelled with its name in the "Switches" Overlay. What a Switch controls is not modelled beyond what its name says.
 _Avoid_: Lever, button, console (kinds of Switch), switch-controlled extract (an Extract is drawn the same whether or not a Switch gates it)
 
+**BTR Stop**:
+A named point on a Map where the BTR armoured taxi halts to pick up or drop off players, as listed by tarkov.dev; drawn as a marker labelled with its stop name in the "BTR stops" Overlay. Only Maps the BTR services have any.
+_Avoid_: BTR route (not modelled), taxi stop, checkpoint (one stop happens to be named so)
+
 **Trail**:
 The recent Player Positions on the current Map, drawn as an Overlay behind the newest one. A Trail belongs to one Map and is discarded when another Map is selected.
 _Avoid_: History, breadcrumbs, path
