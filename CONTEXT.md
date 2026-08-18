@@ -32,6 +32,10 @@ _Avoid_: History, breadcrumbs, path
 An offer to switch Maps, made when a Player Position falls outside the selected Map but inside exactly one other Map. The player accepts or dismisses it; the app never switches Maps on its own.
 _Avoid_: Auto-detect, auto-switch
 
+**Notification**:
+A message the app records for the player about something they should know — an error, an available update, "already up to date" — with a severity of Info, Warning or Error. The toast is the drawing of a Notification, not the Notification itself.
+_Avoid_: Toast, alert, message
+
 ## Not modelled
 
 - **Floors / layers**: tarkov.dev exposes per-floor tile sets with height extents. This project renders the Main Floor only; there is no floor selector and no height-based floor matching. Do not reintroduce layer support "for completeness".
