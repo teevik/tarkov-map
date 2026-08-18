@@ -1,0 +1,20 @@
+# Cargo workspace with the egui app as the root package
+
+The restructure splits the single `tarkov-map` package into a Cargo workspace whose **root package stays the egui app** (`Cargo.toml` at the repo root keeps `[package] name = "tarkov-map"` and gains `[workspace] members = ["crates/*"]`), with four internal members under `crates/`: `tarkov-map-core` (domain + application model + ports + Effect Runner), `tarkov-map-adapters` (driven-port implementations), `tarkov-map-bc7z` (the `.bc7z` image container, `encode` feature gating `intel_tex_2`) and `tarkov-map-fetch` (the `fetch_maps` anti-corruption layer, bin-only). We chose the root-package layout over a virtual root because release-please's `rust` strategy on `"."` fails on a virtual manifest and, with the app moved to `crates/app`, attributes commits by path and needs the `cargo-workspace` plugin with literal versions (see `docs/research/workspace-mechanics.md`, branch `research/workspace-mechanics`); staying at the root keeps release-please, `v*` tags, `CHANGELOG.md`, `release.yml`, `build.rs`/winres and the release artefact path unchanged.
+
+## Consequences
+
+- **Dependency direction** is one-way: app → adapters → core; adapters → bc7z; fetch → core + bc7z(`encode`). Core depends on no other member and on nothing that knows egui, ron, rust-embed or the filesystem; the app crate ends up with eframe/egui, tokio, `dirs`, `log`/`env_logger` and the two members.
+- **Members are internal**: `publish = false`, version frozen at `0.1.0` and never bumped; only the root app is versioned and released. release-please config is untouched. `[workspace.package]` shares `edition`/`license` (never `version`); `[workspace.dependencies]` and `[workspace.lints]` are used for shared deps and clippy config.
+- **`fetch_maps` is a separate package, not a root `[[bin]]`**, so the app crate stays thin (no clap/reqwest/resvg/indicatif/serde_json). Its `[[bin]] required-features = ["encode"]` keeps `cargo build/test --workspace` from linking the ISPC kernel; run it with `cargo run -p tarkov-map-fetch --features encode`. It writes the domain-shaped `maps.ron` through core's serde derives (ADR-0003).
+- **bc7z is a format crate**, decoded by adapters' `EmbeddedImageDecoder` and encoded by fetch; neither consumer drags in the other's dependencies, and the round-trip tests live with the format.
+- **Assets stay at the repo root** (`assets/maps.ron`, `assets/maps/*.bc7z`, the icon). The `rust-embed` derive and the bundled `maps.ron` parse (`ron` → validated `MapCatalog`) live in adapters with `../../assets` paths (rust-embed resolves `folder` against the deriving crate's manifest dir); fetch's `repo_path` default becomes `../../assets`; the icon stays next to the app's `build.rs`.
+- **Core module shape**: `domain/` (`map`, `position`, `geometry`, `overlay`, `notification`, `release`), `model/` (`Model`, `Msg`, `Effect`, `viewport`, `settings`, `suggestion`), `ports/` (one file per port, `fakes/` behind the `fakes` feature), `runner.rs` (the only tokio user). Only `Model`, `Msg`, `Effect` are re-exported at the crate root.
+- **CI/release**: `ci.yml` runs `cargo test --workspace` and `cargo clippy --workspace`; `release.yml` builds `cargo build --release --locked -p tarkov-map`; nix has no derivation today and none is added.
+
+## Considered options
+
+- Virtual root with the app in `crates/app` — rejected for the release-please cost above; the "cleaner" tree buys nothing the tooling can see.
+- `fetch_maps` as a `[[bin]]` in the root package (the research's default) — workable, but leaves the app crate carrying the fetch tool's dependency list.
+- bc7z as a module of adapters (adapters gaining an `encode` feature and fetch depending on adapters) or of core — rejected: it is a file format, not domain, and neither consumer should depend on the other's crate.
+- Short lib names (`core`, `adapters`, `tm-*`) — `core` shadows the built-in crate; the `tarkov-map-*` prefix is unambiguous for `-p` and `use`.
