@@ -48,6 +48,10 @@ _Avoid_: Hazard (tarkov.dev's umbrella type, which also covers Sniper Zones), mi
 A point on a Map from which a raid continues on another Map, labelled with the destination Map's name. Drawn as a marker like an Extract; its entry conditions and outline are not modelled.
 _Avoid_: Transfer, portal, exit (an Extract leaves the raid; a Transit continues it)
 
+**Switch**:
+A lever, button or console on a Map that the player can operate — powering an elevator, opening a door, disabling a trap or unlocking an Extract — as listed by tarkov.dev, drawn as a marker labelled with its name in the "Switches" Overlay. What a Switch controls is not modelled beyond what its name says.
+_Avoid_: Lever, button, console (kinds of Switch), switch-controlled extract (an Extract is drawn the same whether or not a Switch gates it)
+
 **Trail**:
 The recent Player Positions on the current Map, drawn as an Overlay behind the newest one. A Trail belongs to one Map and is discarded when another Map is selected.
 _Avoid_: History, breadcrumbs, path
