@@ -32,6 +32,10 @@ _Avoid_: Layer (reserved for tarkov.dev's per-floor tile sets, which are not mod
 A named group of Overlays that share a collapsible heading in the sidebar. Purely presentational: a category has no visibility of its own — collapsing it hides its toggles in the sidebar, not the Overlays on the Map — and its only state is whether it is open.
 _Avoid_: Section (the sidebar's top-level headings such as "Map" and "Overlays"), group, layer group
 
+**Boss Spawn**:
+A position on a Map where one or more of the named mobs tarkov.dev lists as bosses — including Raiders, Rogues and faction squads such as AF and Black Div. — may appear, each with its map-wide spawn chance. Drawn as the "Bosses" Overlay; escorts are not Boss Spawns.
+_Avoid_: Boss zone, boss location, spawn location (tarkov.dev's zone grouping, which is not modelled)
+
 **Trail**:
 The recent Player Positions on the current Map, drawn as an Overlay behind the newest one. A Trail belongs to one Map and is discarded when another Map is selected.
 _Avoid_: History, breadcrumbs, path
