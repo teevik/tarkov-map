@@ -3,7 +3,7 @@
 //! Downloads map metadata, SVG files, and tile pyramids, then generates a local
 //! `maps.ron` file for the viewer application.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -19,7 +19,10 @@ use tokio::fs as async_fs;
 use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
 
-use tarkov_map::{Extract, Label, Map, Spawn, TarkovMaps};
+use tarkov_map::{
+    BossChance, BossSpawn, BtrStop, Extract, Label, Map, Minefield, SniperZone, Spawn, Switch,
+    TarkovMaps, Transit,
+};
 
 /// Errors that can occur during the fetch_maps process.
 #[derive(Error, Debug)]
@@ -178,12 +181,84 @@ struct ApiMapsData {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ApiMap {
+    id: String,
     name: String,
     normalized_name: String,
     #[serde(default)]
     spawns: Vec<ApiSpawn>,
     #[serde(default)]
     extracts: Vec<ApiExtract>,
+    #[serde(default)]
+    hazards: Vec<ApiHazard>,
+    #[serde(default)]
+    bosses: Vec<ApiBoss>,
+    #[serde(default)]
+    transits: Vec<ApiTransit>,
+    #[serde(default)]
+    switches: Vec<ApiSwitch>,
+    #[serde(default)]
+    btr_stops: Vec<ApiBtrStop>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ApiHazard {
+    #[serde(default)]
+    hazard_type: Option<String>,
+    #[serde(default)]
+    position: Option<ApiPosition>,
+    #[serde(default)]
+    outline: Vec<ApiPosition>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ApiBoss {
+    mob: String,
+    spawn_chance: f64,
+    #[serde(default)]
+    spawn_locations: Vec<ApiBossLocation>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct ApiBossLocation {
+    #[serde(default)]
+    positions: Vec<ApiPosition>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct ApiTransit {
+    #[serde(default)]
+    map: Option<String>,
+    #[serde(default)]
+    position: Option<ApiPosition>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct ApiSwitch {
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    position: Option<ApiPosition>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct ApiBtrStop {
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    x: Option<f64>,
+    #[serde(default)]
+    z: Option<f64>,
+}
+
+#[derive(Clone, Debug, Default)]
+struct ApiOverlayMap {
+    hazards: Vec<ApiHazard>,
+    bosses: Vec<ApiBoss>,
+    transits: Vec<ApiTransit>,
+    switches: Vec<ApiSwitch>,
+    btr_stops: Vec<ApiBtrStop>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -203,7 +278,7 @@ struct ApiExtract {
     position: Option<ApiPosition>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 struct ApiPosition {
     x: f64,
     y: f64,
@@ -214,6 +289,322 @@ struct ApiMapData {
     names: HashMap<String, String>,
     spawns: HashMap<String, Vec<Spawn>>,
     extracts: HashMap<String, Vec<Extract>>,
+    overlay_maps: HashMap<String, ApiOverlayMap>,
+    id_to_normalized_name: HashMap<String, String>,
+    translations: HashMap<String, String>,
+}
+
+struct LocatedArea<T> {
+    area: T,
+}
+
+struct HazardSplit {
+    sniper_zones: Vec<LocatedArea<SniperZone>>,
+    minefields: Vec<LocatedArea<Minefield>>,
+}
+
+#[derive(Default)]
+struct OverlayData {
+    sniper_zones: Vec<SniperZone>,
+    minefields: Vec<Minefield>,
+    boss_spawns: Vec<BossSpawn>,
+    transits: Vec<Transit>,
+    switches: Vec<Switch>,
+    btr_stops: Vec<BtrStop>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+struct PositionKey(i64, i64);
+
+impl PositionKey {
+    fn new(position: [f64; 2]) -> Self {
+        Self(
+            (position[0] * 100.0).round() as i64,
+            (position[1] * 100.0).round() as i64,
+        )
+    }
+}
+
+fn round_coordinate(value: f64) -> f64 {
+    let rounded = (value * 100.0).round() / 100.0;
+    if rounded == 0.0 { 0.0 } else { rounded }
+}
+
+fn game_position(position: &ApiPosition) -> [f64; 2] {
+    [round_coordinate(position.x), round_coordinate(position.z)]
+}
+
+fn translated_name(
+    translations: &HashMap<String, String>,
+    key: &str,
+    warnings: &mut Vec<String>,
+) -> String {
+    translations.get(key).cloned().unwrap_or_else(|| {
+        warnings.push(format!("missing English translation for '{key}'"));
+        key.to_owned()
+    })
+}
+
+fn group_boss_spawns(
+    bosses: Vec<ApiBoss>,
+    translations: &HashMap<String, String>,
+    warnings: &mut Vec<String>,
+) -> Vec<BossSpawn> {
+    struct Group {
+        position: [f64; 2],
+        chances: HashMap<String, f64>,
+    }
+
+    let mut indexes = HashMap::<PositionKey, usize>::new();
+    let mut groups = Vec::<Group>::new();
+
+    for boss in bosses {
+        let positions: Vec<_> = boss
+            .spawn_locations
+            .iter()
+            .flat_map(|location| &location.positions)
+            .collect();
+        if positions.is_empty() {
+            continue;
+        }
+        let name = translated_name(translations, &boss.mob, warnings);
+
+        for raw_position in positions {
+            let position = game_position(raw_position);
+            let key = PositionKey::new(position);
+            let index = *indexes.entry(key).or_insert_with(|| {
+                groups.push(Group {
+                    position,
+                    chances: HashMap::new(),
+                });
+                groups.len() - 1
+            });
+            groups[index]
+                .chances
+                .entry(name.clone())
+                .and_modify(|chance| *chance = chance.max(boss.spawn_chance))
+                .or_insert(boss.spawn_chance);
+        }
+    }
+
+    groups
+        .into_iter()
+        .map(|group| {
+            let mut mobs: Vec<_> = group
+                .chances
+                .into_iter()
+                .map(|(name, chance)| BossChance { name, chance })
+                .collect();
+            mobs.sort_by(|a, b| {
+                b.chance
+                    .total_cmp(&a.chance)
+                    .then_with(|| a.name.cmp(&b.name))
+            });
+            BossSpawn {
+                position: group.position,
+                mobs,
+            }
+        })
+        .collect()
+}
+
+fn convert_transits(
+    transits: Vec<ApiTransit>,
+    id_to_normalized_name: &HashMap<String, String>,
+    canonical_by_alias: &HashMap<String, String>,
+    warnings: &mut Vec<String>,
+) -> Vec<Transit> {
+    let mut seen = HashSet::new();
+    let mut converted = Vec::new();
+
+    for transit in transits {
+        let Some(position) = transit.position.as_ref() else {
+            warnings.push("dropping transit without a position".into());
+            continue;
+        };
+        let Some(target) = transit
+            .map
+            .as_ref()
+            .and_then(|id| id_to_normalized_name.get(id))
+            .and_then(|normalized_name| canonical_by_alias.get(normalized_name))
+            .cloned()
+        else {
+            warnings.push(format!(
+                "dropping transit with unknown target {:?}",
+                transit.map
+            ));
+            continue;
+        };
+
+        let position = game_position(position);
+        if seen.insert((PositionKey::new(position), target.clone())) {
+            converted.push(Transit { position, target });
+        }
+    }
+
+    converted
+}
+
+fn split_hazards(hazards: Vec<ApiHazard>, warnings: &mut Vec<String>) -> HazardSplit {
+    let mut split = HazardSplit {
+        sniper_zones: Vec::new(),
+        minefields: Vec::new(),
+    };
+    let mut seen_sniper_zones = HashSet::new();
+    let mut seen_minefields = HashSet::new();
+
+    for hazard in hazards {
+        let Some(position) = hazard.position.as_ref() else {
+            warnings.push("dropping hazard without a position".into());
+            continue;
+        };
+        if hazard.outline.len() < 3 {
+            warnings.push("dropping hazard with fewer than three outline vertices".into());
+            continue;
+        }
+
+        let position = game_position(position);
+        let outline = hazard.outline.iter().map(game_position).collect();
+        match hazard.hazard_type.as_deref() {
+            Some("sniper") if seen_sniper_zones.insert(PositionKey::new(position)) => {
+                split.sniper_zones.push(LocatedArea {
+                    area: SniperZone { outline },
+                });
+            }
+            Some("minefield" | "hazard") if seen_minefields.insert(PositionKey::new(position)) => {
+                split.minefields.push(LocatedArea {
+                    area: Minefield { outline },
+                });
+            }
+            Some("sniper" | "minefield" | "hazard") => {}
+            kind => warnings.push(format!("dropping unknown hazard type {kind:?}")),
+        }
+    }
+
+    split
+}
+
+fn convert_switches(
+    switches: Vec<ApiSwitch>,
+    translations: &HashMap<String, String>,
+    warnings: &mut Vec<String>,
+) -> Vec<Switch> {
+    let mut seen = HashSet::new();
+    let mut converted = Vec::new();
+
+    for raw_switch in switches {
+        let Some(position) = raw_switch.position.as_ref() else {
+            warnings.push("dropping switch without a position".into());
+            continue;
+        };
+        let Some(name_key) = raw_switch.name.as_deref() else {
+            warnings.push("dropping switch without a name".into());
+            continue;
+        };
+        let position = game_position(position);
+        let name = translated_name(translations, name_key, warnings);
+        if seen.insert((PositionKey::new(position), name.clone())) {
+            converted.push(Switch { position, name });
+        }
+    }
+
+    converted
+}
+
+fn convert_btr_stops(
+    stops: Vec<ApiBtrStop>,
+    translations: &HashMap<String, String>,
+    warnings: &mut Vec<String>,
+) -> Vec<BtrStop> {
+    let mut seen = HashSet::new();
+    let mut converted = Vec::new();
+
+    for stop in stops {
+        let (Some(x), Some(z)) = (stop.x, stop.z) else {
+            warnings.push("dropping BTR stop without a position".into());
+            continue;
+        };
+        let Some(name_key) = stop.name.as_deref() else {
+            warnings.push("dropping BTR stop without a name".into());
+            continue;
+        };
+        let position = [round_coordinate(x), round_coordinate(z)];
+        let name = translated_name(translations, name_key, warnings);
+        if seen.insert((PositionKey::new(position), name.clone())) {
+            converted.push(BtrStop { position, name });
+        }
+    }
+
+    converted
+}
+
+fn collect_overlay_data(
+    source_names: &[String],
+    maps: &HashMap<String, ApiOverlayMap>,
+    translations: &HashMap<String, String>,
+    id_to_normalized_name: &HashMap<String, String>,
+    canonical_by_alias: &HashMap<String, String>,
+    warnings: &mut Vec<String>,
+) -> OverlayData {
+    let mut hazards = Vec::new();
+    let mut bosses = Vec::new();
+    let mut transits = Vec::new();
+    let mut switches = Vec::new();
+    let mut btr_stops = Vec::new();
+
+    for source_name in source_names {
+        let Some(map) = maps.get(source_name) else {
+            continue;
+        };
+        hazards.extend(map.hazards.clone());
+        bosses.extend(map.bosses.clone());
+        transits.extend(map.transits.clone());
+        switches.extend(map.switches.clone());
+        btr_stops.extend(map.btr_stops.clone());
+    }
+
+    let hazards = split_hazards(hazards, warnings);
+    OverlayData {
+        sniper_zones: hazards
+            .sniper_zones
+            .into_iter()
+            .map(|located| located.area)
+            .collect(),
+        minefields: hazards
+            .minefields
+            .into_iter()
+            .map(|located| located.area)
+            .collect(),
+        boss_spawns: group_boss_spawns(bosses, translations, warnings),
+        transits: convert_transits(
+            transits,
+            id_to_normalized_name,
+            canonical_by_alias,
+            warnings,
+        ),
+        switches: convert_switches(switches, translations, warnings),
+        btr_stops: convert_btr_stops(btr_stops, translations, warnings),
+    }
+}
+
+fn canonical_map_by_alias(groups: &[FetchedMapGroup]) -> HashMap<String, String> {
+    let mut aliases = HashMap::new();
+
+    for group in groups {
+        let Some(interactive) = group
+            .maps
+            .iter()
+            .find(|map| map.projection == "interactive")
+        else {
+            continue;
+        };
+        aliases.insert(group.normalized_name.clone(), group.normalized_name.clone());
+        for alt_map in interactive.alt_maps.iter().flatten() {
+            aliases.insert(alt_map.clone(), group.normalized_name.clone());
+        }
+    }
+
+    aliases
 }
 
 fn deserialize_rotation<'de, D>(deserializer: D) -> std::result::Result<Option<f64>, D::Error>
@@ -238,14 +629,21 @@ where
 impl From<FetchedLabel> for Label {
     fn from(f: FetchedLabel) -> Self {
         Self {
-            position: f.position,
+            position: [
+                round_coordinate(f.position[0]),
+                round_coordinate(f.position[1]),
+            ],
             text: f.text,
             rotation: f.rotation,
             size: f.size,
-            top: f.top,
-            bottom: f.bottom,
+            top: f.top.map(round_coordinate),
+            bottom: f.bottom.map(round_coordinate),
         }
     }
+}
+
+fn round_bounds(bounds: [[f64; 2]; 2]) -> [[f64; 2]; 2] {
+    bounds.map(|corner| corner.map(round_coordinate))
 }
 
 async fn fetch_api_map_data(client: &reqwest::Client) -> Result<ApiMapData, FetchError> {
@@ -278,20 +676,31 @@ async fn fetch_api_map_data(client: &reqwest::Client) -> Result<ApiMapData, Fetc
     let mut names = HashMap::new();
     let mut spawns = HashMap::new();
     let mut extracts = HashMap::new();
+    let mut overlay_maps = HashMap::new();
+    let mut id_to_normalized_name = HashMap::new();
+    let mut warnings = Vec::new();
 
     for map in api_maps.data.maps.into_values() {
-        let normalized_name = map.normalized_name;
+        let ApiMap {
+            id,
+            name,
+            normalized_name,
+            spawns: raw_spawns,
+            extracts: raw_extracts,
+            hazards,
+            bosses,
+            transits,
+            switches,
+            btr_stops,
+        } = map;
+        id_to_normalized_name.insert(id, normalized_name.clone());
         names.insert(
             normalized_name.clone(),
-            translations
-                .data
-                .get(&map.name)
-                .cloned()
-                .unwrap_or(map.name),
+            translated_name(&translations.data, &name, &mut warnings),
         );
         spawns.insert(
             normalized_name.clone(),
-            map.spawns
+            raw_spawns
                 .into_iter()
                 .filter(|spawn| {
                     spawn
@@ -301,33 +710,56 @@ async fn fetch_api_map_data(client: &reqwest::Client) -> Result<ApiMapData, Fetc
                         && spawn.categories.iter().any(|category| category == "player")
                 })
                 .map(|spawn| Spawn {
-                    position: [spawn.position.x, spawn.position.y, spawn.position.z],
+                    position: [
+                        round_coordinate(spawn.position.x),
+                        round_coordinate(spawn.position.y),
+                        round_coordinate(spawn.position.z),
+                    ],
                     sides: spawn.sides,
                     categories: spawn.categories,
                 })
                 .collect(),
         );
         extracts.insert(
-            normalized_name,
-            map.extracts
+            normalized_name.clone(),
+            raw_extracts
                 .into_iter()
                 .map(|extract| Extract {
-                    name: translations
-                        .data
-                        .get(&extract.name)
-                        .cloned()
-                        .unwrap_or(extract.name),
+                    name: translated_name(&translations.data, &extract.name, &mut warnings),
                     faction: extract.faction,
-                    position: extract.position.map(|p| [p.x, p.y, p.z]),
+                    position: extract.position.map(|p| {
+                        [
+                            round_coordinate(p.x),
+                            round_coordinate(p.y),
+                            round_coordinate(p.z),
+                        ]
+                    }),
                 })
                 .collect(),
         );
+        overlay_maps.insert(
+            normalized_name,
+            ApiOverlayMap {
+                hazards,
+                bosses,
+                transits,
+                switches,
+                btr_stops,
+            },
+        );
+    }
+
+    for warning in warnings {
+        eprintln!("Warning: {warning}");
     }
 
     Ok(ApiMapData {
         names,
         spawns,
         extracts,
+        overlay_maps,
+        id_to_normalized_name,
+        translations: translations.data,
     })
 }
 
@@ -669,9 +1101,8 @@ async fn process_tile_map(
 async fn convert_group(
     client: &reqwest::Client,
     fetched: FetchedMapGroup,
-    map_names: &HashMap<String, String>,
-    map_spawns: &HashMap<String, Vec<Spawn>>,
-    map_extracts: &HashMap<String, Vec<Extract>>,
+    api_data: &ApiMapData,
+    canonical_by_alias: &HashMap<String, String>,
     multi_progress: &MultiProgress,
     force: bool,
     tile_zoom_offset: i32,
@@ -685,13 +1116,13 @@ async fn convert_group(
         return Ok(None);
     };
 
-    let name =
-        map_names
-            .get(&normalized_name)
-            .cloned()
-            .ok_or_else(|| FetchError::MissingMapName {
-                name: normalized_name.clone(),
-            })?;
+    let name = api_data
+        .names
+        .get(&normalized_name)
+        .cloned()
+        .ok_or_else(|| FetchError::MissingMapName {
+            name: normalized_name.clone(),
+        })?;
 
     let try_tiles =
         |interactive: &FetchedMap| -> Result<Option<(String, i32, i32, i32)>, FetchError> {
@@ -777,6 +1208,21 @@ async fn convert_group(
         })
         .unwrap_or(result.image_size);
 
+    let mut source_names = vec![normalized_name.clone()];
+    source_names.extend(interactive.alt_maps.iter().flatten().cloned());
+    let mut warnings = Vec::new();
+    let overlays = collect_overlay_data(
+        &source_names,
+        &api_data.overlay_maps,
+        &api_data.translations,
+        &api_data.id_to_normalized_name,
+        canonical_by_alias,
+        &mut warnings,
+    );
+    for warning in warnings {
+        multi_progress.println(format!("  Warning: {normalized_name}: {warning}"))?;
+    }
+
     Ok(Some(Map {
         normalized_name: normalized_name.clone(),
         name,
@@ -788,12 +1234,18 @@ async fn convert_group(
         author_link: interactive.author_link,
         transform: interactive.transform,
         coordinate_rotation: interactive.coordinate_rotation,
-        bounds: interactive.bounds,
+        bounds: interactive.bounds.map(round_bounds),
         labels: interactive
             .labels
             .map(|l| l.into_iter().map(Into::into).collect()),
-        spawns: map_spawns.get(&normalized_name).cloned(),
-        extracts: map_extracts.get(&normalized_name).cloned(),
+        spawns: api_data.spawns.get(&normalized_name).cloned(),
+        extracts: api_data.extracts.get(&normalized_name).cloned(),
+        sniper_zones: overlays.sniper_zones,
+        minefields: overlays.minefields,
+        boss_spawns: overlays.boss_spawns,
+        transits: overlays.transits,
+        switches: overlays.switches,
+        btr_stops: overlays.btr_stops,
     }))
 }
 
@@ -820,13 +1272,10 @@ async fn main() -> Result<(), FetchError> {
 
     println!("Fetching map data from tarkov.dev...");
     let api_data = fetch_api_map_data(&client).await?;
-    let map_names = api_data.names;
-    let map_spawns = api_data.spawns;
-    let map_extracts = api_data.extracts;
-    println!("Fetched {} map names", map_names.len());
-    let total_spawns: usize = map_spawns.values().map(Vec::len).sum();
+    println!("Fetched {} map names", api_data.names.len());
+    let total_spawns: usize = api_data.spawns.values().map(Vec::len).sum();
     println!("Fetched {total_spawns} PMC spawns");
-    let total_extracts: usize = map_extracts.values().map(Vec::len).sum();
+    let total_extracts: usize = api_data.extracts.values().map(Vec::len).sum();
     println!("Fetched {total_extracts} extracts");
 
     println!("Fetching maps from tarkov-dev...");
@@ -848,6 +1297,7 @@ async fn main() -> Result<(), FetchError> {
     println!("Fetched {} bytes of JSON", json_text.len());
 
     let fetched_maps: Vec<FetchedMapGroup> = serde_json::from_str(&json_text)?;
+    let canonical_by_alias = canonical_map_by_alias(&fetched_maps);
     println!("Parsed {} map groups\n", fetched_maps.len());
 
     let multi_progress = MultiProgress::new();
@@ -868,9 +1318,8 @@ async fn main() -> Result<(), FetchError> {
         match convert_group(
             &client,
             group,
-            &map_names,
-            &map_spawns,
-            &map_extracts,
+            &api_data,
+            &canonical_by_alias,
             &multi_progress,
             args.force,
             args.tile_zoom_offset,
@@ -904,4 +1353,316 @@ async fn main() -> Result<(), FetchError> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rounds_game_coordinates_to_two_decimal_places() {
+        assert_eq!(round_coordinate(12.345), 12.35);
+        assert_eq!(round_coordinate(-12.345), -12.35);
+        assert_eq!(round_coordinate(12.344), 12.34);
+        assert_eq!(round_coordinate(-0.001), 0.0);
+    }
+
+    #[test]
+    fn missing_translation_falls_back_to_the_key_with_a_warning() {
+        let mut warnings = Vec::new();
+
+        let name = translated_name(&HashMap::new(), "missing-key", &mut warnings);
+
+        assert_eq!(name, "missing-key");
+        assert_eq!(
+            warnings,
+            vec!["missing English translation for 'missing-key'"]
+        );
+    }
+
+    #[test]
+    fn splits_valid_hazards_and_drops_invalid_entries_with_warnings() {
+        let position = Some(ApiPosition {
+            x: 10.126,
+            y: 4.0,
+            z: -20.125,
+        });
+        let outline = vec![
+            ApiPosition {
+                x: 1.0,
+                y: 0.0,
+                z: 2.0,
+            },
+            ApiPosition {
+                x: 3.0,
+                y: 0.0,
+                z: 4.0,
+            },
+            ApiPosition {
+                x: 5.0,
+                y: 0.0,
+                z: 6.0,
+            },
+        ];
+        let hazards = vec![
+            ApiHazard {
+                hazard_type: Some("sniper".into()),
+                position: position.clone(),
+                outline: outline.clone(),
+            },
+            ApiHazard {
+                hazard_type: Some("hazard".into()),
+                position,
+                outline,
+            },
+            ApiHazard {
+                hazard_type: Some("minefield".into()),
+                position: None,
+                outline: Vec::new(),
+            },
+            ApiHazard {
+                hazard_type: Some("minefield".into()),
+                position: Some(ApiPosition {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                }),
+                outline: vec![
+                    ApiPosition {
+                        x: 1.0,
+                        y: 0.0,
+                        z: 2.0,
+                    },
+                    ApiPosition {
+                        x: 3.0,
+                        y: 0.0,
+                        z: 4.0,
+                    },
+                ],
+            },
+        ];
+        let mut warnings = Vec::new();
+
+        let split = split_hazards(hazards, &mut warnings);
+
+        assert_eq!(split.sniper_zones.len(), 1);
+        assert_eq!(split.minefields.len(), 1);
+        assert_eq!(split.sniper_zones[0].area.outline[0], [1.0, 2.0]);
+        assert_eq!(warnings.len(), 2);
+    }
+
+    #[test]
+    fn groups_boss_spawns_by_rounded_position_and_translated_mob_name() {
+        let at = |x, z| ApiPosition { x, y: 0.0, z };
+        let location = |positions| ApiBossLocation { positions };
+        let bosses = vec![
+            ApiBoss {
+                mob: "raw-af-a".into(),
+                spawn_chance: 0.3,
+                spawn_locations: vec![location(vec![at(10.001, 20.001)])],
+            },
+            ApiBoss {
+                mob: "raw-af-b".into(),
+                spawn_chance: 0.4,
+                spawn_locations: vec![location(vec![at(10.004, 20.004)])],
+            },
+            ApiBoss {
+                mob: "raw-zed".into(),
+                spawn_chance: 0.4,
+                spawn_locations: vec![location(vec![at(10.0, 20.0)])],
+            },
+            ApiBoss {
+                mob: "raw-alpha".into(),
+                spawn_chance: 0.4,
+                spawn_locations: vec![location(vec![at(10.0, 20.0)])],
+            },
+            ApiBoss {
+                mob: "positionless".into(),
+                spawn_chance: 1.0,
+                spawn_locations: Vec::new(),
+            },
+        ];
+        let translations = HashMap::from([
+            ("raw-af-a".into(), "AF".into()),
+            ("raw-af-b".into(), "AF".into()),
+            ("raw-zed".into(), "Zed".into()),
+            ("raw-alpha".into(), "Alpha".into()),
+            ("positionless".into(), "Nobody".into()),
+        ]);
+        let mut warnings = Vec::new();
+
+        let spawns = group_boss_spawns(bosses, &translations, &mut warnings);
+
+        assert_eq!(spawns.len(), 1);
+        assert_eq!(spawns[0].position, [10.0, 20.0]);
+        assert_eq!(
+            spawns[0].mobs,
+            vec![
+                BossChance {
+                    name: "AF".into(),
+                    chance: 0.4
+                },
+                BossChance {
+                    name: "Alpha".into(),
+                    chance: 0.4
+                },
+                BossChance {
+                    name: "Zed".into(),
+                    chance: 0.4
+                },
+            ]
+        );
+        assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn resolves_transits_to_canonical_maps_and_drops_unknown_or_positionless_entries() {
+        let transit = |target: &str, position| ApiTransit {
+            map: Some(target.into()),
+            position,
+        };
+        let position = || {
+            Some(ApiPosition {
+                x: 1.234,
+                y: 9.0,
+                z: 5.678,
+            })
+        };
+        let transits = vec![
+            transit("night-id", position()),
+            transit("night-id", position()),
+            transit("unknown-id", position()),
+            transit("night-id", None),
+        ];
+        let ids = HashMap::from([("night-id".into(), "night-factory".into())]);
+        let canonical = HashMap::from([
+            ("factory".into(), "factory".into()),
+            ("night-factory".into(), "factory".into()),
+        ]);
+        let mut warnings = Vec::new();
+
+        let converted = convert_transits(transits, &ids, &canonical, &mut warnings);
+
+        assert_eq!(
+            converted,
+            vec![Transit {
+                position: [1.23, 5.68],
+                target: "factory".into()
+            }]
+        );
+        assert_eq!(warnings.len(), 2);
+    }
+
+    #[test]
+    fn unions_canonical_and_alt_map_overlay_data_with_deduplication() {
+        let position = || ApiPosition {
+            x: 1.0,
+            y: 2.0,
+            z: 3.0,
+        };
+        let hazard = ApiHazard {
+            hazard_type: Some("sniper".into()),
+            position: Some(position()),
+            outline: vec![
+                ApiPosition {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
+                ApiPosition {
+                    x: 1.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
+                ApiPosition {
+                    x: 1.0,
+                    y: 0.0,
+                    z: 1.0,
+                },
+            ],
+        };
+        let overlay_map = |chance| ApiOverlayMap {
+            hazards: vec![hazard.clone()],
+            bosses: vec![ApiBoss {
+                mob: "boss".into(),
+                spawn_chance: chance,
+                spawn_locations: vec![ApiBossLocation {
+                    positions: vec![position()],
+                }],
+            }],
+            transits: vec![ApiTransit {
+                map: Some("woods-id".into()),
+                position: Some(position()),
+            }],
+            switches: vec![ApiSwitch {
+                name: Some("switch".into()),
+                position: Some(position()),
+            }],
+            btr_stops: vec![ApiBtrStop {
+                name: Some("stop".into()),
+                x: Some(1.0),
+                z: Some(3.0),
+            }],
+        };
+        let raw_maps = HashMap::from([
+            ("factory".into(), overlay_map(0.3)),
+            ("night-factory".into(), overlay_map(0.5)),
+        ]);
+        let translations = HashMap::from([
+            ("boss".into(), "Tagilla".into()),
+            ("switch".into(), "Power".into()),
+            ("stop".into(), "Checkpoint".into()),
+        ]);
+        let ids = HashMap::from([("woods-id".into(), "woods".into())]);
+        let canonical = HashMap::from([
+            ("factory".into(), "factory".into()),
+            ("night-factory".into(), "factory".into()),
+            ("woods".into(), "woods".into()),
+        ]);
+        let sources = vec!["factory".into(), "night-factory".into()];
+        let mut warnings = Vec::new();
+
+        let data = collect_overlay_data(
+            &sources,
+            &raw_maps,
+            &translations,
+            &ids,
+            &canonical,
+            &mut warnings,
+        );
+
+        assert_eq!(data.sniper_zones.len(), 1);
+        assert_eq!(data.boss_spawns.len(), 1);
+        assert_eq!(data.boss_spawns[0].mobs[0].chance, 0.5);
+        assert_eq!(data.transits.len(), 1);
+        assert_eq!(data.switches.len(), 1);
+        assert_eq!(data.btr_stops.len(), 1);
+        assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn maps_upstream_alt_names_to_their_canonical_catalogue_map() {
+        let groups: Vec<FetchedMapGroup> = serde_json::from_str(
+            r#"[
+                {
+                    "normalizedName": "factory",
+                    "maps": [{
+                        "projection": "interactive",
+                        "altMaps": ["night-factory"]
+                    }]
+                },
+                {
+                    "normalizedName": "unused",
+                    "maps": [{"projection": "static"}]
+                }
+            ]"#,
+        )
+        .unwrap();
+
+        let aliases = canonical_map_by_alias(&groups);
+
+        assert_eq!(aliases.get("factory"), Some(&"factory".to_owned()));
+        assert_eq!(aliases.get("night-factory"), Some(&"factory".to_owned()));
+        assert!(!aliases.contains_key("unused"));
+    }
 }
