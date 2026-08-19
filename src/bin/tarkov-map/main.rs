@@ -15,7 +15,7 @@ use assets::{AssetCache, Bc7Image, load_and_decode_image, load_maps};
 use eframe::egui;
 use eframe::egui_wgpu::{self, wgpu};
 use egui_toast::{Toast, ToastKind, ToastOptions, Toasts};
-use overlays::OverlayVisibility;
+use overlays::{HazardGeometry, OverlayVisibility};
 use screenshot_watcher::{PlayerPosition, ScreenshotWatcher};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -81,6 +81,7 @@ pub struct TarkovMapApp {
     prev_zoom: f32,
     pan_offset: egui::Vec2,
     overlays: OverlayVisibility,
+    hazard_geometry: HashMap<String, HazardGeometry>,
     asset_cache: AssetCache,
     texture_cache: HashMap<String, MapTexture>,
     toasts: Toasts,
@@ -149,6 +150,7 @@ impl TarkovMapApp {
             prev_zoom: 1.0,
             pan_offset: egui::Vec2::ZERO,
             overlays: settings.overlays,
+            hazard_geometry: HashMap::new(),
             asset_cache,
             texture_cache: HashMap::new(),
             toasts,

@@ -645,11 +645,17 @@ impl TarkovMapApp {
 
         // Draw overlays
         let overlays = self.overlays;
-        if overlays.sniper_zones {
-            draw_sniper_zones(ui, map_rect, map, &map.sniper_zones, self.zoom);
-        }
-        if overlays.minefields {
-            draw_minefields(ui, map_rect, map, &map.minefields, self.zoom);
+        if overlays.sniper_zones || overlays.minefields {
+            let geometry = self
+                .hazard_geometry
+                .entry(map.normalized_name.clone())
+                .or_insert_with(|| crate::overlays::HazardGeometry::for_map(map));
+            if overlays.sniper_zones {
+                draw_sniper_zones(ui, map_rect, map, &geometry.sniper_zones, self.zoom);
+            }
+            if overlays.minefields {
+                draw_minefields(ui, map_rect, map, &geometry.minefields, self.zoom);
+            }
         }
         let mut label_candidates = Vec::new();
         let extract_markers = map

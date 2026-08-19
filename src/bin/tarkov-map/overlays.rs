@@ -6,8 +6,12 @@ use crate::coordinates::game_to_display;
 use crate::labels::{LabelCandidate, LabelKind};
 use crate::screenshot_watcher::PlayerPosition;
 use eframe::egui;
+use geo::{
+    Coord, LineString, MultiPolygon, Orient, Polygon, TriangulateEarcut,
+    algorithm::{orient::Direction, unary_union},
+};
 use serde::{Deserialize, Serialize};
-use tarkov_map::{Extract, Label, Map, Minefield, SniperZone, Spawn};
+use tarkov_map::{Extract, Label, Map, Spawn};
 
 /// Controls visibility of different overlay types on the map.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -124,24 +128,108 @@ fn minefield_uses_fallback(bounds: egui::Rect) -> bool {
     bounds.width().max(bounds.height()) < MINEFIELD_MIN_SIZE
 }
 
-fn project_outline(
+fn union_overlay_areas<'a>(
+    outlines: impl IntoIterator<Item = &'a [[f64; 2]]>,
+) -> MultiPolygon<f64> {
+    let polygons: Vec<_> = outlines
+        .into_iter()
+        .map(|outline| {
+            Polygon::new(
+                LineString::new(
+                    outline
+                        .iter()
+                        .map(|[x, y]| Coord { x: *x, y: *y })
+                        .collect(),
+                ),
+                Vec::new(),
+            )
+            .orient(Direction::Default)
+        })
+        .collect();
+    unary_union(&polygons)
+}
+
+/// Same-type area Overlay geometry merged once in game space for one Map.
+pub struct HazardGeometry {
+    pub sniper_zones: MultiPolygon<f64>,
+    pub minefields: MultiPolygon<f64>,
+}
+
+impl HazardGeometry {
+    pub fn for_map(map: &Map) -> Self {
+        Self {
+            sniper_zones: union_overlay_areas(
+                map.sniper_zones.iter().map(|zone| zone.outline.as_slice()),
+            ),
+            minefields: union_overlay_areas(
+                map.minefields
+                    .iter()
+                    .map(|minefield| minefield.outline.as_slice()),
+            ),
+        }
+    }
+}
+
+fn project_ring(
     map: &Map,
     map_rect: egui::Rect,
-    outline: &[[f64; 2]],
-) -> Option<(Vec<egui::Pos2>, egui::Rect)> {
-    let points: Vec<_> = outline
-        .iter()
-        .filter_map(|point| game_to_display(map, map_rect, *point))
+    ring: &LineString<f64>,
+) -> Option<Vec<egui::Pos2>> {
+    let points: Vec<_> = ring
+        .points()
+        .filter_map(|point| game_to_display(map, map_rect, [point.x(), point.y()]))
         .collect();
     if points.len() < 3 {
         return None;
     }
 
-    let bounds = egui::Rect::from_points(&points);
-    map_rect
-        .expand(50.0)
-        .intersects(bounds)
-        .then_some((points, bounds))
+    Some(points)
+}
+
+fn project_area(
+    map: &Map,
+    map_rect: egui::Rect,
+    area: &Polygon<f64>,
+) -> Option<(Vec<egui::Pos2>, Vec<Vec<egui::Pos2>>, egui::Rect)> {
+    let exterior = project_ring(map, map_rect, area.exterior())?;
+    let bounds = egui::Rect::from_points(&exterior);
+    if !map_rect.expand(50.0).intersects(bounds) {
+        return None;
+    }
+
+    let interiors = area
+        .interiors()
+        .iter()
+        .filter_map(|ring| project_ring(map, map_rect, ring))
+        .collect();
+    Some((exterior, interiors, bounds))
+}
+
+fn paint_area_fill(
+    painter: &egui::Painter,
+    map: &Map,
+    map_rect: egui::Rect,
+    area: &Polygon<f64>,
+    color: egui::Color32,
+) {
+    let mut mesh = egui::Mesh::default();
+    for triangle in area.earcut_triangles_iter() {
+        let projected = [triangle.v1(), triangle.v2(), triangle.v3()]
+            .map(|point| game_to_display(map, map_rect, [point.x, point.y]));
+        let [Some(a), Some(b), Some(c)] = projected else {
+            continue;
+        };
+
+        let first = mesh.vertices.len() as u32;
+        mesh.colored_vertex(a, color);
+        mesh.colored_vertex(b, color);
+        mesh.colored_vertex(c, color);
+        mesh.add_triangle(first, first + 1, first + 2);
+    }
+
+    if !mesh.indices.is_empty() {
+        painter.add(egui::Shape::mesh(mesh));
+    }
 }
 
 /// Draws Sniper Zones as faint red polygons with solid outlines.
@@ -149,27 +237,23 @@ pub fn draw_sniper_zones(
     ui: &mut egui::Ui,
     map_rect: egui::Rect,
     map: &Map,
-    sniper_zones: &[SniperZone],
+    sniper_zones: &MultiPolygon<f64>,
     zoom: f32,
 ) {
     let painter = ui.painter();
     let stroke_width = (1.0 + 0.2 * zoom).min(2.0) * 1.5;
 
-    for zone in sniper_zones {
-        let Some((points, _)) = project_outline(map, map_rect, &zone.outline) else {
+    for zone in &sniper_zones.0 {
+        let Some((exterior, interiors, _)) = project_area(map, map_rect, zone) else {
             continue;
         };
-        painter.add(egui::Shape::convex_polygon(
-            points.clone(),
-            colors::SNIPER_ZONE_FILL,
-            egui::Stroke::NONE,
-        ));
-        let mut closed = points;
-        closed.push(closed[0]);
-        painter.add(egui::Shape::line(
-            closed,
-            egui::Stroke::new(stroke_width, colors::SNIPER_ZONE_STROKE),
-        ));
+        paint_area_fill(painter, map, map_rect, zone, colors::SNIPER_ZONE_FILL);
+        for ring in std::iter::once(exterior).chain(interiors) {
+            painter.add(egui::Shape::line(
+                ring,
+                egui::Stroke::new(stroke_width, colors::SNIPER_ZONE_STROKE),
+            ));
+        }
     }
 }
 
@@ -181,14 +265,14 @@ pub fn draw_minefields(
     ui: &mut egui::Ui,
     map_rect: egui::Rect,
     map: &Map,
-    minefields: &[Minefield],
+    minefields: &MultiPolygon<f64>,
     zoom: f32,
 ) {
     let painter = ui.painter();
     let stroke_width = (1.0 + 0.2 * zoom).min(2.0) * 1.2;
 
-    for minefield in minefields {
-        let Some((points, bounds)) = project_outline(map, map_rect, &minefield.outline) else {
+    for minefield in &minefields.0 {
+        let Some((exterior, interiors, bounds)) = project_area(map, map_rect, minefield) else {
             continue;
         };
         if minefield_uses_fallback(bounds) {
@@ -200,19 +284,15 @@ pub fn draw_minefields(
             continue;
         }
 
-        painter.add(egui::Shape::convex_polygon(
-            points.clone(),
-            colors::MINEFIELD_FILL,
-            egui::Stroke::NONE,
-        ));
-        let mut closed = points;
-        closed.push(closed[0]);
-        painter.add(egui::Shape::dashed_line(
-            &closed,
-            egui::Stroke::new(stroke_width, colors::MINEFIELD_STROKE),
-            4.0,
-            3.0,
-        ));
+        paint_area_fill(painter, map, map_rect, minefield, colors::MINEFIELD_FILL);
+        for ring in std::iter::once(exterior).chain(interiors) {
+            painter.add(egui::Shape::dashed_line(
+                &ring,
+                egui::Stroke::new(stroke_width, colors::MINEFIELD_STROKE),
+                4.0,
+                3.0,
+            ));
+        }
     }
 }
 
@@ -463,6 +543,7 @@ pub fn draw_player_marker(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use geo::Area;
     use tarkov_map::{Minefield, SniperZone};
 
     const MAP_OVERLAYS: [OverlayKind; 2] = [OverlayKind::LABELS, OverlayKind::PLAYER_MARKER];
@@ -575,6 +656,32 @@ mod tests {
 
         assert!(minefield_uses_fallback(below_threshold));
         assert!(!minefield_uses_fallback(at_threshold));
+    }
+
+    #[test]
+    fn overlapping_overlay_areas_are_combined_before_painting() {
+        let left = vec![[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]];
+        let right = vec![[5.0, 0.0], [15.0, 0.0], [15.0, 10.0], [5.0, 10.0]];
+
+        let combined = union_overlay_areas([left.as_slice(), right.as_slice()]);
+
+        assert_eq!(combined.0.len(), 1);
+        assert!((combined.unsigned_area() - 150.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn bundled_woods_hazard_geometry_merges_same_type_overlaps() {
+        let maps: Vec<Map> = ron::from_str(include_str!("../../../assets/maps.ron"))
+            .expect("bundled Maps should parse");
+        let woods = maps
+            .iter()
+            .find(|map| map.normalized_name == "woods")
+            .expect("Woods should be bundled");
+
+        let merged = HazardGeometry::for_map(woods);
+
+        assert!(merged.sniper_zones.0.len() < woods.sniper_zones.len());
+        assert!(merged.minefields.0.len() < woods.minefields.len());
     }
 
     #[test]
