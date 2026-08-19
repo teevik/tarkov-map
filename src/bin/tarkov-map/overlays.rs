@@ -313,7 +313,7 @@ pub fn draw_minefields(
     }
 }
 
-/// Base font size for extract and transit labels at the fit view.
+/// Base font size for marker Labels at the fit view.
 const MARKER_LABEL_BASE: f32 = 11.0;
 
 /// Builds a Label font that grows with the square root of zoom, so text stays
@@ -597,6 +597,88 @@ pub fn contribute_transit_labels(
     }
 }
 
+/// One clustered Switch marker projected and styled for this frame.
+pub struct SwitchMarker {
+    label: String,
+    source_order: usize,
+    position: egui::Pos2,
+    size: f32,
+    label_font: egui::FontId,
+    stack_size: usize,
+}
+
+/// Builds clustered Switch presentation shared by marker and Label drawing.
+pub fn switch_markers(map_rect: egui::Rect, map: &Map, zoom: f32) -> Vec<SwitchMarker> {
+    cluster_switches(&map.switches)
+        .into_iter()
+        .enumerate()
+        .filter_map(|(source_order, cluster)| {
+            let position = game_to_display(map, map_rect, cluster.position)?;
+            let stack_size = cluster.names.len();
+            let size = (12.0 * zoom).clamp(8.0, 32.0) * 0.8;
+
+            Some(SwitchMarker {
+                label: cluster.names.join("\n"),
+                source_order,
+                position,
+                size,
+                label_font: label_font(MARKER_LABEL_BASE, zoom, 11.0, 20.0),
+                stack_size,
+            })
+        })
+        .collect()
+}
+
+/// Draws Switch markers using the shared disc and bolt primitives.
+pub fn draw_switches(ui: &mut egui::Ui, map_rect: egui::Rect, switches: &[SwitchMarker]) {
+    let painter = ui.painter();
+
+    for switch in switches {
+        if !map_rect.expand(20.0).contains(switch.position) {
+            continue;
+        }
+
+        markers::disc(
+            painter,
+            switch.position,
+            switch.size,
+            colors::MARKER_DISC,
+            colors::SWITCH,
+        );
+        markers::icon_bolt(painter, switch.position, switch.size, colors::SWITCH);
+    }
+}
+
+/// Contributes clustered Switch Labels to the shared placement pass.
+pub fn contribute_switch_labels(
+    painter: &egui::Painter,
+    switches: &[SwitchMarker],
+    candidates: &mut Vec<LabelCandidate>,
+) {
+    for switch in switches {
+        let measured = painter
+            .layout_no_wrap(
+                switch.label.clone(),
+                switch.label_font.clone(),
+                colors::SWITCH,
+            )
+            .size();
+
+        candidates.push(LabelCandidate {
+            kind: LabelKind::Switch,
+            within_kind_priority: switch.stack_size as f64,
+            source_order: switch.source_order,
+            text: switch.label.clone(),
+            font: switch.label_font.clone(),
+            color: colors::SWITCH,
+            outline: colors::EXTRACT_TEXT_SHADOW,
+            anchor: switch.position + egui::vec2(0.0, -switch.size / 2.0 - 4.0),
+            align: egui::Align2::CENTER_BOTTOM,
+            measured,
+        });
+    }
+}
+
 fn extract_colors(
     extract: &Extract,
     overlays: &OverlayVisibility,
@@ -694,8 +776,7 @@ mod tests {
         OverlayKind::SCAV_EXTRACTS,
         OverlayKind::SHARED_EXTRACTS,
     ];
-    const NAVIGATION_OVERLAYS: [OverlayKind; 2] =
-        [OverlayKind::TRANSITS, OverlayKind::SWITCHES];
+    const NAVIGATION_OVERLAYS: [OverlayKind; 2] = [OverlayKind::TRANSITS, OverlayKind::SWITCHES];
 
     fn empty_map() -> Map {
         ron::from_str(
@@ -896,11 +977,38 @@ mod tests {
         let clusters = cluster_switches(&switches);
 
         assert_eq!(clusters.len(), 2);
-        assert_eq!(
-            clusters[0].names,
-            ["First", "Joins first cluster", "Last"]
-        );
+        assert_eq!(clusters[0].names, ["First", "Joins first cluster", "Last"]);
         assert_eq!(clusters[1].names, ["Second cluster"]);
+    }
+
+    #[test]
+    fn bundled_switches_cluster_as_expected() {
+        let maps: Vec<Map> = ron::from_str(include_str!("../../../assets/maps.ron"))
+            .expect("bundled Maps should parse");
+        let map = |normalized_name: &str| {
+            maps.iter()
+                .find(|map| map.normalized_name == normalized_name)
+                .unwrap_or_else(|| panic!("missing bundled Map {normalized_name}"))
+        };
+
+        let lab = map("the-lab");
+        assert_eq!(lab.switches.len(), 15);
+        assert!(cluster_switches(&lab.switches).len() <= 12);
+
+        let lighthouse = cluster_switches(&map("lighthouse").switches);
+        assert_eq!(lighthouse.len(), 1);
+        assert_eq!(lighthouse[0].names, ["Lightkeeper Switch"]);
+
+        let reserve = cluster_switches(&map("reserve").switches);
+        let d2_power = reserve
+            .iter()
+            .position(|cluster| cluster.names.iter().any(|name| name == "D-2 Power Switch"))
+            .expect("Reserve should include the D-2 Power Switch");
+        let d2_door = reserve
+            .iter()
+            .position(|cluster| cluster.names.iter().any(|name| name == "D-2 Door Switch"))
+            .expect("Reserve should include the D-2 Door Switch");
+        assert_ne!(d2_power, d2_door);
     }
 
     #[test]

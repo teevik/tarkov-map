@@ -67,7 +67,6 @@ pub fn icon_skull(
 }
 
 /// Paints the shared lightning-bolt icon used by the Switches Overlay.
-#[allow(dead_code)] // Reserved for the Switches Overlay ticket.
 pub fn icon_bolt(painter: &egui::Painter, pos: egui::Pos2, size: f32, color: egui::Color32) {
     let scale = size * 0.28;
     let points = vec![

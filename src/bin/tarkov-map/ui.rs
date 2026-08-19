@@ -10,9 +10,10 @@ use crate::labels::{self, LabelKind};
 use crate::markers;
 use crate::overlays::{
     OverlayKind, OverlayVisibility, category_count, contribute_extract_labels,
-    contribute_place_name_labels, contribute_transit_labels, draw_extracts, draw_minefields,
-    draw_player_marker, draw_sniper_zones, draw_spawns, draw_transits, extract_markers,
-    overlay_offered, transit_markers,
+    contribute_place_name_labels, contribute_switch_labels, contribute_transit_labels,
+    draw_extracts, draw_minefields, draw_player_marker, draw_sniper_zones, draw_spawns,
+    draw_switches, draw_transits, extract_markers, overlay_offered, switch_markers,
+    transit_markers,
 };
 use crate::screenshot_watcher::ScreenshotWatcher;
 use crate::{APP_TITLE, APP_VERSION};
@@ -101,14 +102,24 @@ const HAZARD_OVERLAYS: &[OverlayRow] = &[
         },
     },
 ];
-const NAVIGATION_OVERLAYS: &[OverlayRow] = &[OverlayRow {
-    overlay: OverlayKind::TRANSITS,
-    label: "Transits",
-    glyph: OverlayGlyph::Disc {
-        color: colors::TRANSIT,
-        icon: markers::icon_chevrons,
+const NAVIGATION_OVERLAYS: &[OverlayRow] = &[
+    OverlayRow {
+        overlay: OverlayKind::TRANSITS,
+        label: "Transits",
+        glyph: OverlayGlyph::Disc {
+            color: colors::TRANSIT,
+            icon: markers::icon_chevrons,
+        },
     },
-}];
+    OverlayRow {
+        overlay: OverlayKind::SWITCHES,
+        label: "Switches",
+        glyph: OverlayGlyph::Disc {
+            color: colors::SWITCH,
+            icon: markers::icon_bolt,
+        },
+    },
+];
 const OVERLAY_CATEGORIES: &[OverlayCategory] = &[
     OverlayCategory {
         title: "Map",
@@ -692,6 +703,11 @@ impl TarkovMapApp {
         } else {
             Vec::new()
         };
+        let switch_markers = if overlays.switches {
+            switch_markers(map_rect, map, self.zoom)
+        } else {
+            Vec::new()
+        };
         if overlays.labels
             && let Some(labels) = &map.labels
         {
@@ -706,6 +722,7 @@ impl TarkovMapApp {
         }
         contribute_extract_labels(ui.painter(), &extract_markers, &mut label_candidates);
         contribute_transit_labels(ui.painter(), &transit_markers, &mut label_candidates);
+        contribute_switch_labels(ui.painter(), &switch_markers, &mut label_candidates);
         let placed_labels = labels::place(label_candidates);
 
         labels::draw(
@@ -723,6 +740,7 @@ impl TarkovMapApp {
 
         draw_extracts(ui, map_rect, &extract_markers);
         draw_transits(ui, map_rect, &transit_markers);
+        draw_switches(ui, map_rect, &switch_markers);
 
         labels::draw(
             ui.painter(),

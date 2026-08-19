@@ -21,7 +21,6 @@ pub const SHARED_EXTRACT_STROKE: Color32 = Color32::from_rgb(75, 0, 130);
 // Shared marker Overlay language
 pub const MARKER_DISC: Color32 = Color32::from_rgba_unmultiplied_const(25, 25, 25, 235);
 pub const TRANSIT: Color32 = Color32::from_rgb(80, 220, 230);
-#[allow(dead_code)] // Reserved for the Switches Overlay ticket.
 pub const SWITCH: Color32 = Color32::from_rgb(255, 225, 60);
 #[allow(dead_code)] // Reserved for the BTR Stop Overlay ticket.
 pub const BTR_STOP: Color32 = Color32::from_rgb(240, 180, 40);
