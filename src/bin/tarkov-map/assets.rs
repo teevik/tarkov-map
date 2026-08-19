@@ -242,7 +242,10 @@ mod tests {
             .filter(|path| path.starts_with("maps/"))
             .filter(|path| !referenced.contains(path.as_ref()))
             .collect();
-        assert!(orphans.is_empty(), "embedded images no map uses: {orphans:?}");
+        assert!(
+            orphans.is_empty(),
+            "embedded images no map uses: {orphans:?}"
+        );
     }
 
     #[test]
@@ -291,7 +294,9 @@ mod tests {
     fn poll_moves_loading_to_error() {
         let mut cache = AssetCache::new();
         cache.request("maps/customs.png", || {
-            ready_channel(Err(ImageLoadError::AssetNotFound("maps/customs.png".into())))
+            ready_channel(Err(ImageLoadError::AssetNotFound(
+                "maps/customs.png".into(),
+            )))
         });
 
         let errors = cache.poll();
@@ -327,7 +332,10 @@ mod tests {
         cache.request("maps/customs.png", || ready_channel(Ok(decoded())));
         cache.poll();
 
-        assert_eq!(cache.pending_uploads(), vec!["maps/customs.png".to_string()]);
+        assert_eq!(
+            cache.pending_uploads(),
+            vec!["maps/customs.png".to_string()]
+        );
 
         let taken = cache.take_decoded("maps/customs.png");
 
@@ -353,7 +361,10 @@ mod tests {
         cache.poll();
         cache.take_decoded("maps/customs.png");
 
-        assert!(cache.evict("maps/customs.png"), "uploaded paths are evictable");
+        assert!(
+            cache.evict("maps/customs.png"),
+            "uploaded paths are evictable"
+        );
         assert!(
             cache.state("maps/customs.png").is_none(),
             "an evicted path is forgotten entirely"
@@ -364,7 +375,10 @@ mod tests {
             spawned = true;
             ready_channel(Ok(decoded()))
         });
-        assert!(started && spawned, "an evicted path reloads via the normal path");
+        assert!(
+            started && spawned,
+            "an evicted path reloads via the normal path"
+        );
     }
 
     #[test]
@@ -376,8 +390,14 @@ mod tests {
         });
         cache.poll(); // loading.png -> Decoded, broken.png -> Error
 
-        assert!(!cache.evict("maps/loading.png"), "decoded pixels are not evicted");
-        assert!(!cache.evict("maps/broken.png"), "errors are kept to avoid retry loops");
+        assert!(
+            !cache.evict("maps/loading.png"),
+            "decoded pixels are not evicted"
+        );
+        assert!(
+            !cache.evict("maps/broken.png"),
+            "errors are kept to avoid retry loops"
+        );
         assert!(!cache.evict("maps/never-requested.png"));
         assert!(matches!(
             cache.state("maps/loading.png"),

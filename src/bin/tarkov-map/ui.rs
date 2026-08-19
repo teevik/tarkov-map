@@ -1,6 +1,5 @@
 //! UI rendering methods for the Tarkov Map application.
 
-use crate::{MapTransition, MapTransitionPhase, OutgoingMap, TarkovMapApp};
 use crate::colors;
 use crate::constants::{
     CENTER_ZOOM, FRESH_FIX_MAX_AGE, MAP_PLACEHOLDER_DELAY, MAP_REVEAL_DURATION,
@@ -10,6 +9,7 @@ use crate::coordinates::game_to_display;
 use crate::overlays::{draw_extracts, draw_labels, draw_player_marker, draw_spawns};
 use crate::screenshot_watcher::ScreenshotWatcher;
 use crate::{APP_TITLE, APP_VERSION};
+use crate::{MapTransition, MapTransitionPhase, OutgoingMap, TarkovMapApp};
 use eframe::egui::{self, ViewportCommand};
 use std::time::{Duration, Instant};
 use tarkov_map::Map;
@@ -388,7 +388,11 @@ impl TarkovMapApp {
 
     /// Paints the outgoing map fitted to `viewport_rect` at `opacity`.
     fn paint_outgoing(&self, ui: &egui::Ui, viewport_rect: egui::Rect, opacity: f32) {
-        let Some(outgoing) = self.map_transition.as_ref().and_then(|t| t.outgoing.as_ref()) else {
+        let Some(outgoing) = self
+            .map_transition
+            .as_ref()
+            .and_then(|t| t.outgoing.as_ref())
+        else {
             return;
         };
         let Some((texture_id, uv)) = self.get_texture(&outgoing.path) else {
@@ -396,7 +400,8 @@ impl TarkovMapApp {
         };
         let fit = (viewport_rect.width() / outgoing.logical_size.x)
             .min(viewport_rect.height() / outgoing.logical_size.y);
-        let rect = egui::Rect::from_center_size(viewport_rect.center(), outgoing.logical_size * fit);
+        let rect =
+            egui::Rect::from_center_size(viewport_rect.center(), outgoing.logical_size * fit);
         ui.painter().with_clip_rect(viewport_rect).image(
             texture_id,
             rect,
@@ -413,8 +418,7 @@ impl TarkovMapApp {
         let started = self.begin_transition(image_path, MapTransitionPhase::Loading);
         let elapsed = Instant::now().duration_since(started);
 
-        let (viewport_rect, _) =
-            ui.allocate_exact_size(ui.available_size(), egui::Sense::hover());
+        let (viewport_rect, _) = ui.allocate_exact_size(ui.available_size(), egui::Sense::hover());
         let dim_t = (elapsed.as_secs_f32() / MAP_PLACEHOLDER_DELAY.as_secs_f32()).min(1.0);
         self.paint_outgoing(ui, viewport_rect, 1.0 - 0.6 * dim_t);
 
@@ -443,8 +447,8 @@ impl TarkovMapApp {
         image_path: &str,
     ) -> f32 {
         let since = self.begin_transition(image_path, MapTransitionPhase::Reveal);
-        let t = Instant::now().duration_since(since).as_secs_f32()
-            / MAP_REVEAL_DURATION.as_secs_f32();
+        let t =
+            Instant::now().duration_since(since).as_secs_f32() / MAP_REVEAL_DURATION.as_secs_f32();
 
         if t < 1.0 {
             // Ease-out: fast start, gentle landing.

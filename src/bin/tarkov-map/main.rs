@@ -28,20 +28,11 @@ const APP_TITLE: &str = "Tarkov Map";
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 const SETTINGS_STORAGE_KEY: &str = "app_settings";
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 struct AppSettings {
     selected_map_normalized_name: Option<String>,
     overlays: OverlayVisibility,
-}
-
-impl Default for AppSettings {
-    fn default() -> Self {
-        Self {
-            selected_map_normalized_name: None,
-            overlays: OverlayVisibility::default(),
-        }
-    }
 }
 
 /// A map image's BC7 texture, uploaded through wgpu and compressed in VRAM,
@@ -225,7 +216,9 @@ impl TarkovMapApp {
         let stale: Vec<String> = self
             .texture_cache
             .keys()
-            .filter(|path| Some(path.as_str()) != active && Some(path.as_str()) != outgoing.as_deref())
+            .filter(|path| {
+                Some(path.as_str()) != active && Some(path.as_str()) != outgoing.as_deref()
+            })
             .cloned()
             .collect();
 
@@ -297,8 +290,7 @@ impl TarkovMapApp {
                 log::error!("GPU lacks BC texture compression; cannot display maps");
                 self.toasts.add(Toast {
                     kind: ToastKind::Error,
-                    text: "This GPU lacks BC texture compression; maps cannot be displayed."
-                        .into(),
+                    text: "This GPU lacks BC texture compression; maps cannot be displayed.".into(),
                     options: ToastOptions::default()
                         .duration_in_seconds(10.0)
                         .show_icon(true),
@@ -322,19 +314,21 @@ impl TarkovMapApp {
             depth_or_array_layers: 1,
         };
 
-        let texture = render_state.device.create_texture(&wgpu::TextureDescriptor {
-            label: Some(path),
-            size,
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            // Non-sRGB on purpose: egui renders in gamma space and
-            // expects raw (gamma-encoded) samples — an Srgb format
-            // here double-converts and darkens the map.
-            format: wgpu::TextureFormat::Bc7RgbaUnorm,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-            view_formats: &[],
-        });
+        let texture = render_state
+            .device
+            .create_texture(&wgpu::TextureDescriptor {
+                label: Some(path),
+                size,
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                // Non-sRGB on purpose: egui renders in gamma space and
+                // expects raw (gamma-encoded) samples — an Srgb format
+                // here double-converts and darkens the map.
+                format: wgpu::TextureFormat::Bc7RgbaUnorm,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                view_formats: &[],
+            });
         render_state.queue.write_texture(
             wgpu::TexelCopyTextureInfo {
                 texture: &texture,
@@ -427,7 +421,6 @@ impl eframe::App for TarkovMapApp {
         let settings = AppSettings {
             selected_map_normalized_name,
             overlays: self.overlays,
-            ..Default::default()
         };
 
         eframe::set_value(storage, SETTINGS_STORAGE_KEY, &settings);
