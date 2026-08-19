@@ -1,0 +1,21 @@
+# Rendering boundary: core renders to image space, the app alone touches the screen
+
+Core owns everything about *what* is shown and *where it sits on the Map image*; the egui app owns everything about pixels. Concretely, core's application model answers the frame's questions through borrowed query methods — `overlay_items()`, `transition_opacity(now)`, `show_placeholder(now)`, `freshness(now)`, `offered_overlays()`, `notifications()` — and yields overlay content as one ordered `OverlayItem` enum in **Image space**; the only bridge to the screen is `ViewFrame`, a pure value built by `Viewport::frame(image_size, screen_size)` holding `image_to_screen` / `screen_to_image` (`Transform2D<f64, Image, Screen>`). The app converts every drag, scroll anchor and marker position through that frame, applies pixel sizes, colours, culling, font metrics and the label-crowding rule, and never does projection arithmetic. We chose this over a core-built scene graph (which would drag screen size and text metrics into core) and over the app walking the domain `Map` directly (which would duplicate overlay-visibility and draw-order rules outside the tests), because the filtering/projection/ordering is the logic worth testing and what the richer-overlays effort will extend, while sizes, fonts and culling are egui's problem.
+
+## Consequences
+
+- **`ViewFrame` lives with the Viewport** (`core::domain::viewport`) and is unit-tested with golden cases (fit, anchor-under-cursor zoom, inverse round-trip). The name avoids `eframe::Frame`; it is not a glossary term.
+- **`OverlayItem` is yielded in draw order** — area items before marker items, Trail before the Player marker — each carrying its `OverlayKind`, Image-space geometry and exactly what the painter needs (`Label{pos, text, rotation, size}`, `Spawn{pos}`, `Extract{pos, name, faction}`, `Trail{pos, index}` with 0 = oldest, `PlayerMarker{pos, heading, freshness}` with heading already rotated through the Projection). New overlay kinds extend the enum; the app's painter is one `match`.
+- **Reads are `&Model` borrows, never a snapshot**; the UI collects messages into a frame-local `Vec<Msg>` while borrowing and the app drains them through one `dispatch` (`model.handle(msg, now)` → intercept `PresentImage`/exit → `runner.run`) at the end of `ui()`, the same path the runner's channel takes in `logic()`.
+- **Textures**: the app intercepts `Effect::PresentImage` for the wgpu BC7 upload into `HashMap<MapId, MapTexture>` and each frame drops any texture whose `MapId ∉ {selected, outgoing}`; there is no release effect and no separate asset cache. BC-unsupported → `Msg::ImagePresentFailed`.
+- **Constants** the model's behaviour depends on are core's (zoom range, centre-on-player zoom, placeholder delay, fade duration, freshness threshold, Trail cap); input-device and pixel constants (scroll zoom speed, points per notch, key step, marker sizes, colours, sidebar width) are the app's.
+- **Repaint scheduling is the app's**: `request_repaint()` while a Map Transition is in progress, `request_repaint_after(1 s)` while a Player Position exists (drives the age text and catches the Freshness flip); core exposes no "next change" API.
+- **Sidebar presentation state** (open Overlay Category headings, Ctrl-held badges, slider drag) is app-owned and persisted, if at all, via eframe storage — not `Settings`.
+- **App crate modules**: `main.rs`, `app.rs`, `input.rs`, `map_view.rs`, `sidebar.rs`, `chrome.rs`, `textures.rs`, `toasts.rs`, `theme.rs`; today's `overlays.rs` and `coordinates.rs` disappear into `map_view.rs` and core.
+
+## Considered options
+
+- Core-built scene graph in screen space — rejected: core would need the viewport rect and font metrics, and label crowding is unmeasurable without egui.
+- App walks `Map` + `hidden_overlays` itself — rejected: visibility and ordering rules would live untested in the app and be re-implemented by the overlays effort.
+- Per-frame cloned `View` snapshot — rejected: single-threaded immediate mode gains nothing from the copy; message collection solves the borrow.
+- Explicit `Effect::ReleaseImage` — rejected: `outgoing` already encodes retention; a second signal is a second source of truth.
