@@ -978,9 +978,11 @@ impl TarkovMapApp {
         );
     }
 
-    /// Renders the menu bar (File, Help).
+    /// Renders the menu bar (sidebar toggle, File, Help).
     fn show_menu_bar(&mut self, ui: &mut egui::Ui) {
         egui::MenuBar::new().ui(ui, |ui| {
+            self.sidebar_toggle_button(ui);
+
             // File menu
             ui.menu_button("File", |ui| {
                 if ui.button("Clear Settings").clicked() {
@@ -1012,6 +1014,45 @@ impl TarkovMapApp {
                 }
             });
         });
+    }
+
+    /// A hamburger button that shows/hides the sidebar, sized to sit level
+    /// with the File/Help menu buttons.
+    fn sidebar_toggle_button(&mut self, ui: &mut egui::Ui) {
+        let side = ui.spacing().interact_size.y;
+        let (rect, response) = ui.allocate_exact_size(egui::vec2(side, side), egui::Sense::click());
+        let response = response.on_hover_text(if self.sidebar_visible {
+            "Hide sidebar (Tab)"
+        } else {
+            "Show sidebar (Tab)"
+        });
+
+        let visuals = ui.style().interact(&response);
+        if response.hovered() || response.is_pointer_button_down_on() {
+            ui.painter()
+                .rect_filled(rect, visuals.corner_radius, visuals.bg_fill);
+        }
+        Self::draw_hamburger_icon(ui.painter(), rect.center(), visuals.fg_stroke.color);
+
+        if response.clicked() {
+            self.sidebar_visible = !self.sidebar_visible;
+        }
+    }
+
+    /// Draws a three-line hamburger icon.
+    fn draw_hamburger_icon(painter: &egui::Painter, center: egui::Pos2, color: egui::Color32) {
+        let half_width = 5.0;
+        let gap = 3.0;
+        let stroke = egui::Stroke::new(1.0_f32, color);
+        for dy in [-gap, 0.0, gap] {
+            painter.line_segment(
+                [
+                    egui::pos2(center.x - half_width, center.y + dy),
+                    egui::pos2(center.x + half_width, center.y + dy),
+                ],
+                stroke,
+            );
+        }
     }
 
     /// Renders Windows-style window control buttons (minimize, maximize/restore, close).
