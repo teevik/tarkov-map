@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.1.16](https://github.com/teevik/tarkov-map/compare/v0.1.15...v0.1.16) (2026-08-19)
+
+
+### Features
+
+* add BTR stops overlay ([#67](https://github.com/teevik/tarkov-map/issues/67)) ([e78e9d7](https://github.com/teevik/tarkov-map/commit/e78e9d7c78d6d262443c824cc5ce471626732895))
+* add hazard overlays ([#64](https://github.com/teevik/tarkov-map/issues/64)) ([091f91f](https://github.com/teevik/tarkov-map/commit/091f91f1eb1da2dce5670f72986499ad6c2ec40c))
+* add per-Mob Boss Spawn overlays ([#68](https://github.com/teevik/tarkov-map/issues/68)) ([4a03a1f](https://github.com/teevik/tarkov-map/commit/4a03a1fb628c1f9feee5baa0430fc1c99469d07f))
+* add switches overlay ([#66](https://github.com/teevik/tarkov-map/issues/66)) ([725c8ee](https://github.com/teevik/tarkov-map/commit/725c8ee3eed3c819923a3e49bd4dcaebd1b25225))
+* add transit overlay and marker primitives ([#65](https://github.com/teevik/tarkov-map/issues/65)) ([6ad0680](https://github.com/teevik/tarkov-map/commit/6ad06802d604bf1cc24e45b0de2f4a23134f17aa))
+* hamburger button in the menu bar to toggle the sidebar ([5e27ea3](https://github.com/teevik/tarkov-map/commit/5e27ea3ee8e616c4060e4ed187802fe5b7969531))
+* show boss spawns as inferred areas ([#68](https://github.com/teevik/tarkov-map/issues/68)) ([93d09ab](https://github.com/teevik/tarkov-map/commit/93d09ab9a06b9a9609409aa6bc24b4196240c580))
+
+
+### Bug Fixes
+
+* more readable font sizes ([045b5b8](https://github.com/teevik/tarkov-map/commit/045b5b884f613dbc94db12ec1fcf26bd5221d240))
+* union same-type hazard outlines before painting ([3e582c5](https://github.com/teevik/tarkov-map/commit/3e582c531705adc4eb9b61de93ba10d59a53ca30))
+
 ## [0.1.15](https://github.com/teevik/tarkov-map/compare/v0.1.14...v0.1.15) (2026-08-19)
 
 
