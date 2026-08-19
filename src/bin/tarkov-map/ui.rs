@@ -6,13 +6,43 @@ use crate::constants::{
     POINTS_PER_SCROLL_NOTCH, SIDEBAR_WIDTH, TITLE_BAR_HEIGHT, ZOOM_MAX, ZOOM_MIN, ZOOM_SPEED,
 };
 use crate::coordinates::game_to_display;
-use crate::overlays::{draw_extracts, draw_labels, draw_player_marker, draw_spawns};
+use crate::overlays::{
+    OverlayKind, OverlayVisibility, category_count, draw_extracts, draw_labels, draw_player_marker,
+    draw_spawns, overlay_offered,
+};
 use crate::screenshot_watcher::ScreenshotWatcher;
 use crate::{APP_TITLE, APP_VERSION};
 use crate::{MapTransition, MapTransitionPhase, OutgoingMap, TarkovMapApp};
 use eframe::egui::{self, ViewportCommand};
 use std::time::{Duration, Instant};
 use tarkov_map::Map;
+
+struct OverlayCategory {
+    title: &'static str,
+    overlays: &'static [OverlayKind],
+}
+
+const MAP_OVERLAYS: &[OverlayKind] = &[OverlayKind::Labels, OverlayKind::PlayerMarker];
+const SPAWN_OVERLAYS: &[OverlayKind] = &[OverlayKind::PmcSpawns];
+const EXTRACT_OVERLAYS: &[OverlayKind] = &[
+    OverlayKind::PmcExtracts,
+    OverlayKind::ScavExtracts,
+    OverlayKind::SharedExtracts,
+];
+const OVERLAY_CATEGORIES: &[OverlayCategory] = &[
+    OverlayCategory {
+        title: "Map",
+        overlays: MAP_OVERLAYS,
+    },
+    OverlayCategory {
+        title: "Spawns",
+        overlays: SPAWN_OVERLAYS,
+    },
+    OverlayCategory {
+        title: "Extracts",
+        overlays: EXTRACT_OVERLAYS,
+    },
+];
 
 /// Formats a fix age for the position card: "just now", "12 s ago", "5 min ago", "2 h ago".
 fn format_age(age: Duration) -> String {
@@ -74,43 +104,59 @@ impl TarkovMapApp {
         }
 
         Self::section_header(ui, "Overlays");
+        if let Some(map) = self.selected_map().cloned() {
+            Self::show_overlay_categories(ui, &map, &mut self.overlays);
+        }
+    }
 
-        Self::overlay_toggle_circle(
-            ui,
-            &mut self.overlays.labels,
-            "Labels",
-            egui::Color32::WHITE,
-        );
-        Self::overlay_toggle_circle(
-            ui,
-            &mut self.overlays.spawns,
-            "PMC Spawns",
-            colors::SPAWN_FILL,
-        );
-        Self::overlay_toggle_rect(
-            ui,
-            &mut self.overlays.pmc_extracts,
-            "PMC Extracts",
-            colors::PMC_EXTRACT_FILL,
-        );
-        Self::overlay_toggle_rect(
-            ui,
-            &mut self.overlays.scav_extracts,
-            "Scav Extracts",
-            colors::SCAV_EXTRACT_FILL,
-        );
-        Self::overlay_toggle_rect(
-            ui,
-            &mut self.overlays.shared_extracts,
-            "Shared Extracts",
-            colors::SHARED_EXTRACT_FILL,
-        );
-        Self::overlay_toggle_triangle(
-            ui,
-            &mut self.overlays.player_marker,
-            "Player marker",
-            colors::PLAYER_MARKER_FILL,
-        );
+    fn show_overlay_categories(ui: &mut egui::Ui, map: &Map, visibility: &mut OverlayVisibility) {
+        for category in OVERLAY_CATEGORIES {
+            let (on, offered) = category_count(category.overlays, map, visibility);
+            if offered == 0 {
+                continue;
+            }
+
+            egui::CollapsingHeader::new(
+                egui::RichText::new(format!("{} {on}/{offered}", category.title)).size(12.5),
+            )
+            .id_salt(category.title)
+            .default_open(true)
+            .show(ui, |ui| {
+                ui.spacing_mut().item_spacing.y = 2.0;
+                for overlay in category.overlays.iter().copied() {
+                    if overlay_offered(overlay, map) {
+                        Self::overlay_toggle(ui, visibility, overlay);
+                    }
+                }
+            });
+        }
+    }
+
+    fn overlay_toggle(ui: &mut egui::Ui, visibility: &mut OverlayVisibility, overlay: OverlayKind) {
+        let value = visibility.visibility_mut(overlay);
+        match overlay {
+            OverlayKind::Labels => {
+                Self::overlay_toggle_circle(ui, value, "Labels", egui::Color32::WHITE)
+            }
+            OverlayKind::PlayerMarker => Self::overlay_toggle_triangle(
+                ui,
+                value,
+                "Player marker",
+                colors::PLAYER_MARKER_FILL,
+            ),
+            OverlayKind::PmcSpawns => {
+                Self::overlay_toggle_circle(ui, value, "PMC Spawns", colors::SPAWN_FILL)
+            }
+            OverlayKind::PmcExtracts => {
+                Self::overlay_toggle_rect(ui, value, "PMC Extracts", colors::PMC_EXTRACT_FILL)
+            }
+            OverlayKind::ScavExtracts => {
+                Self::overlay_toggle_rect(ui, value, "Scav Extracts", colors::SCAV_EXTRACT_FILL)
+            }
+            OverlayKind::SharedExtracts => {
+                Self::overlay_toggle_rect(ui, value, "Shared Extracts", colors::SHARED_EXTRACT_FILL)
+            }
+        }
     }
 
     /// A quiet uppercase eyebrow that separates sidebar sections.

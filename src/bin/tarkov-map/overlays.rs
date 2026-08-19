@@ -40,6 +40,76 @@ pub struct OverlayVisibility {
     pub player_marker: bool,
 }
 
+/// One toggleable Overlay offered in the sidebar.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OverlayKind {
+    Labels,
+    PmcSpawns,
+    PmcExtracts,
+    ScavExtracts,
+    SharedExtracts,
+    PlayerMarker,
+}
+
+impl OverlayVisibility {
+    pub fn is_visible(&self, overlay: OverlayKind) -> bool {
+        match overlay {
+            OverlayKind::Labels => self.labels,
+            OverlayKind::PmcSpawns => self.spawns,
+            OverlayKind::PmcExtracts => self.pmc_extracts,
+            OverlayKind::ScavExtracts => self.scav_extracts,
+            OverlayKind::SharedExtracts => self.shared_extracts,
+            OverlayKind::PlayerMarker => self.player_marker,
+        }
+    }
+
+    pub fn visibility_mut(&mut self, overlay: OverlayKind) -> &mut bool {
+        match overlay {
+            OverlayKind::Labels => &mut self.labels,
+            OverlayKind::PmcSpawns => &mut self.spawns,
+            OverlayKind::PmcExtracts => &mut self.pmc_extracts,
+            OverlayKind::ScavExtracts => &mut self.scav_extracts,
+            OverlayKind::SharedExtracts => &mut self.shared_extracts,
+            OverlayKind::PlayerMarker => &mut self.player_marker,
+        }
+    }
+}
+
+/// Whether an Overlay has at least one item to draw on this Map.
+pub fn overlay_offered(overlay: OverlayKind, map: &Map) -> bool {
+    match overlay {
+        OverlayKind::Labels => map.labels.as_ref().is_some_and(|labels| !labels.is_empty()),
+        OverlayKind::PmcSpawns => map.spawns.as_ref().is_some_and(|spawns| !spawns.is_empty()),
+        OverlayKind::PmcExtracts => has_positioned_extract(map, "pmc"),
+        OverlayKind::ScavExtracts => has_positioned_extract(map, "scav"),
+        OverlayKind::SharedExtracts => has_positioned_extract(map, "shared"),
+        OverlayKind::PlayerMarker => true,
+    }
+}
+
+fn has_positioned_extract(map: &Map, faction: &str) -> bool {
+    map.extracts.as_ref().is_some_and(|extracts| {
+        extracts.iter().any(|extract| {
+            extract.position.is_some() && extract.faction.eq_ignore_ascii_case(faction)
+        })
+    })
+}
+
+/// The visible and offered Overlay counts for one Overlay Category.
+pub fn category_count(
+    overlays: &[OverlayKind],
+    map: &Map,
+    visibility: &OverlayVisibility,
+) -> (usize, usize) {
+    overlays
+        .iter()
+        .copied()
+        .filter(|overlay| overlay_offered(*overlay, map))
+        .fold((0, 0), |(on, total), overlay| {
+            (on + usize::from(visibility.is_visible(overlay)), total + 1)
+        })
+}
+
 impl Default for OverlayVisibility {
     fn default() -> Self {
         Self {
@@ -253,4 +323,122 @@ pub fn draw_player_marker(
         colors::PLAYER_MARKER_FILL,
         egui::Stroke::new(1.5_f32, colors::PLAYER_MARKER_STROKE),
     ));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const MAP_OVERLAYS: [OverlayKind; 2] = [OverlayKind::Labels, OverlayKind::PlayerMarker];
+    const EXTRACT_OVERLAYS: [OverlayKind; 3] = [
+        OverlayKind::PmcExtracts,
+        OverlayKind::ScavExtracts,
+        OverlayKind::SharedExtracts,
+    ];
+
+    fn empty_map() -> Map {
+        ron::from_str(
+            r#"Map(
+                normalizedName: "test",
+                name: "Test",
+                imagePath: "maps/test.bc7z",
+                imageSize: (256.0, 256.0),
+                logicalSize: (200.0, 200.0),
+            )"#,
+        )
+        .expect("test Map should parse")
+    }
+
+    fn map_with_current_overlays() -> Map {
+        let mut map = empty_map();
+        map.labels = Some(vec![Label {
+            position: [0.0, 0.0],
+            text: "Dorms".to_owned(),
+            rotation: None,
+            size: None,
+            top: None,
+            bottom: None,
+        }]);
+        map.spawns = Some(vec![Spawn {
+            position: [0.0, 0.0, 0.0],
+            sides: vec!["pmc".to_owned()],
+            categories: vec!["player".to_owned()],
+        }]);
+        map.extracts = Some(vec![
+            Extract {
+                name: "PMC".to_owned(),
+                faction: "pmc".to_owned(),
+                position: Some([0.0, 0.0, 0.0]),
+            },
+            Extract {
+                name: "Scav without a position".to_owned(),
+                faction: "scav".to_owned(),
+                position: None,
+            },
+            Extract {
+                name: "Shared".to_owned(),
+                faction: "shared".to_owned(),
+                position: Some([0.0, 0.0, 0.0]),
+            },
+        ]);
+        map
+    }
+
+    #[test]
+    fn overlays_are_offered_only_when_the_map_has_something_to_draw() {
+        let empty = empty_map();
+
+        assert!(!overlay_offered(OverlayKind::Labels, &empty));
+        assert!(!overlay_offered(OverlayKind::PmcSpawns, &empty));
+        assert!(!overlay_offered(OverlayKind::PmcExtracts, &empty));
+        assert!(!overlay_offered(OverlayKind::ScavExtracts, &empty));
+        assert!(!overlay_offered(OverlayKind::SharedExtracts, &empty));
+        assert!(overlay_offered(OverlayKind::PlayerMarker, &empty));
+
+        let offered = map_with_current_overlays();
+
+        assert!(overlay_offered(OverlayKind::Labels, &offered));
+        assert!(overlay_offered(OverlayKind::PmcSpawns, &offered));
+        assert!(overlay_offered(OverlayKind::PmcExtracts, &offered));
+        assert!(!overlay_offered(OverlayKind::ScavExtracts, &offered));
+        assert!(overlay_offered(OverlayKind::SharedExtracts, &offered));
+    }
+
+    #[test]
+    fn category_count_includes_only_offered_overlays() {
+        let map = map_with_current_overlays();
+        let visibility = OverlayVisibility {
+            labels: false,
+            scav_extracts: false,
+            ..OverlayVisibility::default()
+        };
+
+        assert_eq!(category_count(&MAP_OVERLAYS, &map, &visibility), (1, 2));
+        assert_eq!(category_count(&EXTRACT_OVERLAYS, &map, &visibility), (2, 2));
+    }
+
+    #[test]
+    fn bundled_maps_offer_the_expected_extract_overlays() {
+        let maps: Vec<Map> = ron::from_str(include_str!("../../../assets/maps.ron"))
+            .expect("bundled Maps should parse");
+        let map = |normalized_name: &str| {
+            maps.iter()
+                .find(|map| map.normalized_name == normalized_name)
+                .unwrap_or_else(|| panic!("missing bundled Map {normalized_name}"))
+        };
+        let visibility = OverlayVisibility::default();
+
+        assert_eq!(
+            category_count(&EXTRACT_OVERLAYS, map("terminal"), &visibility),
+            (0, 0)
+        );
+        assert_eq!(
+            category_count(&EXTRACT_OVERLAYS, map("the-lab"), &visibility),
+            (2, 2)
+        );
+        assert_eq!(
+            category_count(&EXTRACT_OVERLAYS, map("customs"), &visibility),
+            (3, 3)
+        );
+    }
 }
