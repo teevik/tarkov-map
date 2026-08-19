@@ -92,6 +92,14 @@ _Avoid_: Crossfade (the drawing of a Map Transition), loading state
 A message the app records for the player about something they should know — an error, an available update, "already up to date" — with a severity of Info, Warning or Error. A Notification may offer one action the player can take from it (install the available update, restart into the installed one); such a Notification stays until acted on or closed, the rest expire on their own. The toast is the drawing of a Notification, not the Notification itself.
 _Avoid_: Toast, alert, message
 
+**Bundle**:
+The set of Maps the app ships with — the map data file and every Map's image — committed to the repository and built into the app; the app never fetches Maps at runtime.
+_Avoid_: Assets (the folder), catalogue (the loaded, validated form of the Bundle in code), map pack
+
+**Refresh**:
+One run of the fetch tool that rebuilds the Bundle from tarkov.dev's published data; a Refresh either replaces the whole Bundle or leaves it untouched.
+_Avoid_: Update (reserved for the app updating itself), fetch, regenerate, sync
+
 ## Not modelled
 
 - **Floors / layers**: tarkov.dev exposes per-floor tile sets with height extents. This project renders the Main Floor only; there is no floor selector and no height-based floor matching. Do not reintroduce layer support "for completeness".
