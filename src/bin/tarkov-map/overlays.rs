@@ -8,14 +8,16 @@ use crate::markers;
 use crate::screenshot_watcher::PlayerPosition;
 use eframe::egui;
 use geo::{
-    Coord, LineString, MultiPolygon, Orient, Polygon, TriangulateEarcut,
+    Buffer, Coord, InteriorPoint, LineString, MultiPoint, MultiPolygon, Orient, Point, Polygon,
+    TriangulateEarcut,
     algorithm::{orient::Direction, unary_union},
 };
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
-use tarkov_map::{BossSpawn, BtrStop, Extract, Label, Map, Spawn, Switch};
+use std::collections::{BTreeMap, BTreeSet};
+use tarkov_map::{BtrStop, Extract, Label, Map, Spawn, Switch};
 
 const SWITCH_CLUSTER_UNITS: f64 = 3.0;
+const BOSS_SPAWN_AREA_RADIUS: f64 = 20.0;
 
 /// Controls visibility of different overlay types on the map.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -147,38 +149,13 @@ pub fn category_count(
     (overlay_on + shown_count, overlay_total + mobs.len())
 }
 
-/// Label and within-kind rank for the shown Mobs at one Boss Spawn.
-#[derive(Debug, PartialEq)]
-pub struct BossSpawnLabel {
-    pub label: String,
-    pub rank: f64,
-}
-
-/// Builds the Boss Spawn Label selected by the shown Mob Overlays.
-pub fn boss_spawn_label(
-    spawn: &BossSpawn,
-    shown_mobs: &BTreeSet<String>,
-) -> Option<BossSpawnLabel> {
-    let shown: Vec<_> = spawn
-        .mobs
-        .iter()
-        .filter(|mob| shown_mobs.contains(&mob.name))
-        .collect();
-    let rank = shown.iter().map(|mob| mob.chance).reduce(f64::max)?;
-    let label = shown
-        .into_iter()
-        .map(|mob| {
-            let percent = (mob.chance * 100.0).round() as i64;
-            if percent == 100 {
-                mob.name.clone()
-            } else {
-                format!("{} {percent}%", mob.name)
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    Some(BossSpawnLabel { label, rank })
+fn boss_spawn_label(name: &str, chance: f64) -> String {
+    let percent = (chance * 100.0).round() as i64;
+    if percent == 100 {
+        name.to_owned()
+    } else {
+        format!("{name} {percent}%")
+    }
 }
 
 impl Default for OverlayVisibility {
@@ -741,81 +718,144 @@ pub fn contribute_btr_stop_labels(
     }
 }
 
-/// One shown Boss Spawn projected and styled for this frame.
-pub struct BossSpawnMarker {
+struct MobSpawnPoints {
+    chance: f64,
+    source_order: usize,
+    points: Vec<Point<f64>>,
+}
+
+/// One inferred Boss Spawn Area projected and styled for this frame.
+pub struct BossSpawnArea {
+    polygon: Polygon<f64>,
     label: String,
     source_order: usize,
-    position: egui::Pos2,
-    size: f32,
+    label_position: egui::Pos2,
     label_font: egui::FontId,
     rank: f64,
 }
 
-/// Builds Boss Spawn presentation for positions containing at least one shown Mob.
-pub fn boss_spawn_markers(
+/// Builds one conservative area per connected cluster of shown Mob spawn positions.
+pub fn boss_spawn_areas(
     map_rect: egui::Rect,
     map: &Map,
     zoom: f32,
     shown_mobs: &BTreeSet<String>,
-) -> Vec<BossSpawnMarker> {
-    map.boss_spawns
-        .iter()
-        .enumerate()
-        .filter_map(|(source_order, spawn)| {
-            let label = boss_spawn_label(spawn, shown_mobs)?;
-            let position = game_to_display(map, map_rect, spawn.position)?;
-            let size = (12.0 * zoom).clamp(8.0, 32.0) * 0.9;
+) -> Vec<BossSpawnArea> {
+    let mut by_mob = BTreeMap::<String, MobSpawnPoints>::new();
+    for (source_order, spawn) in map.boss_spawns.iter().enumerate() {
+        for mob in &spawn.mobs {
+            if !shown_mobs.contains(&mob.name) {
+                continue;
+            }
 
-            Some(BossSpawnMarker {
-                label: label.label,
-                source_order,
-                position,
-                size,
+            let group = by_mob
+                .entry(mob.name.clone())
+                .or_insert_with(|| MobSpawnPoints {
+                    chance: mob.chance,
+                    source_order,
+                    points: Vec::new(),
+                });
+            group
+                .points
+                .push(Point::new(spawn.position[0], spawn.position[1]));
+        }
+    }
+
+    let mut areas: Vec<BossSpawnArea> = Vec::new();
+    for (name, group) in by_mob {
+        let label = boss_spawn_label(&name, group.chance);
+        let geometry = MultiPoint::new(group.points).buffer(BOSS_SPAWN_AREA_RADIUS);
+
+        for polygon in geometry.0 {
+            let Some(anchor) = polygon.interior_point() else {
+                continue;
+            };
+            let Some(label_position) = game_to_display(map, map_rect, [anchor.x(), anchor.y()])
+            else {
+                continue;
+            };
+
+            if let Some(existing) = areas.iter_mut().find(|area| area.polygon == polygon) {
+                existing.label.push('\n');
+                existing.label.push_str(&label);
+                existing.rank = existing.rank.max(group.chance);
+                existing.source_order = existing.source_order.min(group.source_order);
+                continue;
+            }
+
+            areas.push(BossSpawnArea {
+                polygon,
+                label: label.clone(),
+                source_order: group.source_order,
+                label_position,
                 label_font: label_font(MARKER_LABEL_BASE, zoom, 11.0, 20.0),
-                rank: label.rank,
-            })
-        })
-        .collect()
+                rank: group.chance,
+            });
+        }
+    }
+
+    areas
 }
 
-/// Draws Boss Spawn markers using the shared disc and skull primitives.
-pub fn draw_boss_spawns(ui: &mut egui::Ui, map_rect: egui::Rect, spawns: &[BossSpawnMarker]) {
+/// Draws inferred Boss Spawn Areas as faint fills with dashed outlines.
+pub fn draw_boss_spawn_areas(
+    ui: &mut egui::Ui,
+    map_rect: egui::Rect,
+    map: &Map,
+    areas: &[BossSpawnArea],
+    zoom: f32,
+) {
     let painter = ui.painter();
+    let stroke_width = (1.0 + 0.2 * zoom).min(2.0) * 1.2;
 
-    for spawn in spawns {
-        if !map_rect.expand(20.0).contains(spawn.position) {
+    for area in areas {
+        let Some((exterior, interiors, _)) = project_area(map, map_rect, &area.polygon) else {
             continue;
-        }
+        };
 
-        markers::paint_boss_spawn_marker(painter, spawn.position, spawn.size);
+        paint_area_fill(
+            painter,
+            map,
+            map_rect,
+            &area.polygon,
+            colors::BOSS_SPAWN_AREA_FILL,
+        );
+        for ring in std::iter::once(exterior).chain(interiors) {
+            painter.add(egui::Shape::dashed_line(
+                &ring,
+                egui::Stroke::new(stroke_width, colors::BOSS_SPAWN_AREA_STROKE),
+                6.0,
+                4.0,
+            ));
+        }
     }
 }
 
-/// Contributes shown Boss Spawn Labels to the shared placement pass.
-pub fn contribute_boss_spawn_labels(
+/// Contributes one title Label for each inferred Boss Spawn Area.
+pub fn contribute_boss_spawn_area_labels(
     painter: &egui::Painter,
-    spawns: &[BossSpawnMarker],
+    areas: &[BossSpawnArea],
     candidates: &mut Vec<LabelCandidate>,
 ) {
-    for spawn in spawns {
+    for area in areas {
         let measured = painter
             .layout_no_wrap(
-                spawn.label.clone(),
-                spawn.label_font.clone(),
+                area.label.clone(),
+                area.label_font.clone(),
                 egui::Color32::WHITE,
             )
             .size();
 
         candidates.push(LabelCandidate {
             kind: LabelKind::BossSpawn,
-            within_kind_priority: spawn.rank,
-            source_order: spawn.source_order,
-            text: spawn.label.clone(),
-            font: spawn.label_font.clone(),
+            within_kind_priority: area.rank,
+            source_order: area.source_order,
+            text: area.label.clone(),
+            font: area.label_font.clone(),
             color: egui::Color32::WHITE,
             outline: colors::EXTRACT_TEXT_SHADOW,
-            anchor: spawn.position + egui::vec2(0.0, -spawn.size / 2.0 - 4.0),
-            align: egui::Align2::CENTER_BOTTOM,
+            anchor: area.label_position,
+            align: egui::Align2::CENTER_CENTER,
             measured,
         });
     }
@@ -1151,42 +1191,86 @@ mod tests {
     }
 
     #[test]
-    fn boss_spawn_label_formats_and_orders_only_shown_mobs() {
-        let spawn = BossSpawn {
-            position: [10.0, 20.0],
-            mobs: vec![
-                BossChance {
-                    name: "AF".to_owned(),
-                    chance: 1.0,
-                },
-                BossChance {
-                    name: "Reshala".to_owned(),
-                    chance: 0.452,
-                },
-                BossChance {
-                    name: "Raider".to_owned(),
-                    chance: 0.4,
-                },
-                BossChance {
-                    name: "Cultist Priest".to_owned(),
-                    chance: 0.025,
-                },
-            ],
-        };
-        let shown = BTreeSet::from([
-            "AF".to_owned(),
-            "Cultist Priest".to_owned(),
-            "Reshala".to_owned(),
-        ]);
-
-        let label = boss_spawn_label(&spawn, &shown).expect("shown Mobs should make a marker");
-
-        assert_eq!(label.label, "AF\nReshala 45%\nCultist Priest 3%");
-        assert_eq!(label.rank, 1.0);
+    fn boss_spawn_label_formats_chance() {
+        assert_eq!(boss_spawn_label("AF", 1.0), "AF");
+        assert_eq!(boss_spawn_label("Reshala", 0.452), "Reshala 45%");
+        assert_eq!(
+            boss_spawn_label("Cultist Priest", 0.025),
+            "Cultist Priest 3%"
+        );
     }
 
     #[test]
-    fn customs_reshala_visibility_builds_only_reshala_boss_spawn_markers() {
+    fn nearby_boss_spawns_form_one_area_while_distant_spawns_stay_separate() {
+        let mut map = empty_map();
+        map.bounds = Some([[200.0, -100.0], [-100.0, 100.0]]);
+        map.boss_spawns = [0.0, 35.0, 100.0]
+            .into_iter()
+            .map(|x| BossSpawn {
+                position: [x, 0.0],
+                mobs: vec![BossChance {
+                    name: "Tagilla".to_owned(),
+                    chance: 0.25,
+                }],
+            })
+            .collect();
+        let map_rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(200.0, 200.0));
+        let shown = BTreeSet::from(["Tagilla".to_owned()]);
+
+        let areas = boss_spawn_areas(map_rect, &map, 1.0, &shown);
+
+        assert_eq!(areas.len(), 2);
+        assert!(areas.iter().all(|area| area.label == "Tagilla 25%"));
+    }
+
+    #[test]
+    fn mobs_with_the_same_area_share_one_stacked_title() {
+        let mut map = empty_map();
+        map.bounds = Some([[100.0, -100.0], [-100.0, 100.0]]);
+        map.boss_spawns = vec![BossSpawn {
+            position: [0.0, 0.0],
+            mobs: vec![
+                BossChance {
+                    name: "Tagilla".to_owned(),
+                    chance: 0.25,
+                },
+                BossChance {
+                    name: "Killa".to_owned(),
+                    chance: 0.45,
+                },
+            ],
+        }];
+        let map_rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(200.0, 200.0));
+        let shown = BTreeSet::from(["Killa".to_owned(), "Tagilla".to_owned()]);
+
+        let areas = boss_spawn_areas(map_rect, &map, 1.0, &shown);
+
+        assert_eq!(areas.len(), 1);
+        assert_eq!(areas[0].label, "Killa 45%\nTagilla 25%");
+    }
+
+    #[test]
+    fn interchange_tagilla_spawns_form_one_area() {
+        let maps: Vec<Map> = ron::from_str(include_str!("../../../assets/maps.ron"))
+            .expect("bundled Maps should parse");
+        let interchange = maps
+            .iter()
+            .find(|map| map.normalized_name == "interchange")
+            .expect("Interchange should be bundled");
+        let map_rect = egui::Rect::from_min_size(
+            egui::Pos2::ZERO,
+            egui::vec2(interchange.logical_size[0], interchange.logical_size[1]),
+        );
+        let shown = BTreeSet::from(["Tagilla".to_owned()]);
+
+        let areas = boss_spawn_areas(map_rect, interchange, 1.0, &shown);
+
+        assert_eq!(areas.len(), 1);
+        assert_eq!(areas[0].label, "Tagilla 25%");
+    }
+
+    #[test]
+    fn customs_reshala_visibility_builds_fewer_areas_than_source_positions() {
         let maps: Vec<Map> = ron::from_str(include_str!("../../../assets/maps.ron"))
             .expect("bundled Maps should parse");
         let customs = maps
@@ -1199,11 +1283,12 @@ mod tests {
         );
         let shown = BTreeSet::from(["Reshala".to_owned()]);
 
-        let markers = boss_spawn_markers(map_rect, customs, 1.0, &shown);
+        let areas = boss_spawn_areas(map_rect, customs, 1.0, &shown);
 
-        assert_eq!(markers.len(), 29);
-        assert!(markers.iter().all(|marker| marker.label == "Reshala 45%"));
-        assert!(boss_spawn_markers(map_rect, customs, 1.0, &BTreeSet::new()).is_empty());
+        assert!(!areas.is_empty());
+        assert!(areas.len() < customs.boss_spawns.len());
+        assert!(areas.iter().all(|area| area.label == "Reshala 45%"));
+        assert!(boss_spawn_areas(map_rect, customs, 1.0, &BTreeSet::new()).is_empty());
     }
 
     #[test]

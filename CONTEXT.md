@@ -37,7 +37,7 @@ One toggleable set of markers or areas drawn over a Map's image (e.g. PMC Extrac
 _Avoid_: Layer (reserved for tarkov.dev's per-floor tile sets, which are not modelled)
 
 **Label**:
-Any text drawn on a Map: a place name from the "Labels" Overlay, or the name beside a marker (an Extract, Transit, BTR Stop, Switch or Boss Spawn). At any zoom a Label is drawn only if it does not overlap a Label already drawn; Labels are placed in a fixed priority order — Extracts, Transits, BTR Stops, Switches, Boss Spawns, then place names (larger first) — so the important ones survive when a Map is crowded, a culled Label is simply not drawn (its marker still is), and the same Labels survive wherever the Viewport is panned; zooming in makes room and reveals more. A Label that stacks several names (a Boss Spawn's Mobs, clustered Switches) is drawn whole or not at all.
+Any text drawn on a Map: a place name from the "Labels" Overlay, a Boss Spawn Area title, or the name beside a marker (an Extract, Transit, BTR Stop or Switch). At any zoom a Label is drawn only if it does not overlap a Label already drawn; Labels are placed in a fixed priority order — Extracts, Transits, BTR Stops, Switches, Boss Spawn Areas, then place names (larger first) — so the important ones survive when a Map is crowded, a culled Label is simply not drawn (its underlying marker or area still is), and the same Labels survive wherever the Viewport is panned; zooming in makes room and reveals more. A Label that stacks several names (a Boss Spawn Area's Mobs, clustered Switches) is drawn whole or not at all.
 _Avoid_: Caption, text, annotation, tooltip (nothing is revealed on hover), label culling as a setting (it is never off)
 
 **Overlay Category**:
@@ -49,8 +49,12 @@ One named enemy that tarkov.dev lists as a boss on a Map — a real boss (Reshal
 _Avoid_: Boss (only some Mobs are bosses), bot, faction, `mob` key (tarkov.dev's raw id, several of which map to one Mob)
 
 **Boss Spawn**:
-A position on a Map where one or more Mobs may appear, each with its map-wide spawn chance. Drawn as one marker listing every Mob whose Overlay is on; hidden when none is. The marker always draws; its Label follows the general Label rule.
-_Avoid_: Boss zone, boss location, spawn location (tarkov.dev's zone grouping, which is not modelled), "Bosses" Overlay (there is none — each Mob is its own Overlay)
+A recorded position on a Map where one or more Mobs may appear, each with its map-wide spawn chance. Nearby Boss Spawns for a shown Mob belong to the same Boss Spawn Area.
+_Avoid_: Boss zone, boss location, spawn location (tarkov.dev's zone grouping, which is not modelled), marker (Boss Spawns are source positions, not individual drawings), "Bosses" Overlay (there is none — each Mob is its own Overlay)
+
+**Boss Spawn Area**:
+One approximate, connected region where a shown Mob may appear, inferred from nearby Boss Spawns. A Mob may have several disconnected Boss Spawn Areas; each has one Label naming the Mob and its map-wide chance, and Mobs with the same area share one stacked Label.
+_Avoid_: Exact boundary, Boss zone (the upstream grouping is not modelled), Boss Spawn marker
 
 **Sniper Zone**:
 An area of a Map covered by a stationary marksman, as outlined by tarkov.dev; drawn as its outline on the Map. Drawn as the "Sniper zones" Overlay.

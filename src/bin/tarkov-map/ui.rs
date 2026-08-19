@@ -9,10 +9,10 @@ use crate::coordinates::game_to_display;
 use crate::labels::{self, LabelKind};
 use crate::markers;
 use crate::overlays::{
-    OverlayKind, OverlayVisibility, boss_spawn_markers, btr_stop_markers, category_count,
-    contribute_boss_spawn_labels, contribute_btr_stop_labels, contribute_extract_labels,
+    OverlayKind, OverlayVisibility, boss_spawn_areas, btr_stop_markers, category_count,
+    contribute_boss_spawn_area_labels, contribute_btr_stop_labels, contribute_extract_labels,
     contribute_place_name_labels, contribute_switch_labels, contribute_transit_labels,
-    draw_boss_spawns, draw_btr_stops, draw_extracts, draw_minefields, draw_player_marker,
+    draw_boss_spawn_areas, draw_btr_stops, draw_extracts, draw_minefields, draw_player_marker,
     draw_sniper_zones, draw_spawns, draw_switches, draw_transits, extract_markers, offered_mobs,
     overlay_offered, switch_markers, transit_markers,
 };
@@ -764,7 +764,8 @@ impl TarkovMapApp {
         } else {
             Vec::new()
         };
-        let boss_spawn_markers = boss_spawn_markers(map_rect, map, self.zoom, &overlays.mobs);
+        let boss_spawn_areas = boss_spawn_areas(map_rect, map, self.zoom, &overlays.mobs);
+        draw_boss_spawn_areas(ui, map_rect, map, &boss_spawn_areas, self.zoom);
         if overlays.labels
             && let Some(labels) = &map.labels
         {
@@ -781,7 +782,7 @@ impl TarkovMapApp {
         contribute_transit_labels(ui.painter(), &transit_markers, &mut label_candidates);
         contribute_btr_stop_labels(ui.painter(), &btr_stop_markers, &mut label_candidates);
         contribute_switch_labels(ui.painter(), &switch_markers, &mut label_candidates);
-        contribute_boss_spawn_labels(ui.painter(), &boss_spawn_markers, &mut label_candidates);
+        contribute_boss_spawn_area_labels(ui.painter(), &boss_spawn_areas, &mut label_candidates);
         let placed_labels = labels::place(label_candidates);
 
         labels::draw(
@@ -801,8 +802,6 @@ impl TarkovMapApp {
         draw_transits(ui, map_rect, &transit_markers);
         draw_btr_stops(ui, map_rect, &btr_stop_markers);
         draw_switches(ui, map_rect, &switch_markers);
-        draw_boss_spawns(ui, map_rect, &boss_spawn_markers);
-
         labels::draw(
             ui.painter(),
             placed_labels

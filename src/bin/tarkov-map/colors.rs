@@ -25,6 +25,11 @@ pub const SWITCH: Color32 = Color32::from_rgb(255, 225, 60);
 pub const BTR_STOP: Color32 = Color32::from_rgb(240, 180, 40);
 pub const BOSS_BONE: Color32 = Color32::from_rgb(245, 245, 245);
 
+// Inferred Boss Spawn Areas
+pub const BOSS_SPAWN_AREA_FILL: Color32 = Color32::from_rgba_unmultiplied_const(245, 245, 245, 24);
+pub const BOSS_SPAWN_AREA_STROKE: Color32 =
+    Color32::from_rgba_unmultiplied_const(245, 245, 245, 210);
+
 // Player marker
 pub const PLAYER_MARKER_FILL: Color32 = Color32::from_rgb(255, 50, 50);
 pub const PLAYER_MARKER_STROKE: Color32 = Color32::from_rgb(139, 0, 0);
