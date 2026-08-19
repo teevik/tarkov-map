@@ -89,7 +89,7 @@ The changeover from the previously shown Map image to the newly selected one: th
 _Avoid_: Crossfade (the drawing of a Map Transition), loading state
 
 **Notification**:
-A message the app records for the player about something they should know — an error, an available update, "already up to date" — with a severity of Info, Warning or Error. The toast is the drawing of a Notification, not the Notification itself.
+A message the app records for the player about something they should know — an error, an available update, "already up to date" — with a severity of Info, Warning or Error. A Notification may offer one action the player can take from it (install the available update, restart into the installed one); such a Notification stays until acted on or closed, the rest expire on their own. The toast is the drawing of a Notification, not the Notification itself.
 _Avoid_: Toast, alert, message
 
 ## Not modelled
