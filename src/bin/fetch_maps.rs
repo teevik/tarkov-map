@@ -4,7 +4,7 @@
 //! `maps.ron` file for the viewer application.
 
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use clap::Parser;
@@ -22,6 +22,13 @@ use tokio::task::JoinSet;
 use tarkov_map::{
     BossChance, BossSpawn, BtrStop, Extract, Label, Map, Minefield, SniperZone, Spawn, Switch,
     TarkovMaps, Transit,
+};
+
+#[path = "fetch_maps/refresh.rs"]
+mod refresh;
+
+use refresh::{
+    GenerationOptions, ProvenanceSource, RefreshProvenance, StagedBundle, write_staged_provenance,
 };
 
 /// Errors that can occur during the fetch_maps process.
@@ -80,6 +87,12 @@ pub enum FetchError {
 
     #[error("missing PNG source for '{path}' — run a full fetch first")]
     MissingPngSource { path: String },
+
+    #[error("Refresh failed: {0}")]
+    Refresh(#[from] refresh::RefreshError),
+
+    #[error("failed to parse existing provenance: {0}")]
+    ProvenanceParse(#[source] ron::de::SpannedError),
 }
 
 /// Result of downloading a single tile.
@@ -108,9 +121,10 @@ const MAPS_JSON_URL: &str =
 const TARKOV_DEV_MAPS_URL: &str = "https://json.tarkov.dev/regular/maps";
 const TARKOV_DEV_MAPS_EN_URL: &str = "https://json.tarkov.dev/regular/maps_en";
 const USER_AGENT: &str = "tarkov-map";
-const MAPS_RON_PATH: &str = "assets/maps.ron";
+const ASSETS_DIR: &str = "assets";
+const MAPS_RON_FILE: &str = "maps.ron";
 /// Physical directory for storing map images on disk
-const MAPS_DIR: &str = "assets/maps";
+const MAPS_DIR: &str = "maps";
 /// Path prefix for maps.ron (relative to assets/ for rust-embed)
 const MAPS_PATH_PREFIX: &str = "maps";
 const TILE_DOWNLOAD_CONCURRENCY: usize = 32;
@@ -800,7 +814,11 @@ fn image_path_stem(entry: &str) -> &str {
 /// Encodes every image referenced by `maps` into a `.bc7z` next to its PNG
 /// source and rewrites the `image_path` entries to point at the containers.
 /// Existing up-to-date containers are skipped unless `force` is set.
-fn encode_all_assets(maps: &mut TarkovMaps, force: bool) -> Result<(), FetchError> {
+fn encode_all_assets(
+    maps: &mut TarkovMaps,
+    bundle_root: &Path,
+    force: bool,
+) -> Result<(), FetchError> {
     use std::collections::BTreeSet;
     use std::sync::Mutex;
 
@@ -811,7 +829,7 @@ fn encode_all_assets(maps: &mut TarkovMaps, force: bool) -> Result<(), FetchErro
 
     let jobs: Vec<String> = stems
         .iter()
-        .filter(|stem| force || !repo_path(&format!("assets/{stem}.bc7z")).exists())
+        .filter(|stem| force || !bundle_root.join(format!("{stem}.bc7z")).exists())
         .cloned()
         .collect();
 
@@ -837,17 +855,20 @@ fn encode_all_assets(maps: &mut TarkovMaps, force: bool) -> Result<(), FetchErro
                         let Some(stem) = queue.lock().unwrap().next() else {
                             return;
                         };
-                        let png = repo_path(&format!("assets/{stem}.png"));
+                        let png = bundle_root.join(format!("{stem}.png"));
                         let result = if png.exists() {
                             encode_png_to_bc7z(&png).and_then(|container| {
                                 Ok(std::fs::write(
-                                    repo_path(&format!("assets/{stem}.bc7z")),
+                                    bundle_root.join(format!("{stem}.bc7z")),
                                     container,
                                 )?)
                             })
                         } else {
                             Err(FetchError::MissingPngSource {
-                                path: format!("assets/{stem}.png"),
+                                path: bundle_root
+                                    .join(format!("{stem}.png"))
+                                    .display()
+                                    .to_string(),
                             })
                         };
                         if let Err(error) = result {
@@ -877,7 +898,7 @@ fn encode_all_assets(maps: &mut TarkovMaps, force: bool) -> Result<(), FetchErro
     Ok(())
 }
 
-fn write_maps_ron(maps: &TarkovMaps) -> Result<(), FetchError> {
+fn write_maps_ron(maps: &TarkovMaps, bundle_root: &Path) -> Result<(), FetchError> {
     let pretty_config = PrettyConfig::new()
         .depth_limit(10)
         .indentor("  ".to_owned())
@@ -887,9 +908,9 @@ fn write_maps_ron(maps: &TarkovMaps) -> Result<(), FetchError> {
     let ron_string = ron::ser::to_string_pretty(maps, pretty_config)?;
     println!("Serialized to {} bytes of RON", ron_string.len());
 
-    std::fs::create_dir_all(repo_path(MAPS_DIR))?;
+    std::fs::create_dir_all(bundle_root.join(MAPS_DIR))?;
 
-    let output_path = repo_path(MAPS_RON_PATH);
+    let output_path = bundle_root.join(MAPS_RON_FILE);
     std::fs::write(&output_path, &ron_string)?;
     println!("Wrote maps to {}", output_path.display());
     Ok(())
@@ -898,19 +919,43 @@ fn write_maps_ron(maps: &TarkovMaps) -> Result<(), FetchError> {
 struct ImageResult {
     image_path: String,
     image_size: [f32; 2],
+    source: ProvenanceSource,
+}
+
+fn main_floor_source(role: &str, identifier: String, normalized_name: &str) -> ProvenanceSource {
+    ProvenanceSource {
+        role: role.to_owned(),
+        identifier,
+        map: Some(normalized_name.to_owned()),
+    }
+}
+
+fn cached_main_floor_source(normalized_name: &str) -> ProvenanceSource {
+    main_floor_source(
+        "cached-main-floor",
+        format!("{ASSETS_DIR}/{MAPS_DIR}/{normalized_name}.png"),
+        normalized_name,
+    )
 }
 
 async fn process_svg_map(
     client: &reqwest::Client,
     normalized_name: &str,
     svg_url: &str,
+    usable_assets: &Path,
+    staged_assets: &Path,
     force: bool,
 ) -> Result<ImageResult, FetchError> {
     let image_relative = format!("{MAPS_PATH_PREFIX}/{normalized_name}.png");
-    let image_disk_path = repo_path(&format!("{MAPS_DIR}/{normalized_name}.png"));
+    let image_disk_path = staged_assets.join(&image_relative);
+    let cached_image_path = usable_assets.join(&image_relative);
 
-    if !force && image_disk_path.exists() {
-        let img = image::open(&image_disk_path)?;
+    if !force && cached_image_path.exists() {
+        if let Some(parent) = image_disk_path.parent() {
+            async_fs::create_dir_all(parent).await?;
+        }
+        async_fs::copy(&cached_image_path, &image_disk_path).await?;
+        let img = image::open(&cached_image_path)?;
         let source_size = [
             img.width() as f32 / SVG_RENDER_SCALE,
             img.height() as f32 / SVG_RENDER_SCALE,
@@ -918,6 +963,7 @@ async fn process_svg_map(
         return Ok(ImageResult {
             image_path: image_relative,
             image_size: source_size,
+            source: cached_main_floor_source(normalized_name),
         });
     }
 
@@ -960,6 +1006,7 @@ async fn process_svg_map(
     Ok(ImageResult {
         image_path: image_relative,
         image_size: source_size,
+        source: main_floor_source("main-floor-svg", svg_url.to_owned(), normalized_name),
     })
 }
 
@@ -973,20 +1020,28 @@ async fn process_tile_map(
     max_zoom: i32,
     zoom_offset: i32,
     multi_progress: &MultiProgress,
+    usable_assets: &Path,
+    staged_assets: &Path,
     force: bool,
 ) -> Result<ImageResult, FetchError> {
     let image_relative = format!("{MAPS_PATH_PREFIX}/{normalized_name}.png");
-    let image_disk_path = repo_path(&format!("{MAPS_DIR}/{normalized_name}.png"));
+    let image_disk_path = staged_assets.join(&image_relative);
+    let cached_image_path = usable_assets.join(&image_relative);
 
     let zoom = (max_zoom - zoom_offset).max(min_zoom);
     let tiles_per_axis = 1u32 << zoom;
     let full_size = tiles_per_axis * tile_size as u32;
     let source_size = [tile_size as f32, tile_size as f32];
 
-    if !force && image_disk_path.exists() {
+    if !force && cached_image_path.exists() {
+        if let Some(parent) = image_disk_path.parent() {
+            async_fs::create_dir_all(parent).await?;
+        }
+        async_fs::copy(&cached_image_path, &image_disk_path).await?;
         return Ok(ImageResult {
             image_path: image_relative,
             image_size: source_size,
+            source: cached_main_floor_source(normalized_name),
         });
     }
 
@@ -1051,17 +1106,15 @@ async fn process_tile_map(
     let mut full_image: RgbaImage = ImageBuffer::new(full_size, full_size);
 
     for (x, y, bytes) in tiles {
-        if let Ok(tile) = image::load_from_memory(&bytes) {
-            let tile_rgba = tile.to_rgba8();
-            let offset_x = x * tile_size as u32;
-            let offset_y = y * tile_size as u32;
+        let tile_rgba = image::load_from_memory(&bytes)?.to_rgba8();
+        let offset_x = x * tile_size as u32;
+        let offset_y = y * tile_size as u32;
 
-            for (tx, ty, pixel) in tile_rgba.enumerate_pixels() {
-                let fx = offset_x + tx;
-                let fy = offset_y + ty;
-                if fx < full_size && fy < full_size {
-                    full_image.put_pixel(fx, fy, *pixel);
-                }
+        for (tx, ty, pixel) in tile_rgba.enumerate_pixels() {
+            let fx = offset_x + tx;
+            let fy = offset_y + ty;
+            if fx < full_size && fy < full_size {
+                full_image.put_pixel(fx, fy, *pixel);
             }
         }
         compose_pb.inc(1);
@@ -1077,7 +1130,17 @@ async fn process_tile_map(
     Ok(ImageResult {
         image_path: image_relative,
         image_size: source_size,
+        source: main_floor_source(
+            "main-floor-tiles",
+            remote_template.to_owned(),
+            normalized_name,
+        ),
     })
+}
+
+struct ConvertedMap {
+    map: Map,
+    image_source: ProvenanceSource,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1087,9 +1150,11 @@ async fn convert_group(
     api_data: &ApiMapData,
     canonical_by_alias: &HashMap<String, String>,
     multi_progress: &MultiProgress,
+    usable_assets: &Path,
+    staged_assets: &Path,
     force: bool,
     tile_zoom_offset: i32,
-) -> Result<Option<Map>, FetchError> {
+) -> Result<Option<ConvertedMap>, FetchError> {
     let FetchedMapGroup {
         normalized_name,
         maps,
@@ -1132,7 +1197,16 @@ async fn convert_group(
 
     let result = match &interactive.svg_path {
         Some(svg_url) => {
-            match process_svg_map(client, &normalized_name, svg_url, force).await {
+            match process_svg_map(
+                client,
+                &normalized_name,
+                svg_url,
+                usable_assets,
+                staged_assets,
+                force,
+            )
+            .await
+            {
                 Ok(r) => r,
                 Err(svg_err) => {
                     // SVG failed — try falling back to tiles if available
@@ -1151,6 +1225,8 @@ async fn convert_group(
                             max_zoom,
                             tile_zoom_offset,
                             multi_progress,
+                            usable_assets,
+                            staged_assets,
                             force,
                         )
                         .await?
@@ -1171,6 +1247,8 @@ async fn convert_group(
                     max_zoom,
                     tile_zoom_offset,
                     multi_progress,
+                    usable_assets,
+                    staged_assets,
                     force,
                 )
                 .await?
@@ -1206,30 +1284,111 @@ async fn convert_group(
         multi_progress.println(format!("  Warning: {normalized_name}: {warning}"))?;
     }
 
-    Ok(Some(Map {
-        normalized_name: normalized_name.clone(),
-        name,
-        image_path: result.image_path,
-        image_size: result.image_size,
-        logical_size,
-        alt_maps: interactive.alt_maps,
-        author: interactive.author,
-        author_link: interactive.author_link,
-        transform: interactive.transform,
-        coordinate_rotation: interactive.coordinate_rotation,
-        bounds: interactive.bounds.map(round_bounds),
-        labels: interactive
-            .labels
-            .map(|l| l.into_iter().map(Into::into).collect()),
-        spawns: api_data.spawns.get(&normalized_name).cloned(),
-        extracts: api_data.extracts.get(&normalized_name).cloned(),
-        sniper_zones: overlays.sniper_zones,
-        minefields: overlays.minefields,
-        boss_spawns: overlays.boss_spawns,
-        transits: overlays.transits,
-        switches: overlays.switches,
-        btr_stops: overlays.btr_stops,
+    Ok(Some(ConvertedMap {
+        map: Map {
+            normalized_name: normalized_name.clone(),
+            name,
+            image_path: result.image_path,
+            image_size: result.image_size,
+            logical_size,
+            alt_maps: interactive.alt_maps,
+            author: interactive.author,
+            author_link: interactive.author_link,
+            transform: interactive.transform,
+            coordinate_rotation: interactive.coordinate_rotation,
+            bounds: interactive.bounds.map(round_bounds),
+            labels: interactive
+                .labels
+                .map(|l| l.into_iter().map(Into::into).collect()),
+            spawns: api_data.spawns.get(&normalized_name).cloned(),
+            extracts: api_data.extracts.get(&normalized_name).cloned(),
+            sniper_zones: overlays.sniper_zones,
+            minefields: overlays.minefields,
+            boss_spawns: overlays.boss_spawns,
+            transits: overlays.transits,
+            switches: overlays.switches,
+            btr_stops: overlays.btr_stops,
+        },
+        image_source: result.source,
     }))
+}
+
+fn generation_options(args: &Args) -> GenerationOptions {
+    GenerationOptions {
+        tile_zoom_offset: args.tile_zoom_offset,
+        svg_render_scale: SVG_RENDER_SCALE,
+        force: args.force,
+        convert_only: args.convert_only,
+        image_format: "BC7+zstd".to_owned(),
+    }
+}
+
+fn dataset_sources() -> Vec<ProvenanceSource> {
+    vec![
+        ProvenanceSource {
+            role: "map-metadata".to_owned(),
+            identifier: MAPS_JSON_URL.to_owned(),
+            map: None,
+        },
+        ProvenanceSource {
+            role: "map-data".to_owned(),
+            identifier: TARKOV_DEV_MAPS_URL.to_owned(),
+            map: None,
+        },
+        ProvenanceSource {
+            role: "translations".to_owned(),
+            identifier: TARKOV_DEV_MAPS_EN_URL.to_owned(),
+            map: None,
+        },
+    ]
+}
+
+fn convert_only_sources(
+    usable_assets: &Path,
+    maps: &TarkovMaps,
+) -> Result<Vec<ProvenanceSource>, FetchError> {
+    let provenance_path = usable_assets.join(refresh::PROVENANCE_FILE);
+    let mut sources = if provenance_path.exists() {
+        let text = std::fs::read_to_string(&provenance_path)?;
+        ron::from_str::<RefreshProvenance>(&text)
+            .map_err(FetchError::ProvenanceParse)?
+            .sources
+    } else {
+        dataset_sources()
+    };
+    sources.push(ProvenanceSource {
+        role: "cached-metadata".to_owned(),
+        identifier: format!("{ASSETS_DIR}/{MAPS_RON_FILE}"),
+        map: None,
+    });
+    sources.extend(maps.iter().map(|map| ProvenanceSource {
+        role: "cached-main-floor".to_owned(),
+        identifier: format!("{ASSETS_DIR}/{}.png", image_path_stem(&map.image_path)),
+        map: Some(map.normalized_name.clone()),
+    }));
+    Ok(sources)
+}
+
+fn stage_cached_pngs(
+    maps: &TarkovMaps,
+    usable_assets: &Path,
+    staged_assets: &Path,
+) -> Result<(), FetchError> {
+    for map in maps {
+        let relative = format!("{}.png", image_path_stem(&map.image_path));
+        let source = usable_assets.join(&relative);
+        if !source.exists() {
+            return Err(FetchError::MissingPngSource {
+                path: source.display().to_string(),
+            });
+        }
+        let destination = staged_assets.join(&relative);
+        if let Some(parent) = destination.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::copy(source, destination)?;
+    }
+    Ok(())
 }
 
 #[tokio::main]
@@ -1237,13 +1396,24 @@ async fn main() -> Result<(), FetchError> {
     env_logger::init();
 
     let args = Args::parse();
+    let usable_assets = repo_path(ASSETS_DIR);
+    let staged_bundle = StagedBundle::new(&usable_assets)?;
+    let staged_assets = staged_bundle.path();
 
     if args.convert_only {
         println!("Convert-only: encoding existing PNGs referenced by maps.ron");
-        let ron_string = std::fs::read_to_string(repo_path(MAPS_RON_PATH))?;
+        let ron_string = std::fs::read_to_string(usable_assets.join(MAPS_RON_FILE))?;
         let mut maps: TarkovMaps = ron::from_str(&ron_string).map_err(|e| e.code)?;
-        encode_all_assets(&mut maps, args.force)?;
-        write_maps_ron(&maps)?;
+        let provenance = RefreshProvenance::new(
+            convert_only_sources(&usable_assets, &maps)?,
+            generation_options(&args),
+        );
+        stage_cached_pngs(&maps, &usable_assets, staged_assets)?;
+        encode_all_assets(&mut maps, staged_assets, true)?;
+        write_maps_ron(&maps, staged_assets)?;
+        write_staged_provenance(staged_assets, &provenance)?;
+        let validation = staged_bundle.install()?;
+        println!("{}", refresh::review_summary(&provenance, &validation));
         return Ok(());
     }
 
@@ -1293,6 +1463,7 @@ async fn main() -> Result<(), FetchError> {
 
     let mut skipped = 0usize;
     let mut maps: TarkovMaps = Vec::new();
+    let mut provenance_sources = dataset_sources();
 
     for group in fetched_maps {
         let group_name = group.normalized_name.clone();
@@ -1304,16 +1475,21 @@ async fn main() -> Result<(), FetchError> {
             &api_data,
             &canonical_by_alias,
             &multi_progress,
+            &usable_assets,
+            staged_assets,
             args.force,
             args.tile_zoom_offset,
         )
         .await
         {
-            Ok(Some(map)) => maps.push(map),
+            Ok(Some(converted)) => {
+                maps.push(converted.map);
+                provenance_sources.push(converted.image_source);
+            }
             Ok(None) => skipped += 1,
             Err(e) => {
-                multi_progress.println(format!("  Warning: skipping {group_name}: {e}"))?;
-                skipped += 1;
+                maps_pb.abandon_with_message(format!("Failed: {group_name}"));
+                return Err(e);
             }
         }
 
@@ -1327,8 +1503,13 @@ async fn main() -> Result<(), FetchError> {
         maps.len()
     );
 
-    encode_all_assets(&mut maps, args.force)?;
-    write_maps_ron(&maps)?;
+    let provenance = RefreshProvenance::new(provenance_sources, generation_options(&args));
+    encode_all_assets(&mut maps, staged_assets, true)?;
+    write_maps_ron(&maps, staged_assets)?;
+    write_staged_provenance(staged_assets, &provenance)?;
+    let validation = staged_bundle.install()?;
+
+    println!("{}", refresh::review_summary(&provenance, &validation));
 
     println!("\nMaps:");
     for map in &maps {
@@ -1647,5 +1828,18 @@ mod tests {
         assert_eq!(aliases.get("factory"), Some(&"factory".to_owned()));
         assert_eq!(aliases.get("night-factory"), Some(&"factory".to_owned()));
         assert!(!aliases.contains_key("unused"));
+    }
+
+    #[test]
+    fn dataset_provenance_does_not_claim_unselected_main_floor_inputs() {
+        let sources = dataset_sources();
+
+        assert_eq!(sources.len(), 3);
+        assert!(sources.iter().all(|source| source.map.is_none()));
+        assert!(
+            sources
+                .iter()
+                .all(|source| !source.role.starts_with("main-floor"))
+        );
     }
 }
