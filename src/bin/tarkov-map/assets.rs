@@ -3,7 +3,7 @@
 use rust_embed::RustEmbed;
 use std::collections::HashMap;
 use std::sync::mpsc;
-use tarkov_map::TarkovMaps;
+use tarkov_map::{CatalogError, MapCatalog, TarkovMaps};
 use thiserror::Error;
 
 /// Embeds all assets from the assets/ directory into the binary.
@@ -26,6 +26,8 @@ pub enum MapLoadError {
     InvalidUtf8(#[from] std::str::Utf8Error),
     #[error("failed to parse maps.ron: {0}")]
     ParseError(#[from] ron::de::SpannedError),
+    #[error("failed to validate bundled maps: {0}")]
+    InvalidCatalog(#[from] CatalogError),
 }
 
 /// Errors that can occur when loading and decoding images.
@@ -69,7 +71,10 @@ pub fn load_and_decode_image(path: &str) -> Result<Bc7Image, ImageLoadError> {
 pub fn load_maps() -> Result<TarkovMaps, MapLoadError> {
     let file = Assets::get("maps.ron").ok_or(MapLoadError::MapsNotFound)?;
     let ron_string = std::str::from_utf8(&file.data)?;
-    Ok(ron::from_str(ron_string)?)
+    let maps = ron::from_str(ron_string)?;
+    let catalog = MapCatalog::try_new(maps)?;
+    catalog.validate_bundle_images(Assets::iter())?;
+    Ok(catalog.into_maps())
 }
 
 /// Tracks the demand-driven load state of map images keyed by asset path.
@@ -217,35 +222,9 @@ mod tests {
     /// Guards against schema drift between the app's Map type and the
     /// bundled maps.ron (e.g. fields removed from one but not the other).
     #[test]
-    fn bundled_maps_parse_and_reference_bundled_images() {
-        let maps = load_maps().expect("bundled maps.ron should parse");
+    fn bundled_map_collection_passes_offline_validation() {
+        let maps = load_maps().expect("bundled Map collection should be valid");
         assert!(!maps.is_empty(), "bundled maps.ron should contain maps");
-        for map in &maps {
-            assert!(
-                Assets::get(&map.image_path).is_some(),
-                "{} references missing asset {}",
-                map.normalized_name,
-                map.image_path
-            );
-        }
-    }
-
-    /// Main Floor only: every embedded map image must be some map's
-    /// `image_path`. Catches per-floor images being reintroduced under
-    /// `assets/maps/` without anything able to display them.
-    #[test]
-    fn every_bundled_image_is_a_map_main_floor() {
-        let maps = load_maps().expect("bundled maps.ron should parse");
-        let referenced: std::collections::HashSet<&str> =
-            maps.iter().map(|map| map.image_path.as_str()).collect();
-        let orphans: Vec<_> = Assets::iter()
-            .filter(|path| path.starts_with("maps/"))
-            .filter(|path| !referenced.contains(path.as_ref()))
-            .collect();
-        assert!(
-            orphans.is_empty(),
-            "embedded images no map uses: {orphans:?}"
-        );
     }
 
     #[test]

@@ -102,7 +102,7 @@ pub struct TarkovMapApp {
 }
 
 impl TarkovMapApp {
-    fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    fn new(cc: &eframe::CreationContext<'_>) -> Result<Self, assets::MapLoadError> {
         let settings: AppSettings = cc
             .storage
             .and_then(|storage| eframe::get_value(storage, SETTINGS_STORAGE_KEY))
@@ -110,26 +110,13 @@ impl TarkovMapApp {
 
         let updater = updater::Updater::new(cc.egui_ctx.clone());
 
-        let mut toasts = updater.configure_toasts(
+        let toasts = updater.configure_toasts(
             Toasts::new()
                 .anchor(egui::Align2::RIGHT_TOP, (-10.0, 10.0))
                 .direction(egui::Direction::TopDown),
         );
 
-        let maps = match load_maps() {
-            Ok(maps) => maps,
-            Err(err) => {
-                toasts.add(Toast {
-                    kind: ToastKind::Error,
-                    text: err.to_string().into(),
-                    options: ToastOptions::default()
-                        .duration_in_seconds(10.0)
-                        .show_icon(true),
-                    ..Default::default()
-                });
-                Vec::new()
-            }
-        };
+        let maps = load_maps()?;
 
         let selected_map = settings
             .selected_map_normalized_name
@@ -153,7 +140,7 @@ impl TarkovMapApp {
             log::info!("Screenshot watcher not available - player position tracking disabled");
         }
 
-        Self {
+        Ok(Self {
             maps,
             selected_map,
             center_on_player: false,
@@ -172,7 +159,7 @@ impl TarkovMapApp {
             last_drawn_map: None,
             bc_unsupported_notified: false,
             clear_settings_on_close: false,
-        }
+        })
     }
 
     fn selected_map(&self) -> Option<&Map> {
@@ -484,6 +471,6 @@ fn main() -> eframe::Result {
     eframe::run_native(
         APP_ID,
         options,
-        Box::new(|cc| Ok(Box::new(TarkovMapApp::new(cc)))),
+        Box::new(|cc| Ok(Box::new(TarkovMapApp::new(cc)?))),
     )
 }
