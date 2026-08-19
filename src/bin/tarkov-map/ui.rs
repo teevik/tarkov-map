@@ -9,8 +9,8 @@ use crate::coordinates::game_to_display;
 use crate::labels::{self, LabelKind};
 use crate::overlays::{
     OverlayKind, OverlayVisibility, category_count, contribute_extract_labels,
-    contribute_place_name_labels, draw_extracts, draw_player_marker, draw_spawns, extract_markers,
-    overlay_offered,
+    contribute_place_name_labels, draw_extracts, draw_minefields, draw_player_marker,
+    draw_sniper_zones, draw_spawns, extract_markers, overlay_offered,
 };
 use crate::screenshot_watcher::ScreenshotWatcher;
 use crate::{APP_TITLE, APP_VERSION};
@@ -28,6 +28,11 @@ enum OverlayGlyph {
     Circle(egui::Color32),
     Rect(egui::Color32),
     Triangle(egui::Color32),
+    Area {
+        fill: egui::Color32,
+        stroke: egui::Color32,
+        dashed: bool,
+    },
 }
 
 struct OverlayRow {
@@ -70,6 +75,26 @@ const EXTRACT_OVERLAYS: &[OverlayRow] = &[
         glyph: OverlayGlyph::Rect(colors::SHARED_EXTRACT_FILL),
     },
 ];
+const HAZARD_OVERLAYS: &[OverlayRow] = &[
+    OverlayRow {
+        overlay: OverlayKind::SNIPER_ZONES,
+        label: "Sniper zones",
+        glyph: OverlayGlyph::Area {
+            fill: colors::SNIPER_ZONE_FILL,
+            stroke: colors::SNIPER_ZONE_STROKE,
+            dashed: false,
+        },
+    },
+    OverlayRow {
+        overlay: OverlayKind::MINEFIELDS,
+        label: "Minefields",
+        glyph: OverlayGlyph::Area {
+            fill: colors::MINEFIELD_FILL,
+            stroke: colors::MINEFIELD_STROKE,
+            dashed: true,
+        },
+    },
+];
 const OVERLAY_CATEGORIES: &[OverlayCategory] = &[
     OverlayCategory {
         title: "Map",
@@ -82,6 +107,10 @@ const OVERLAY_CATEGORIES: &[OverlayCategory] = &[
     OverlayCategory {
         title: "Extracts",
         overlays: EXTRACT_OVERLAYS,
+    },
+    OverlayCategory {
+        title: "Hazards",
+        overlays: HAZARD_OVERLAYS,
     },
 ];
 
@@ -179,13 +208,84 @@ impl TarkovMapApp {
 
     fn overlay_toggle(ui: &mut egui::Ui, visibility: &mut OverlayVisibility, row: &OverlayRow) {
         let value = row.overlay.visibility_mut(visibility);
-        match row.glyph {
-            OverlayGlyph::Circle(color) => Self::overlay_toggle_circle(ui, value, row.label, color),
-            OverlayGlyph::Rect(color) => Self::overlay_toggle_rect(ui, value, row.label, color),
-            OverlayGlyph::Triangle(color) => {
-                Self::overlay_toggle_triangle(ui, value, row.label, color)
+        ui.horizontal(|ui| {
+            ui.checkbox(value, "");
+            let (rect, icon_response) =
+                ui.allocate_exact_size(egui::Vec2::splat(14.0), egui::Sense::click());
+
+            match row.glyph {
+                OverlayGlyph::Circle(color) => {
+                    ui.painter().circle_filled(rect.center(), 5.0, color);
+                    ui.painter().circle_stroke(
+                        rect.center(),
+                        5.0,
+                        egui::Stroke::new(1.0, egui::Color32::GRAY),
+                    );
+                }
+                OverlayGlyph::Rect(color) => {
+                    let icon_rect = rect.shrink(1.0);
+                    ui.painter().rect_filled(icon_rect, 2.0, color);
+                    ui.painter().rect_stroke(
+                        icon_rect,
+                        2.0,
+                        egui::Stroke::new(1.0, color.gamma_multiply(0.5)),
+                        egui::StrokeKind::Inside,
+                    );
+                }
+                OverlayGlyph::Triangle(color) => {
+                    let center = rect.center();
+                    let size = 5.0;
+                    let points = vec![
+                        center + egui::vec2(0.0, -size),
+                        center + egui::vec2(-size * 0.7, size * 0.5),
+                        center + egui::vec2(size * 0.7, size * 0.5),
+                    ];
+                    ui.painter().add(egui::Shape::convex_polygon(
+                        points,
+                        color,
+                        egui::Stroke::new(1.0, color.gamma_multiply(0.5)),
+                    ));
+                }
+                OverlayGlyph::Area {
+                    fill,
+                    stroke,
+                    dashed,
+                } => {
+                    let icon_rect = rect.shrink(1.5);
+                    ui.painter().rect_filled(icon_rect, 1.0, fill);
+                    if dashed {
+                        let closed = vec![
+                            icon_rect.left_top(),
+                            icon_rect.right_top(),
+                            icon_rect.right_bottom(),
+                            icon_rect.left_bottom(),
+                            icon_rect.left_top(),
+                        ];
+                        ui.painter().add(egui::Shape::dashed_line(
+                            &closed,
+                            egui::Stroke::new(1.0, stroke),
+                            2.0,
+                            1.5,
+                        ));
+                    } else {
+                        ui.painter().rect_stroke(
+                            icon_rect,
+                            1.0,
+                            egui::Stroke::new(1.0, stroke),
+                            egui::StrokeKind::Inside,
+                        );
+                    }
+                }
             }
-        }
+
+            let label_response = ui
+                .label(row.label)
+                .interact(egui::Sense::click())
+                .on_hover_cursor(egui::CursorIcon::PointingHand);
+            if icon_response.clicked() || label_response.clicked() {
+                *value = !*value;
+            }
+        });
     }
 
     /// A quiet uppercase eyebrow that separates sidebar sections.
@@ -300,91 +400,6 @@ impl TarkovMapApp {
                     })
                     .response
                     .on_hover_text("Game coordinates; Y is height.");
-            }
-        });
-    }
-
-    /// Renders a triangle-style overlay toggle (for player marker).
-    fn overlay_toggle_triangle(
-        ui: &mut egui::Ui,
-        value: &mut bool,
-        label: &str,
-        color: egui::Color32,
-    ) {
-        ui.horizontal(|ui| {
-            ui.checkbox(value, "");
-            let (rect, icon_response) =
-                ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::click());
-            let center = rect.center();
-            // Draw a small triangle pointing up
-            let size = 5.0;
-            let points = vec![
-                center + egui::vec2(0.0, -size),
-                center + egui::vec2(-size * 0.7, size * 0.5),
-                center + egui::vec2(size * 0.7, size * 0.5),
-            ];
-            ui.painter().add(egui::Shape::convex_polygon(
-                points,
-                color,
-                egui::Stroke::new(1.0_f32, color.gamma_multiply(0.5)),
-            ));
-            let label_response = ui
-                .label(label)
-                .interact(egui::Sense::click())
-                .on_hover_cursor(egui::CursorIcon::PointingHand);
-            if icon_response.clicked() || label_response.clicked() {
-                *value = !*value;
-            }
-        });
-    }
-
-    /// Renders a circle-style overlay toggle (for spawns, labels).
-    fn overlay_toggle_circle(
-        ui: &mut egui::Ui,
-        value: &mut bool,
-        label: &str,
-        color: egui::Color32,
-    ) {
-        ui.horizontal(|ui| {
-            ui.checkbox(value, "");
-            let (rect, icon_response) =
-                ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::click());
-            let center = rect.center();
-            ui.painter().circle_filled(center, 5.0, color);
-            ui.painter().circle_stroke(
-                center,
-                5.0,
-                egui::Stroke::new(1.0_f32, egui::Color32::GRAY),
-            );
-            let label_response = ui
-                .label(label)
-                .interact(egui::Sense::click())
-                .on_hover_cursor(egui::CursorIcon::PointingHand);
-            if icon_response.clicked() || label_response.clicked() {
-                *value = !*value;
-            }
-        });
-    }
-
-    /// Renders a rectangle-style overlay toggle (for extracts).
-    fn overlay_toggle_rect(ui: &mut egui::Ui, value: &mut bool, label: &str, color: egui::Color32) {
-        ui.horizontal(|ui| {
-            ui.checkbox(value, "");
-            let (rect, icon_response) =
-                ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::click());
-            ui.painter().rect_filled(rect, 2.0, color);
-            ui.painter().rect_stroke(
-                rect,
-                2.0,
-                egui::Stroke::new(1.0_f32, color.gamma_multiply(0.5)),
-                egui::StrokeKind::Inside,
-            );
-            let label_response = ui
-                .label(label)
-                .interact(egui::Sense::click())
-                .on_hover_cursor(egui::CursorIcon::PointingHand);
-            if icon_response.clicked() || label_response.clicked() {
-                *value = !*value;
             }
         });
     }
@@ -630,6 +645,12 @@ impl TarkovMapApp {
 
         // Draw overlays
         let overlays = self.overlays;
+        if overlays.sniper_zones {
+            draw_sniper_zones(ui, map_rect, map, &map.sniper_zones, self.zoom);
+        }
+        if overlays.minefields {
+            draw_minefields(ui, map_rect, map, &map.minefields, self.zoom);
+        }
         let mut label_candidates = Vec::new();
         let extract_markers = map
             .extracts

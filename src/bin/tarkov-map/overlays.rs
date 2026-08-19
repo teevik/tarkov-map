@@ -1,12 +1,13 @@
 //! Overlay visibility settings and drawing functions for map markers.
 
 use crate::colors;
+use crate::constants::{MINEFIELD_MARKER_SIZE, MINEFIELD_MIN_SIZE};
 use crate::coordinates::game_to_display;
 use crate::labels::{LabelCandidate, LabelKind};
 use crate::screenshot_watcher::PlayerPosition;
 use eframe::egui;
 use serde::{Deserialize, Serialize};
-use tarkov_map::{Extract, Label, Map, Spawn};
+use tarkov_map::{Extract, Label, Map, Minefield, SniperZone, Spawn};
 
 /// Controls visibility of different overlay types on the map.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -17,6 +18,8 @@ pub struct OverlayVisibility {
     pub pmc_extracts: bool,
     pub scav_extracts: bool,
     pub shared_extracts: bool,
+    pub sniper_zones: bool,
+    pub minefields: bool,
     pub player_marker: bool,
 }
 /// One toggleable Overlay offered in the sidebar.
@@ -52,6 +55,16 @@ impl OverlayKind {
         offered: |map| has_positioned_extract(map, "shared"),
         visible: |visibility| visibility.shared_extracts,
         visibility_mut: |visibility| &mut visibility.shared_extracts,
+    };
+    pub const SNIPER_ZONES: Self = Self {
+        offered: |map| !map.sniper_zones.is_empty(),
+        visible: |visibility| visibility.sniper_zones,
+        visibility_mut: |visibility| &mut visibility.sniper_zones,
+    };
+    pub const MINEFIELDS: Self = Self {
+        offered: |map| !map.minefields.is_empty(),
+        visible: |visibility| visibility.minefields,
+        visibility_mut: |visibility| &mut visibility.minefields,
     };
     pub const PLAYER_MARKER: Self = Self {
         offered: |_| true,
@@ -99,8 +112,107 @@ impl Default for OverlayVisibility {
             pmc_extracts: true,
             scav_extracts: true,
             shared_extracts: true,
+            sniper_zones: false,
+            minefields: false,
             player_marker: true,
         }
+    }
+}
+
+/// Whether a projected Minefield is too small to draw as an outline.
+fn minefield_uses_fallback(bounds: egui::Rect) -> bool {
+    bounds.width().max(bounds.height()) < MINEFIELD_MIN_SIZE
+}
+
+fn project_outline(
+    map: &Map,
+    map_rect: egui::Rect,
+    outline: &[[f64; 2]],
+) -> Option<(Vec<egui::Pos2>, egui::Rect)> {
+    let points: Vec<_> = outline
+        .iter()
+        .filter_map(|point| game_to_display(map, map_rect, *point))
+        .collect();
+    if points.len() < 3 {
+        return None;
+    }
+
+    let bounds = egui::Rect::from_points(&points);
+    map_rect
+        .expand(50.0)
+        .intersects(bounds)
+        .then_some((points, bounds))
+}
+
+/// Draws Sniper Zones as faint red polygons with solid outlines.
+pub fn draw_sniper_zones(
+    ui: &mut egui::Ui,
+    map_rect: egui::Rect,
+    map: &Map,
+    sniper_zones: &[SniperZone],
+    zoom: f32,
+) {
+    let painter = ui.painter();
+    let stroke_width = (1.0 + 0.2 * zoom).min(2.0) * 1.5;
+
+    for zone in sniper_zones {
+        let Some((points, _)) = project_outline(map, map_rect, &zone.outline) else {
+            continue;
+        };
+        painter.add(egui::Shape::convex_polygon(
+            points.clone(),
+            colors::SNIPER_ZONE_FILL,
+            egui::Stroke::NONE,
+        ));
+        let mut closed = points;
+        closed.push(closed[0]);
+        painter.add(egui::Shape::line(
+            closed,
+            egui::Stroke::new(stroke_width, colors::SNIPER_ZONE_STROKE),
+        ));
+    }
+}
+
+/// Draws Minefields as faint orange polygons with dashed outlines.
+///
+/// Small projected outlines use a square marker so narrow strips remain visible
+/// when the whole Map is fitted in the Viewport.
+pub fn draw_minefields(
+    ui: &mut egui::Ui,
+    map_rect: egui::Rect,
+    map: &Map,
+    minefields: &[Minefield],
+    zoom: f32,
+) {
+    let painter = ui.painter();
+    let stroke_width = (1.0 + 0.2 * zoom).min(2.0) * 1.2;
+
+    for minefield in minefields {
+        let Some((points, bounds)) = project_outline(map, map_rect, &minefield.outline) else {
+            continue;
+        };
+        if minefield_uses_fallback(bounds) {
+            let marker = egui::Rect::from_center_size(
+                bounds.center(),
+                egui::Vec2::splat(MINEFIELD_MARKER_SIZE),
+            );
+            painter.rect_filled(marker, 1.0, colors::MINEFIELD_STROKE);
+            continue;
+        }
+
+        painter.add(egui::Shape::convex_polygon(
+            points.clone(),
+            colors::MINEFIELD_FILL,
+            egui::Stroke::NONE,
+        ));
+        let mut closed = points;
+        closed.push(closed[0]);
+        painter.add(egui::Shape::dashed_line(
+            &closed,
+            egui::Stroke::new(stroke_width, colors::MINEFIELD_STROKE),
+            4.0,
+            3.0,
+        ));
     }
 }
 
@@ -351,8 +463,10 @@ pub fn draw_player_marker(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tarkov_map::{Minefield, SniperZone};
 
     const MAP_OVERLAYS: [OverlayKind; 2] = [OverlayKind::LABELS, OverlayKind::PLAYER_MARKER];
+    const HAZARD_OVERLAYS: [OverlayKind; 2] = [OverlayKind::SNIPER_ZONES, OverlayKind::MINEFIELDS];
     const EXTRACT_OVERLAYS: [OverlayKind; 3] = [
         OverlayKind::PMC_EXTRACTS,
         OverlayKind::SCAV_EXTRACTS,
@@ -407,6 +521,17 @@ mod tests {
         map
     }
 
+    fn map_with_hazards() -> Map {
+        let mut map = empty_map();
+        map.sniper_zones = vec![SniperZone {
+            outline: vec![[0.0, 0.0], [10.0, 0.0], [10.0, 10.0]],
+        }];
+        map.minefields = vec![Minefield {
+            outline: vec![[20.0, 20.0], [30.0, 20.0], [30.0, 30.0]],
+        }];
+        map
+    }
+
     #[test]
     fn overlays_are_offered_only_when_the_map_has_something_to_draw() {
         let empty = empty_map();
@@ -425,6 +550,31 @@ mod tests {
         assert!(overlay_offered(OverlayKind::PMC_EXTRACTS, &offered));
         assert!(!overlay_offered(OverlayKind::SCAV_EXTRACTS, &offered));
         assert!(overlay_offered(OverlayKind::SHARED_EXTRACTS, &offered));
+    }
+
+    #[test]
+    fn hazard_overlays_are_offered_only_for_non_empty_map_collections() {
+        let empty = empty_map();
+
+        assert!(!overlay_offered(OverlayKind::SNIPER_ZONES, &empty));
+        assert!(!overlay_offered(OverlayKind::MINEFIELDS, &empty));
+
+        let offered = map_with_hazards();
+        assert!(overlay_offered(OverlayKind::SNIPER_ZONES, &offered));
+        assert!(overlay_offered(OverlayKind::MINEFIELDS, &offered));
+        assert_eq!(
+            category_count(HAZARD_OVERLAYS, &offered, &OverlayVisibility::default()),
+            (0, 2)
+        );
+    }
+
+    #[test]
+    fn minefield_fallback_is_used_only_below_the_seven_pixel_threshold() {
+        let below_threshold = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(6.99, 2.0));
+        let at_threshold = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(7.0, 2.0));
+
+        assert!(minefield_uses_fallback(below_threshold));
+        assert!(!minefield_uses_fallback(at_threshold));
     }
 
     #[test]

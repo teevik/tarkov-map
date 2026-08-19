@@ -22,6 +22,14 @@ pub const SHARED_EXTRACT_STROKE: Color32 = Color32::from_rgb(75, 0, 130);
 pub const PLAYER_MARKER_FILL: Color32 = Color32::from_rgb(255, 50, 50);
 pub const PLAYER_MARKER_STROKE: Color32 = Color32::from_rgb(139, 0, 0);
 
+// Sniper Zone areas
+pub const SNIPER_ZONE_FILL: Color32 = Color32::from_rgba_unmultiplied_const(255, 60, 60, 20);
+pub const SNIPER_ZONE_STROKE: Color32 = Color32::from_rgba_unmultiplied_const(255, 70, 70, 240);
+
+// Minefield areas
+pub const MINEFIELD_FILL: Color32 = Color32::from_rgba_unmultiplied_const(255, 140, 0, 30);
+pub const MINEFIELD_STROKE: Color32 = Color32::from_rgba_unmultiplied_const(255, 150, 20, 240);
+
 // Text colors
 pub const LABEL_TEXT: Color32 = Color32::from_rgba_premultiplied(255, 255, 255, 220);
 pub const LABEL_SHADOW: Color32 = Color32::from_rgba_premultiplied(0, 0, 0, 180);

@@ -22,6 +22,12 @@ pub const POINTS_PER_SCROLL_NOTCH: f32 = 40.0;
 /// "center" visibly means something.
 pub const CENTER_ZOOM: f32 = 2.5;
 
+/// Projected Minefields smaller than this use a fallback marker.
+pub const MINEFIELD_MIN_SIZE: f32 = 7.0;
+
+/// Side length of the fallback marker for a small projected Minefield.
+pub const MINEFIELD_MARKER_SIZE: f32 = 5.0;
+
 /// A position fix older than this is shown as stale in the position card.
 pub const FRESH_FIX_MAX_AGE: std::time::Duration = std::time::Duration::from_secs(120);
 
