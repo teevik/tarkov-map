@@ -294,13 +294,9 @@ struct ApiMapData {
     translations: HashMap<String, String>,
 }
 
-struct LocatedArea<T> {
-    area: T,
-}
-
 struct HazardSplit {
-    sniper_zones: Vec<LocatedArea<SniperZone>>,
-    minefields: Vec<LocatedArea<Minefield>>,
+    sniper_zones: Vec<SniperZone>,
+    minefields: Vec<Minefield>,
 }
 
 #[derive(Default)]
@@ -314,14 +310,11 @@ struct OverlayData {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-struct PositionKey(i64, i64);
+struct RoundedPositionKey(u64, u64);
 
-impl PositionKey {
+impl RoundedPositionKey {
     fn new(position: [f64; 2]) -> Self {
-        Self(
-            (position[0] * 100.0).round() as i64,
-            (position[1] * 100.0).round() as i64,
-        )
+        Self(position[0].to_bits(), position[1].to_bits())
     }
 }
 
@@ -355,7 +348,7 @@ fn group_boss_spawns(
         chances: HashMap<String, f64>,
     }
 
-    let mut indexes = HashMap::<PositionKey, usize>::new();
+    let mut indexes = HashMap::<RoundedPositionKey, usize>::new();
     let mut groups = Vec::<Group>::new();
 
     for boss in bosses {
@@ -371,7 +364,7 @@ fn group_boss_spawns(
 
         for raw_position in positions {
             let position = game_position(raw_position);
-            let key = PositionKey::new(position);
+            let key = RoundedPositionKey::new(position);
             let index = *indexes.entry(key).or_insert_with(|| {
                 groups.push(Group {
                     position,
@@ -437,7 +430,7 @@ fn convert_transits(
         };
 
         let position = game_position(position);
-        if seen.insert((PositionKey::new(position), target.clone())) {
+        if seen.insert((RoundedPositionKey::new(position), target.clone())) {
             converted.push(Transit { position, target });
         }
     }
@@ -466,15 +459,13 @@ fn split_hazards(hazards: Vec<ApiHazard>, warnings: &mut Vec<String>) -> HazardS
         let position = game_position(position);
         let outline = hazard.outline.iter().map(game_position).collect();
         match hazard.hazard_type.as_deref() {
-            Some("sniper") if seen_sniper_zones.insert(PositionKey::new(position)) => {
-                split.sniper_zones.push(LocatedArea {
-                    area: SniperZone { outline },
-                });
+            Some("sniper") if seen_sniper_zones.insert(RoundedPositionKey::new(position)) => {
+                split.sniper_zones.push(SniperZone { outline });
             }
-            Some("minefield" | "hazard") if seen_minefields.insert(PositionKey::new(position)) => {
-                split.minefields.push(LocatedArea {
-                    area: Minefield { outline },
-                });
+            Some("minefield" | "hazard")
+                if seen_minefields.insert(RoundedPositionKey::new(position)) =>
+            {
+                split.minefields.push(Minefield { outline });
             }
             Some("sniper" | "minefield" | "hazard") => {}
             kind => warnings.push(format!("dropping unknown hazard type {kind:?}")),
@@ -503,7 +494,7 @@ fn convert_switches(
         };
         let position = game_position(position);
         let name = translated_name(translations, name_key, warnings);
-        if seen.insert((PositionKey::new(position), name.clone())) {
+        if seen.insert((RoundedPositionKey::new(position), name.clone())) {
             converted.push(Switch { position, name });
         }
     }
@@ -530,7 +521,7 @@ fn convert_btr_stops(
         };
         let position = [round_coordinate(x), round_coordinate(z)];
         let name = translated_name(translations, name_key, warnings);
-        if seen.insert((PositionKey::new(position), name.clone())) {
+        if seen.insert((RoundedPositionKey::new(position), name.clone())) {
             converted.push(BtrStop { position, name });
         }
     }
@@ -565,16 +556,8 @@ fn collect_overlay_data(
 
     let hazards = split_hazards(hazards, warnings);
     OverlayData {
-        sniper_zones: hazards
-            .sniper_zones
-            .into_iter()
-            .map(|located| located.area)
-            .collect(),
-        minefields: hazards
-            .minefields
-            .into_iter()
-            .map(|located| located.area)
-            .collect(),
+        sniper_zones: hazards.sniper_zones,
+        minefields: hazards.minefields,
         boss_spawns: group_boss_spawns(bosses, translations, warnings),
         transits: convert_transits(
             transits,
@@ -1447,7 +1430,7 @@ mod tests {
 
         assert_eq!(split.sniper_zones.len(), 1);
         assert_eq!(split.minefields.len(), 1);
-        assert_eq!(split.sniper_zones[0].area.outline[0], [1.0, 2.0]);
+        assert_eq!(split.sniper_zones[0].outline[0], [1.0, 2.0]);
         assert_eq!(warnings.len(), 2);
     }
 
