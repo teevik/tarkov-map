@@ -1362,6 +1362,47 @@ mod tests {
     }
 
     #[test]
+    fn bundled_switches_are_offered_on_the_six_expected_maps() {
+        let maps: Vec<Map> = ron::from_str(include_str!("../../../assets/maps.ron"))
+            .expect("bundled Maps should parse");
+        let offered: Vec<_> = maps
+            .iter()
+            .filter(|map| overlay_offered(OverlayKind::SWITCHES, map))
+            .map(|map| map.normalized_name.as_str())
+            .collect();
+
+        assert_eq!(
+            offered,
+            [
+                "customs",
+                "interchange",
+                "the-lab",
+                "the-labyrinth",
+                "lighthouse",
+                "reserve",
+            ]
+        );
+    }
+
+    #[test]
+    fn switch_visibility_round_trips_and_old_settings_default_off() {
+        let visibility = OverlayVisibility {
+            switches: true,
+            ..OverlayVisibility::default()
+        };
+
+        let saved = serde_json::to_string(&visibility).expect("visibility should serialize");
+        let restored: OverlayVisibility =
+            serde_json::from_str(&saved).expect("visibility should deserialize");
+        let old_settings: OverlayVisibility =
+            serde_json::from_str(r#"{"transits":true}"#).expect("old settings should deserialize");
+
+        assert!(restored.switches);
+        assert!(!old_settings.switches);
+        assert!(old_settings.transits);
+    }
+
+    #[test]
     fn btr_stops_are_offered_only_for_non_empty_map_collections_and_default_off() {
         let empty = empty_map();
         let visibility = OverlayVisibility::default();
