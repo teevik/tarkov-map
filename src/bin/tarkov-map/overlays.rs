@@ -41,50 +41,53 @@ pub struct OverlayVisibility {
 }
 
 /// One toggleable Overlay offered in the sidebar.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum OverlayKind {
-    Labels,
-    PmcSpawns,
-    PmcExtracts,
-    ScavExtracts,
-    SharedExtracts,
-    PlayerMarker,
+#[derive(Clone, Copy)]
+pub struct OverlayKind {
+    offered: fn(&Map) -> bool,
+    visible: fn(&OverlayVisibility) -> bool,
+    visibility_mut: fn(&mut OverlayVisibility) -> &mut bool,
 }
 
-impl OverlayVisibility {
-    pub fn is_visible(&self, overlay: OverlayKind) -> bool {
-        match overlay {
-            OverlayKind::Labels => self.labels,
-            OverlayKind::PmcSpawns => self.spawns,
-            OverlayKind::PmcExtracts => self.pmc_extracts,
-            OverlayKind::ScavExtracts => self.scav_extracts,
-            OverlayKind::SharedExtracts => self.shared_extracts,
-            OverlayKind::PlayerMarker => self.player_marker,
-        }
-    }
+impl OverlayKind {
+    pub const LABELS: Self = Self {
+        offered: |map| map.labels.as_ref().is_some_and(|labels| !labels.is_empty()),
+        visible: |visibility| visibility.labels,
+        visibility_mut: |visibility| &mut visibility.labels,
+    };
+    pub const PMC_SPAWNS: Self = Self {
+        offered: |map| map.spawns.as_ref().is_some_and(|spawns| !spawns.is_empty()),
+        visible: |visibility| visibility.spawns,
+        visibility_mut: |visibility| &mut visibility.spawns,
+    };
+    pub const PMC_EXTRACTS: Self = Self {
+        offered: |map| has_positioned_extract(map, "pmc"),
+        visible: |visibility| visibility.pmc_extracts,
+        visibility_mut: |visibility| &mut visibility.pmc_extracts,
+    };
+    pub const SCAV_EXTRACTS: Self = Self {
+        offered: |map| has_positioned_extract(map, "scav"),
+        visible: |visibility| visibility.scav_extracts,
+        visibility_mut: |visibility| &mut visibility.scav_extracts,
+    };
+    pub const SHARED_EXTRACTS: Self = Self {
+        offered: |map| has_positioned_extract(map, "shared"),
+        visible: |visibility| visibility.shared_extracts,
+        visibility_mut: |visibility| &mut visibility.shared_extracts,
+    };
+    pub const PLAYER_MARKER: Self = Self {
+        offered: |_| true,
+        visible: |visibility| visibility.player_marker,
+        visibility_mut: |visibility| &mut visibility.player_marker,
+    };
 
-    pub fn visibility_mut(&mut self, overlay: OverlayKind) -> &mut bool {
-        match overlay {
-            OverlayKind::Labels => &mut self.labels,
-            OverlayKind::PmcSpawns => &mut self.spawns,
-            OverlayKind::PmcExtracts => &mut self.pmc_extracts,
-            OverlayKind::ScavExtracts => &mut self.scav_extracts,
-            OverlayKind::SharedExtracts => &mut self.shared_extracts,
-            OverlayKind::PlayerMarker => &mut self.player_marker,
-        }
+    pub fn visibility_mut(self, visibility: &mut OverlayVisibility) -> &mut bool {
+        (self.visibility_mut)(visibility)
     }
 }
 
 /// Whether an Overlay has at least one item to draw on this Map.
 pub fn overlay_offered(overlay: OverlayKind, map: &Map) -> bool {
-    match overlay {
-        OverlayKind::Labels => map.labels.as_ref().is_some_and(|labels| !labels.is_empty()),
-        OverlayKind::PmcSpawns => map.spawns.as_ref().is_some_and(|spawns| !spawns.is_empty()),
-        OverlayKind::PmcExtracts => has_positioned_extract(map, "pmc"),
-        OverlayKind::ScavExtracts => has_positioned_extract(map, "scav"),
-        OverlayKind::SharedExtracts => has_positioned_extract(map, "shared"),
-        OverlayKind::PlayerMarker => true,
-    }
+    (overlay.offered)(map)
 }
 
 fn has_positioned_extract(map: &Map, faction: &str) -> bool {
@@ -97,16 +100,15 @@ fn has_positioned_extract(map: &Map, faction: &str) -> bool {
 
 /// The visible and offered Overlay counts for one Overlay Category.
 pub fn category_count(
-    overlays: &[OverlayKind],
+    overlays: impl IntoIterator<Item = OverlayKind>,
     map: &Map,
     visibility: &OverlayVisibility,
 ) -> (usize, usize) {
     overlays
-        .iter()
-        .copied()
+        .into_iter()
         .filter(|overlay| overlay_offered(*overlay, map))
         .fold((0, 0), |(on, total), overlay| {
-            (on + usize::from(visibility.is_visible(overlay)), total + 1)
+            (on + usize::from((overlay.visible)(visibility)), total + 1)
         })
 }
 
@@ -329,11 +331,11 @@ pub fn draw_player_marker(
 mod tests {
     use super::*;
 
-    const MAP_OVERLAYS: [OverlayKind; 2] = [OverlayKind::Labels, OverlayKind::PlayerMarker];
+    const MAP_OVERLAYS: [OverlayKind; 2] = [OverlayKind::LABELS, OverlayKind::PLAYER_MARKER];
     const EXTRACT_OVERLAYS: [OverlayKind; 3] = [
-        OverlayKind::PmcExtracts,
-        OverlayKind::ScavExtracts,
-        OverlayKind::SharedExtracts,
+        OverlayKind::PMC_EXTRACTS,
+        OverlayKind::SCAV_EXTRACTS,
+        OverlayKind::SHARED_EXTRACTS,
     ];
 
     fn empty_map() -> Map {
@@ -388,20 +390,20 @@ mod tests {
     fn overlays_are_offered_only_when_the_map_has_something_to_draw() {
         let empty = empty_map();
 
-        assert!(!overlay_offered(OverlayKind::Labels, &empty));
-        assert!(!overlay_offered(OverlayKind::PmcSpawns, &empty));
-        assert!(!overlay_offered(OverlayKind::PmcExtracts, &empty));
-        assert!(!overlay_offered(OverlayKind::ScavExtracts, &empty));
-        assert!(!overlay_offered(OverlayKind::SharedExtracts, &empty));
-        assert!(overlay_offered(OverlayKind::PlayerMarker, &empty));
+        assert!(!overlay_offered(OverlayKind::LABELS, &empty));
+        assert!(!overlay_offered(OverlayKind::PMC_SPAWNS, &empty));
+        assert!(!overlay_offered(OverlayKind::PMC_EXTRACTS, &empty));
+        assert!(!overlay_offered(OverlayKind::SCAV_EXTRACTS, &empty));
+        assert!(!overlay_offered(OverlayKind::SHARED_EXTRACTS, &empty));
+        assert!(overlay_offered(OverlayKind::PLAYER_MARKER, &empty));
 
         let offered = map_with_current_overlays();
 
-        assert!(overlay_offered(OverlayKind::Labels, &offered));
-        assert!(overlay_offered(OverlayKind::PmcSpawns, &offered));
-        assert!(overlay_offered(OverlayKind::PmcExtracts, &offered));
-        assert!(!overlay_offered(OverlayKind::ScavExtracts, &offered));
-        assert!(overlay_offered(OverlayKind::SharedExtracts, &offered));
+        assert!(overlay_offered(OverlayKind::LABELS, &offered));
+        assert!(overlay_offered(OverlayKind::PMC_SPAWNS, &offered));
+        assert!(overlay_offered(OverlayKind::PMC_EXTRACTS, &offered));
+        assert!(!overlay_offered(OverlayKind::SCAV_EXTRACTS, &offered));
+        assert!(overlay_offered(OverlayKind::SHARED_EXTRACTS, &offered));
     }
 
     #[test]
@@ -413,8 +415,8 @@ mod tests {
             ..OverlayVisibility::default()
         };
 
-        assert_eq!(category_count(&MAP_OVERLAYS, &map, &visibility), (1, 2));
-        assert_eq!(category_count(&EXTRACT_OVERLAYS, &map, &visibility), (2, 2));
+        assert_eq!(category_count(MAP_OVERLAYS, &map, &visibility), (1, 2));
+        assert_eq!(category_count(EXTRACT_OVERLAYS, &map, &visibility), (2, 2));
     }
 
     #[test]
@@ -429,15 +431,15 @@ mod tests {
         let visibility = OverlayVisibility::default();
 
         assert_eq!(
-            category_count(&EXTRACT_OVERLAYS, map("terminal"), &visibility),
+            category_count(EXTRACT_OVERLAYS, map("terminal"), &visibility),
             (0, 0)
         );
         assert_eq!(
-            category_count(&EXTRACT_OVERLAYS, map("the-lab"), &visibility),
+            category_count(EXTRACT_OVERLAYS, map("the-lab"), &visibility),
             (2, 2)
         );
         assert_eq!(
-            category_count(&EXTRACT_OVERLAYS, map("customs"), &visibility),
+            category_count(EXTRACT_OVERLAYS, map("customs"), &visibility),
             (3, 3)
         );
     }

@@ -19,15 +19,55 @@ use tarkov_map::Map;
 
 struct OverlayCategory {
     title: &'static str,
-    overlays: &'static [OverlayKind],
+    overlays: &'static [OverlayRow],
 }
 
-const MAP_OVERLAYS: &[OverlayKind] = &[OverlayKind::Labels, OverlayKind::PlayerMarker];
-const SPAWN_OVERLAYS: &[OverlayKind] = &[OverlayKind::PmcSpawns];
-const EXTRACT_OVERLAYS: &[OverlayKind] = &[
-    OverlayKind::PmcExtracts,
-    OverlayKind::ScavExtracts,
-    OverlayKind::SharedExtracts,
+#[derive(Clone, Copy)]
+enum OverlayGlyph {
+    Circle(egui::Color32),
+    Rect(egui::Color32),
+    Triangle(egui::Color32),
+}
+
+struct OverlayRow {
+    overlay: OverlayKind,
+    label: &'static str,
+    glyph: OverlayGlyph,
+}
+
+const MAP_OVERLAYS: &[OverlayRow] = &[
+    OverlayRow {
+        overlay: OverlayKind::LABELS,
+        label: "Labels",
+        glyph: OverlayGlyph::Circle(egui::Color32::WHITE),
+    },
+    OverlayRow {
+        overlay: OverlayKind::PLAYER_MARKER,
+        label: "Player marker",
+        glyph: OverlayGlyph::Triangle(colors::PLAYER_MARKER_FILL),
+    },
+];
+const SPAWN_OVERLAYS: &[OverlayRow] = &[OverlayRow {
+    overlay: OverlayKind::PMC_SPAWNS,
+    label: "PMC Spawns",
+    glyph: OverlayGlyph::Circle(colors::SPAWN_FILL),
+}];
+const EXTRACT_OVERLAYS: &[OverlayRow] = &[
+    OverlayRow {
+        overlay: OverlayKind::PMC_EXTRACTS,
+        label: "PMC Extracts",
+        glyph: OverlayGlyph::Rect(colors::PMC_EXTRACT_FILL),
+    },
+    OverlayRow {
+        overlay: OverlayKind::SCAV_EXTRACTS,
+        label: "Scav Extracts",
+        glyph: OverlayGlyph::Rect(colors::SCAV_EXTRACT_FILL),
+    },
+    OverlayRow {
+        overlay: OverlayKind::SHARED_EXTRACTS,
+        label: "Shared Extracts",
+        glyph: OverlayGlyph::Rect(colors::SHARED_EXTRACT_FILL),
+    },
 ];
 const OVERLAY_CATEGORIES: &[OverlayCategory] = &[
     OverlayCategory {
@@ -104,14 +144,18 @@ impl TarkovMapApp {
         }
 
         Self::section_header(ui, "Overlays");
-        if let Some(map) = self.selected_map().cloned() {
-            Self::show_overlay_categories(ui, &map, &mut self.overlays);
+        if let Some(map) = self.maps.get(self.selected_map) {
+            Self::show_overlay_categories(ui, map, &mut self.overlays);
         }
     }
 
     fn show_overlay_categories(ui: &mut egui::Ui, map: &Map, visibility: &mut OverlayVisibility) {
         for category in OVERLAY_CATEGORIES {
-            let (on, offered) = category_count(category.overlays, map, visibility);
+            let (on, offered) = category_count(
+                category.overlays.iter().map(|row| row.overlay),
+                map,
+                visibility,
+            );
             if offered == 0 {
                 continue;
             }
@@ -123,38 +167,22 @@ impl TarkovMapApp {
             .default_open(true)
             .show(ui, |ui| {
                 ui.spacing_mut().item_spacing.y = 2.0;
-                for overlay in category.overlays.iter().copied() {
-                    if overlay_offered(overlay, map) {
-                        Self::overlay_toggle(ui, visibility, overlay);
+                for row in category.overlays {
+                    if overlay_offered(row.overlay, map) {
+                        Self::overlay_toggle(ui, visibility, row);
                     }
                 }
             });
         }
     }
 
-    fn overlay_toggle(ui: &mut egui::Ui, visibility: &mut OverlayVisibility, overlay: OverlayKind) {
-        let value = visibility.visibility_mut(overlay);
-        match overlay {
-            OverlayKind::Labels => {
-                Self::overlay_toggle_circle(ui, value, "Labels", egui::Color32::WHITE)
-            }
-            OverlayKind::PlayerMarker => Self::overlay_toggle_triangle(
-                ui,
-                value,
-                "Player marker",
-                colors::PLAYER_MARKER_FILL,
-            ),
-            OverlayKind::PmcSpawns => {
-                Self::overlay_toggle_circle(ui, value, "PMC Spawns", colors::SPAWN_FILL)
-            }
-            OverlayKind::PmcExtracts => {
-                Self::overlay_toggle_rect(ui, value, "PMC Extracts", colors::PMC_EXTRACT_FILL)
-            }
-            OverlayKind::ScavExtracts => {
-                Self::overlay_toggle_rect(ui, value, "Scav Extracts", colors::SCAV_EXTRACT_FILL)
-            }
-            OverlayKind::SharedExtracts => {
-                Self::overlay_toggle_rect(ui, value, "Shared Extracts", colors::SHARED_EXTRACT_FILL)
+    fn overlay_toggle(ui: &mut egui::Ui, visibility: &mut OverlayVisibility, row: &OverlayRow) {
+        let value = row.overlay.visibility_mut(visibility);
+        match row.glyph {
+            OverlayGlyph::Circle(color) => Self::overlay_toggle_circle(ui, value, row.label, color),
+            OverlayGlyph::Rect(color) => Self::overlay_toggle_rect(ui, value, row.label, color),
+            OverlayGlyph::Triangle(color) => {
+                Self::overlay_toggle_triangle(ui, value, row.label, color)
             }
         }
     }
