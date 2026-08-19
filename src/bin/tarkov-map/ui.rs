@@ -6,9 +6,11 @@ use crate::constants::{
     POINTS_PER_SCROLL_NOTCH, SIDEBAR_WIDTH, TITLE_BAR_HEIGHT, ZOOM_MAX, ZOOM_MIN, ZOOM_SPEED,
 };
 use crate::coordinates::game_to_display;
+use crate::labels::{self, LabelKind};
 use crate::overlays::{
-    OverlayKind, OverlayVisibility, category_count, draw_extracts, draw_labels, draw_player_marker,
-    draw_spawns, overlay_offered,
+    OverlayKind, OverlayVisibility, category_count, contribute_extract_labels,
+    contribute_place_name_labels, draw_extracts, draw_player_marker, draw_spawns, extract_markers,
+    overlay_offered,
 };
 use crate::screenshot_watcher::ScreenshotWatcher;
 use crate::{APP_TITLE, APP_VERSION};
@@ -21,7 +23,6 @@ struct OverlayCategory {
     title: &'static str,
     overlays: &'static [OverlayRow],
 }
-
 #[derive(Clone, Copy)]
 enum OverlayGlyph {
     Circle(egui::Color32),
@@ -629,11 +630,33 @@ impl TarkovMapApp {
 
         // Draw overlays
         let overlays = self.overlays;
+        let mut label_candidates = Vec::new();
+        let extract_markers = map
+            .extracts
+            .as_deref()
+            .map(|extracts| extract_markers(map_rect, map, extracts, self.zoom, &overlays))
+            .unwrap_or_default();
         if overlays.labels
             && let Some(labels) = &map.labels
         {
-            draw_labels(ui, map_rect, map, labels, self.zoom);
+            contribute_place_name_labels(
+                ui.painter(),
+                map_rect,
+                map,
+                labels,
+                self.zoom,
+                &mut label_candidates,
+            );
         }
+        contribute_extract_labels(ui.painter(), &extract_markers, &mut label_candidates);
+        let placed_labels = labels::place(label_candidates);
+
+        labels::draw(
+            ui.painter(),
+            placed_labels
+                .iter()
+                .filter(|label| label.kind == LabelKind::PlaceName),
+        );
 
         if overlays.spawns
             && let Some(spawns) = &map.spawns
@@ -641,9 +664,14 @@ impl TarkovMapApp {
             draw_spawns(ui, map_rect, map, spawns, self.zoom);
         }
 
-        if let Some(extracts) = &map.extracts {
-            draw_extracts(ui, map_rect, map, extracts, self.zoom, &overlays);
-        }
+        draw_extracts(ui, map_rect, &extract_markers);
+
+        labels::draw(
+            ui.painter(),
+            placed_labels
+                .iter()
+                .filter(|label| label.kind != LabelKind::PlaceName),
+        );
 
         // Draw player position marker
         if overlays.player_marker

@@ -5,6 +5,7 @@ mod colors;
 mod constants;
 mod coordinates;
 mod demo;
+mod labels;
 mod overlays;
 mod screenshot_watcher;
 mod ui;

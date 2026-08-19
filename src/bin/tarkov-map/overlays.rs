@@ -2,31 +2,11 @@
 
 use crate::colors;
 use crate::coordinates::game_to_display;
+use crate::labels::{LabelCandidate, LabelKind};
 use crate::screenshot_watcher::PlayerPosition;
 use eframe::egui;
 use serde::{Deserialize, Serialize};
 use tarkov_map::{Extract, Label, Map, Spawn};
-
-/// Paints text with a dark outline so it stays legible over any map colour.
-fn outlined_text(
-    painter: &egui::Painter,
-    pos: egui::Pos2,
-    anchor: egui::Align2,
-    text: &str,
-    font_id: egui::FontId,
-    color: egui::Color32,
-    outline: egui::Color32,
-) {
-    for offset in [
-        egui::vec2(-1.0, 0.0),
-        egui::vec2(1.0, 0.0),
-        egui::vec2(0.0, -1.0),
-        egui::vec2(0.0, 1.0),
-    ] {
-        painter.text(pos + offset, anchor, text, font_id.clone(), outline);
-    }
-    painter.text(pos, anchor, text, font_id, color);
-}
 
 /// Controls visibility of different overlay types on the map.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -39,7 +19,6 @@ pub struct OverlayVisibility {
     pub shared_extracts: bool,
     pub player_marker: bool,
 }
-
 /// One toggleable Overlay offered in the sidebar.
 #[derive(Clone, Copy)]
 pub struct OverlayKind {
@@ -125,38 +104,40 @@ impl Default for OverlayVisibility {
     }
 }
 
-/// Draws label overlays on the map.
-pub fn draw_labels(
-    ui: &mut egui::Ui,
+/// Contributes map Label candidates to the shared placement pass.
+pub fn contribute_place_name_labels(
+    painter: &egui::Painter,
     map_rect: egui::Rect,
     map: &Map,
     labels: &[Label],
     zoom: f32,
+    candidates: &mut Vec<LabelCandidate>,
 ) {
-    let painter = ui.painter();
-
-    for label in labels {
+    for (seq, label) in labels.iter().enumerate() {
         let Some(pos) = game_to_display(map, map_rect, label.position) else {
             continue;
         };
 
-        if !map_rect.expand(50.0).contains(pos) {
-            continue;
-        }
-
-        let base_size = label.size.unwrap_or(40) as f32 * 0.15;
+        let size = label.size.unwrap_or(40);
+        let base_size = size as f32 * 0.15;
         let font_size = (base_size * zoom).clamp(8.0, 48.0);
-        let font_id = egui::FontId::proportional(font_size);
+        let font = egui::FontId::proportional(font_size);
+        let measured = painter
+            .layout_no_wrap(label.text.clone(), font.clone(), colors::LABEL_TEXT)
+            .size();
 
-        outlined_text(
-            painter,
-            pos,
-            egui::Align2::CENTER_CENTER,
-            &label.text,
-            font_id,
-            colors::LABEL_TEXT,
-            colors::LABEL_SHADOW,
-        );
+        candidates.push(LabelCandidate {
+            kind: LabelKind::PlaceName,
+            within_kind_priority: f64::from(size),
+            source_order: seq,
+            text: label.text.clone(),
+            font,
+            color: colors::LABEL_TEXT,
+            outline: colors::LABEL_SHADOW,
+            anchor: pos,
+            align: egui::Align2::CENTER_CENTER,
+            measured,
+        });
     }
 }
 
@@ -191,70 +172,110 @@ pub fn draw_spawns(
     }
 }
 
-/// Draws extraction point markers on the map.
-pub fn draw_extracts(
-    ui: &mut egui::Ui,
+/// One shown Extract projected and styled for this frame.
+pub struct ExtractMarker<'a> {
+    name: &'a str,
+    source_order: usize,
+    position: egui::Pos2,
+    size: f32,
+    label_font: egui::FontId,
+    fill_color: egui::Color32,
+    stroke_color: egui::Color32,
+}
+
+/// Builds the shown Extract presentation shared by marker and Label drawing.
+pub fn extract_markers<'a>(
     map_rect: egui::Rect,
     map: &Map,
-    extracts: &[Extract],
+    extracts: &'a [Extract],
     zoom: f32,
     overlays: &OverlayVisibility,
-) {
+) -> Vec<ExtractMarker<'a>> {
+    extracts
+        .iter()
+        .enumerate()
+        .filter_map(|(source_order, extract)| {
+            let (fill_color, stroke_color) = extract_colors(extract, overlays)?;
+            let position = extract.position?;
+            let position = game_to_display(map, map_rect, [position[0], position[2]])?;
+            let size = (12.0 * zoom).clamp(8.0, 32.0);
+
+            Some(ExtractMarker {
+                name: &extract.name,
+                source_order,
+                position,
+                size,
+                label_font: egui::FontId::proportional((6.0 * zoom).clamp(9.0, 18.0)),
+                fill_color,
+                stroke_color,
+            })
+        })
+        .collect()
+}
+
+/// Draws extraction point markers on the map.
+pub fn draw_extracts(ui: &mut egui::Ui, map_rect: egui::Rect, extracts: &[ExtractMarker<'_>]) {
     let painter = ui.painter();
 
     for extract in extracts {
-        let faction = extract.faction.to_lowercase();
-        let (fill_color, stroke_color) = match faction.as_str() {
-            "pmc" if overlays.pmc_extracts => {
-                (colors::PMC_EXTRACT_FILL, colors::PMC_EXTRACT_STROKE)
-            }
-            "scav" if overlays.scav_extracts => {
-                (colors::SCAV_EXTRACT_FILL, colors::SCAV_EXTRACT_STROKE)
-            }
-            "shared" if overlays.shared_extracts => {
-                (colors::SHARED_EXTRACT_FILL, colors::SHARED_EXTRACT_STROKE)
-            }
-            _ => continue,
-        };
-
-        let Some(position) = extract.position else {
-            continue;
-        };
-
-        let game_pos = [position[0], position[2]];
-        let Some(pos) = game_to_display(map, map_rect, game_pos) else {
-            continue;
-        };
-
-        if !map_rect.expand(20.0).contains(pos) {
+        if !map_rect.expand(20.0).contains(extract.position) {
             continue;
         }
 
-        let size = (12.0 * zoom).clamp(8.0, 32.0);
-        let rect = egui::Rect::from_center_size(pos, egui::vec2(size, size));
-
-        painter.rect_filled(rect, 2.0, fill_color);
+        let rect =
+            egui::Rect::from_center_size(extract.position, egui::vec2(extract.size, extract.size));
+        painter.rect_filled(rect, 2.0, extract.fill_color);
         painter.rect_stroke(
             rect,
             2.0,
-            egui::Stroke::new(2.0_f32, stroke_color),
+            egui::Stroke::new(2.0_f32, extract.stroke_color),
             egui::StrokeKind::Outside,
         );
+    }
+}
 
-        // Extract name label
-        let font_size = (6.0 * zoom).clamp(9.0, 18.0);
-        let font_id = egui::FontId::proportional(font_size);
-        let text_pos = pos + egui::vec2(0.0, -size / 2.0 - 4.0);
+/// Contributes visible Extract Label candidates to the shared placement pass.
+pub fn contribute_extract_labels(
+    painter: &egui::Painter,
+    extracts: &[ExtractMarker<'_>],
+    candidates: &mut Vec<LabelCandidate>,
+) {
+    for extract in extracts {
+        let measured = painter
+            .layout_no_wrap(
+                extract.name.to_owned(),
+                extract.label_font.clone(),
+                egui::Color32::WHITE,
+            )
+            .size();
 
-        outlined_text(
-            painter,
-            text_pos,
-            egui::Align2::CENTER_BOTTOM,
-            &extract.name,
-            font_id,
-            egui::Color32::WHITE,
-            colors::EXTRACT_TEXT_SHADOW,
-        );
+        candidates.push(LabelCandidate {
+            kind: LabelKind::Extract,
+            within_kind_priority: 0.0,
+            source_order: extract.source_order,
+            text: extract.name.to_owned(),
+            font: extract.label_font.clone(),
+            color: egui::Color32::WHITE,
+            outline: colors::EXTRACT_TEXT_SHADOW,
+            anchor: extract.position + egui::vec2(0.0, -extract.size / 2.0 - 4.0),
+            align: egui::Align2::CENTER_BOTTOM,
+            measured,
+        });
+    }
+}
+
+fn extract_colors(
+    extract: &Extract,
+    overlays: &OverlayVisibility,
+) -> Option<(egui::Color32, egui::Color32)> {
+    if extract.faction.eq_ignore_ascii_case("pmc") && overlays.pmc_extracts {
+        Some((colors::PMC_EXTRACT_FILL, colors::PMC_EXTRACT_STROKE))
+    } else if extract.faction.eq_ignore_ascii_case("scav") && overlays.scav_extracts {
+        Some((colors::SCAV_EXTRACT_FILL, colors::SCAV_EXTRACT_STROKE))
+    } else if extract.faction.eq_ignore_ascii_case("shared") && overlays.shared_extracts {
+        Some((colors::SHARED_EXTRACT_FILL, colors::SHARED_EXTRACT_STROKE))
+    } else {
+        None
     }
 }
 
