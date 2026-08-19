@@ -24,7 +24,6 @@ fn regular_polygon(pos: egui::Pos2, radius: f32, sides: usize, rotation: f32) ->
 }
 
 /// Paints a regular octagon used by the BTR Stop icon.
-#[allow(dead_code)] // Reserved for the BTR Stop Overlay ticket.
 pub fn octagon(
     painter: &egui::Painter,
     pos: egui::Pos2,
@@ -34,6 +33,11 @@ pub fn octagon(
 ) {
     let points = regular_polygon(pos, radius, 8, std::f32::consts::PI / 8.0);
     painter.add(egui::Shape::convex_polygon(points, fill, stroke));
+}
+
+/// Paints the filled stop-sign icon used by the BTR Stops Overlay.
+pub fn icon_octagon(painter: &egui::Painter, pos: egui::Pos2, size: f32, color: egui::Color32) {
+    octagon(painter, pos, size * 0.32, color, egui::Stroke::NONE);
 }
 
 /// Paints the shared skull icon used by Mob Overlays.

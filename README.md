@@ -1,6 +1,6 @@
 # tarkov-map
 
-Native desktop map viewer for Escape from Tarkov with automatic player position tracking, toggleable overlays for spawns, extracts, transits, switches, and hazards, and built-in self-updating. Built with Rust and egui.
+Native desktop map viewer for Escape from Tarkov with automatic player position tracking, toggleable overlays for spawns, extracts, transits, BTR stops, switches, and hazards, and built-in self-updating. Built with Rust and egui.
 
 ![screenshot](.github/screenshot.png)
 

@@ -12,7 +12,7 @@ use geo::{
     algorithm::{orient::Direction, unary_union},
 };
 use serde::{Deserialize, Serialize};
-use tarkov_map::{Extract, Label, Map, Spawn, Switch};
+use tarkov_map::{BtrStop, Extract, Label, Map, Spawn, Switch};
 
 const SWITCH_CLUSTER_UNITS: f64 = 3.0;
 
@@ -26,6 +26,7 @@ pub struct OverlayVisibility {
     pub scav_extracts: bool,
     pub shared_extracts: bool,
     pub transits: bool,
+    pub btr_stops: bool,
     pub switches: bool,
     pub sniper_zones: bool,
     pub minefields: bool,
@@ -69,6 +70,11 @@ impl OverlayKind {
         offered: |map| !map.transits.is_empty(),
         visible: |visibility| visibility.transits,
         visibility_mut: |visibility| &mut visibility.transits,
+    };
+    pub const BTR_STOPS: Self = Self {
+        offered: |map| !map.btr_stops.is_empty(),
+        visible: |visibility| visibility.btr_stops,
+        visibility_mut: |visibility| &mut visibility.btr_stops,
     };
     pub const SWITCHES: Self = Self {
         offered: |map| !map.switches.is_empty(),
@@ -132,6 +138,7 @@ impl Default for OverlayVisibility {
             scav_extracts: true,
             shared_extracts: true,
             transits: false,
+            btr_stops: false,
             switches: false,
             sniper_zones: false,
             minefields: false,
@@ -597,6 +604,90 @@ pub fn contribute_transit_labels(
     }
 }
 
+/// One shown BTR Stop projected and styled for this frame.
+pub struct BtrStopMarker<'a> {
+    name: &'a str,
+    source_order: usize,
+    position: egui::Pos2,
+    size: f32,
+    label_font: egui::FontId,
+}
+
+/// Builds the BTR Stop presentation shared by marker and Label drawing.
+pub fn btr_stop_markers<'a>(
+    map_rect: egui::Rect,
+    map: &Map,
+    stops: &'a [BtrStop],
+    zoom: f32,
+) -> Vec<BtrStopMarker<'a>> {
+    stops
+        .iter()
+        .enumerate()
+        .filter_map(|(source_order, stop)| {
+            let position = game_to_display(map, map_rect, stop.position)?;
+            let size = (12.0 * zoom).clamp(8.0, 32.0);
+
+            Some(BtrStopMarker {
+                name: &stop.name,
+                source_order,
+                position,
+                size,
+                label_font: label_font(MARKER_LABEL_BASE, zoom, 11.0, 20.0),
+            })
+        })
+        .collect()
+}
+
+/// Draws BTR Stop markers using the shared disc and octagon primitives.
+pub fn draw_btr_stops(ui: &mut egui::Ui, map_rect: egui::Rect, stops: &[BtrStopMarker<'_>]) {
+    let painter = ui.painter();
+
+    for stop in stops {
+        if !map_rect.expand(20.0).contains(stop.position) {
+            continue;
+        }
+
+        markers::disc(
+            painter,
+            stop.position,
+            stop.size,
+            colors::MARKER_DISC,
+            colors::BTR_STOP,
+        );
+        markers::icon_octagon(painter, stop.position, stop.size, colors::BTR_STOP);
+    }
+}
+
+/// Contributes visible BTR Stop Label candidates to the shared placement pass.
+pub fn contribute_btr_stop_labels(
+    painter: &egui::Painter,
+    stops: &[BtrStopMarker<'_>],
+    candidates: &mut Vec<LabelCandidate>,
+) {
+    for stop in stops {
+        let measured = painter
+            .layout_no_wrap(
+                stop.name.to_owned(),
+                stop.label_font.clone(),
+                colors::BTR_STOP,
+            )
+            .size();
+
+        candidates.push(LabelCandidate {
+            kind: LabelKind::BtrStop,
+            within_kind_priority: 0.0,
+            source_order: stop.source_order,
+            text: stop.name.to_owned(),
+            font: stop.label_font.clone(),
+            color: colors::BTR_STOP,
+            outline: colors::EXTRACT_TEXT_SHADOW,
+            anchor: stop.position + egui::vec2(0.0, -stop.size / 2.0 - 4.0),
+            align: egui::Align2::CENTER_BOTTOM,
+            measured,
+        });
+    }
+}
+
 /// One clustered Switch marker projected and styled for this frame.
 pub struct SwitchMarker {
     label: String,
@@ -767,7 +858,7 @@ pub fn draw_player_marker(
 mod tests {
     use super::*;
     use geo::Area;
-    use tarkov_map::{Minefield, SniperZone, Switch, Transit};
+    use tarkov_map::{BtrStop, Minefield, SniperZone, Switch, Transit};
 
     const MAP_OVERLAYS: [OverlayKind; 2] = [OverlayKind::LABELS, OverlayKind::PLAYER_MARKER];
     const HAZARD_OVERLAYS: [OverlayKind; 2] = [OverlayKind::SNIPER_ZONES, OverlayKind::MINEFIELDS];
@@ -776,7 +867,11 @@ mod tests {
         OverlayKind::SCAV_EXTRACTS,
         OverlayKind::SHARED_EXTRACTS,
     ];
-    const NAVIGATION_OVERLAYS: [OverlayKind; 2] = [OverlayKind::TRANSITS, OverlayKind::SWITCHES];
+    const NAVIGATION_OVERLAYS: [OverlayKind; 3] = [
+        OverlayKind::TRANSITS,
+        OverlayKind::BTR_STOPS,
+        OverlayKind::SWITCHES,
+    ];
 
     fn empty_map() -> Map {
         ron::from_str(
@@ -921,6 +1016,68 @@ mod tests {
             category_count(NAVIGATION_OVERLAYS, &offered, &visibility),
             (0, 1)
         );
+    }
+
+    #[test]
+    fn btr_stops_are_offered_only_for_non_empty_map_collections_and_default_off() {
+        let empty = empty_map();
+        let visibility = OverlayVisibility::default();
+
+        assert!(!visibility.btr_stops);
+        assert!(!overlay_offered(OverlayKind::BTR_STOPS, &empty));
+
+        let mut offered = empty_map();
+        offered.btr_stops = vec![BtrStop {
+            position: [10.0, 20.0],
+            name: "USEC Checkpoint".to_owned(),
+        }];
+
+        assert!(overlay_offered(OverlayKind::BTR_STOPS, &offered));
+        assert_eq!(
+            category_count(NAVIGATION_OVERLAYS, &offered, &visibility),
+            (0, 1)
+        );
+    }
+
+    #[test]
+    fn bundled_btr_stops_are_offered_on_woods_and_streets_only() {
+        let maps: Vec<Map> = ron::from_str(include_str!("../../../assets/maps.ron"))
+            .expect("bundled Maps should parse");
+        let offered: Vec<_> = maps
+            .iter()
+            .filter(|map| overlay_offered(OverlayKind::BTR_STOPS, map))
+            .map(|map| map.normalized_name.as_str())
+            .collect();
+
+        assert_eq!(offered, ["streets-of-tarkov", "woods"]);
+        let map = |normalized_name: &str| {
+            maps.iter()
+                .find(|map| map.normalized_name == normalized_name)
+                .unwrap_or_else(|| panic!("missing bundled Map {normalized_name}"))
+        };
+        let visibility = OverlayVisibility::default();
+        assert_eq!(
+            category_count(NAVIGATION_OVERLAYS, map("woods"), &visibility),
+            (0, 2)
+        );
+    }
+
+    #[test]
+    fn btr_stop_visibility_round_trips_and_old_settings_default_off() {
+        let visibility = OverlayVisibility {
+            btr_stops: true,
+            ..OverlayVisibility::default()
+        };
+
+        let saved = serde_json::to_string(&visibility).expect("visibility should serialize");
+        let restored: OverlayVisibility =
+            serde_json::from_str(&saved).expect("visibility should deserialize");
+        let old_settings: OverlayVisibility =
+            serde_json::from_str(r#"{"transits":true}"#).expect("old settings should deserialize");
+
+        assert!(restored.btr_stops);
+        assert!(!old_settings.btr_stops);
+        assert!(old_settings.transits);
     }
 
     #[test]

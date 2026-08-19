@@ -9,11 +9,11 @@ use crate::coordinates::game_to_display;
 use crate::labels::{self, LabelKind};
 use crate::markers;
 use crate::overlays::{
-    OverlayKind, OverlayVisibility, category_count, contribute_extract_labels,
-    contribute_place_name_labels, contribute_switch_labels, contribute_transit_labels,
-    draw_extracts, draw_minefields, draw_player_marker, draw_sniper_zones, draw_spawns,
-    draw_switches, draw_transits, extract_markers, overlay_offered, switch_markers,
-    transit_markers,
+    OverlayKind, OverlayVisibility, btr_stop_markers, category_count, contribute_btr_stop_labels,
+    contribute_extract_labels, contribute_place_name_labels, contribute_switch_labels,
+    contribute_transit_labels, draw_btr_stops, draw_extracts, draw_minefields, draw_player_marker,
+    draw_sniper_zones, draw_spawns, draw_switches, draw_transits, extract_markers, overlay_offered,
+    switch_markers, transit_markers,
 };
 use crate::screenshot_watcher::ScreenshotWatcher;
 use crate::{APP_TITLE, APP_VERSION};
@@ -109,6 +109,14 @@ const NAVIGATION_OVERLAYS: &[OverlayRow] = &[
         glyph: OverlayGlyph::Disc {
             color: colors::TRANSIT,
             icon: markers::icon_chevrons,
+        },
+    },
+    OverlayRow {
+        overlay: OverlayKind::BTR_STOPS,
+        label: "BTR stops",
+        glyph: OverlayGlyph::Disc {
+            color: colors::BTR_STOP,
+            icon: markers::icon_octagon,
         },
     },
     OverlayRow {
@@ -706,6 +714,11 @@ impl TarkovMapApp {
         } else {
             Vec::new()
         };
+        let btr_stop_markers = if overlays.btr_stops {
+            btr_stop_markers(map_rect, map, &map.btr_stops, self.zoom)
+        } else {
+            Vec::new()
+        };
         let switch_markers = if overlays.switches {
             switch_markers(map_rect, map, self.zoom)
         } else {
@@ -725,6 +738,7 @@ impl TarkovMapApp {
         }
         contribute_extract_labels(ui.painter(), &extract_markers, &mut label_candidates);
         contribute_transit_labels(ui.painter(), &transit_markers, &mut label_candidates);
+        contribute_btr_stop_labels(ui.painter(), &btr_stop_markers, &mut label_candidates);
         contribute_switch_labels(ui.painter(), &switch_markers, &mut label_candidates);
         let placed_labels = labels::place(label_candidates);
 
@@ -743,6 +757,7 @@ impl TarkovMapApp {
 
         draw_extracts(ui, map_rect, &extract_markers);
         draw_transits(ui, map_rect, &transit_markers);
+        draw_btr_stops(ui, map_rect, &btr_stop_markers);
         draw_switches(ui, map_rect, &switch_markers);
 
         labels::draw(
