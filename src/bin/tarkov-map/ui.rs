@@ -7,10 +7,12 @@ use crate::constants::{
 };
 use crate::coordinates::game_to_display;
 use crate::labels::{self, LabelKind};
+use crate::markers;
 use crate::overlays::{
     OverlayKind, OverlayVisibility, category_count, contribute_extract_labels,
-    contribute_place_name_labels, draw_extracts, draw_minefields, draw_player_marker,
-    draw_sniper_zones, draw_spawns, extract_markers, overlay_offered,
+    contribute_place_name_labels, contribute_transit_labels, draw_extracts, draw_minefields,
+    draw_player_marker, draw_sniper_zones, draw_spawns, draw_transits, extract_markers,
+    overlay_offered, transit_markers,
 };
 use crate::screenshot_watcher::ScreenshotWatcher;
 use crate::{APP_TITLE, APP_VERSION};
@@ -28,6 +30,10 @@ enum OverlayGlyph {
     Circle(egui::Color32),
     Rect(egui::Color32),
     Triangle(egui::Color32),
+    Disc {
+        color: egui::Color32,
+        icon: fn(&egui::Painter, egui::Pos2, f32, egui::Color32),
+    },
     Area {
         fill: egui::Color32,
         stroke: egui::Color32,
@@ -95,6 +101,14 @@ const HAZARD_OVERLAYS: &[OverlayRow] = &[
         },
     },
 ];
+const NAVIGATION_OVERLAYS: &[OverlayRow] = &[OverlayRow {
+    overlay: OverlayKind::TRANSITS,
+    label: "Transits",
+    glyph: OverlayGlyph::Disc {
+        color: colors::TRANSIT,
+        icon: markers::icon_chevrons,
+    },
+}];
 const OVERLAY_CATEGORIES: &[OverlayCategory] = &[
     OverlayCategory {
         title: "Map",
@@ -107,6 +121,10 @@ const OVERLAY_CATEGORIES: &[OverlayCategory] = &[
     OverlayCategory {
         title: "Extracts",
         overlays: EXTRACT_OVERLAYS,
+    },
+    OverlayCategory {
+        title: "Navigation",
+        overlays: NAVIGATION_OVERLAYS,
     },
     OverlayCategory {
         title: "Hazards",
@@ -210,73 +228,79 @@ impl TarkovMapApp {
         let value = row.overlay.visibility_mut(visibility);
         ui.horizontal(|ui| {
             ui.checkbox(value, "");
-            let (rect, icon_response) =
-                ui.allocate_exact_size(egui::Vec2::splat(14.0), egui::Sense::click());
-
-            match row.glyph {
-                OverlayGlyph::Circle(color) => {
-                    ui.painter().circle_filled(rect.center(), 5.0, color);
-                    ui.painter().circle_stroke(
-                        rect.center(),
-                        5.0,
-                        egui::Stroke::new(1.0, egui::Color32::GRAY),
-                    );
-                }
-                OverlayGlyph::Rect(color) => {
-                    let icon_rect = rect.shrink(1.0);
-                    ui.painter().rect_filled(icon_rect, 2.0, color);
-                    ui.painter().rect_stroke(
-                        icon_rect,
-                        2.0,
-                        egui::Stroke::new(1.0, color.gamma_multiply(0.5)),
-                        egui::StrokeKind::Inside,
-                    );
-                }
-                OverlayGlyph::Triangle(color) => {
-                    let center = rect.center();
-                    let size = 5.0;
-                    let points = vec![
-                        center + egui::vec2(0.0, -size),
-                        center + egui::vec2(-size * 0.7, size * 0.5),
-                        center + egui::vec2(size * 0.7, size * 0.5),
-                    ];
-                    ui.painter().add(egui::Shape::convex_polygon(
-                        points,
-                        color,
-                        egui::Stroke::new(1.0, color.gamma_multiply(0.5)),
-                    ));
-                }
-                OverlayGlyph::Area {
-                    fill,
-                    stroke,
-                    dashed,
-                } => {
-                    let icon_rect = rect.shrink(1.5);
-                    ui.painter().rect_filled(icon_rect, 1.0, fill);
-                    if dashed {
-                        let closed = vec![
-                            icon_rect.left_top(),
-                            icon_rect.right_top(),
-                            icon_rect.right_bottom(),
-                            icon_rect.left_bottom(),
-                            icon_rect.left_top(),
-                        ];
-                        ui.painter().add(egui::Shape::dashed_line(
-                            &closed,
-                            egui::Stroke::new(1.0, stroke),
-                            2.0,
-                            1.5,
-                        ));
-                    } else {
-                        ui.painter().rect_stroke(
-                            icon_rect,
-                            1.0,
-                            egui::Stroke::new(1.0, stroke),
-                            egui::StrokeKind::Inside,
-                        );
+            let icon_response = match row.glyph {
+                OverlayGlyph::Disc { color, icon } => markers::glyph_disc(ui, icon, color),
+                glyph => {
+                    let (rect, response) =
+                        ui.allocate_exact_size(egui::Vec2::splat(14.0), egui::Sense::click());
+                    match glyph {
+                        OverlayGlyph::Circle(color) => {
+                            ui.painter().circle_filled(rect.center(), 5.0, color);
+                            ui.painter().circle_stroke(
+                                rect.center(),
+                                5.0,
+                                egui::Stroke::new(1.0, egui::Color32::GRAY),
+                            );
+                        }
+                        OverlayGlyph::Rect(color) => {
+                            let icon_rect = rect.shrink(1.0);
+                            ui.painter().rect_filled(icon_rect, 2.0, color);
+                            ui.painter().rect_stroke(
+                                icon_rect,
+                                2.0,
+                                egui::Stroke::new(1.0, color.gamma_multiply(0.5)),
+                                egui::StrokeKind::Inside,
+                            );
+                        }
+                        OverlayGlyph::Triangle(color) => {
+                            let center = rect.center();
+                            let size = 5.0;
+                            let points = vec![
+                                center + egui::vec2(0.0, -size),
+                                center + egui::vec2(-size * 0.7, size * 0.5),
+                                center + egui::vec2(size * 0.7, size * 0.5),
+                            ];
+                            ui.painter().add(egui::Shape::convex_polygon(
+                                points,
+                                color,
+                                egui::Stroke::new(1.0, color.gamma_multiply(0.5)),
+                            ));
+                        }
+                        OverlayGlyph::Area {
+                            fill,
+                            stroke,
+                            dashed,
+                        } => {
+                            let icon_rect = rect.shrink(1.5);
+                            ui.painter().rect_filled(icon_rect, 1.0, fill);
+                            if dashed {
+                                let closed = vec![
+                                    icon_rect.left_top(),
+                                    icon_rect.right_top(),
+                                    icon_rect.right_bottom(),
+                                    icon_rect.left_bottom(),
+                                    icon_rect.left_top(),
+                                ];
+                                ui.painter().add(egui::Shape::dashed_line(
+                                    &closed,
+                                    egui::Stroke::new(1.0, stroke),
+                                    2.0,
+                                    1.5,
+                                ));
+                            } else {
+                                ui.painter().rect_stroke(
+                                    icon_rect,
+                                    1.0,
+                                    egui::Stroke::new(1.0, stroke),
+                                    egui::StrokeKind::Inside,
+                                );
+                            }
+                        }
+                        OverlayGlyph::Disc { .. } => unreachable!(),
                     }
+                    response
                 }
-            }
+            };
 
             let label_response = ui
                 .label(row.label)
@@ -663,6 +687,11 @@ impl TarkovMapApp {
             .as_deref()
             .map(|extracts| extract_markers(map_rect, map, extracts, self.zoom, &overlays))
             .unwrap_or_default();
+        let transit_markers = if overlays.transits {
+            transit_markers(map_rect, map, &self.maps, self.zoom)
+        } else {
+            Vec::new()
+        };
         if overlays.labels
             && let Some(labels) = &map.labels
         {
@@ -676,6 +705,7 @@ impl TarkovMapApp {
             );
         }
         contribute_extract_labels(ui.painter(), &extract_markers, &mut label_candidates);
+        contribute_transit_labels(ui.painter(), &transit_markers, &mut label_candidates);
         let placed_labels = labels::place(label_candidates);
 
         labels::draw(
@@ -692,6 +722,7 @@ impl TarkovMapApp {
         }
 
         draw_extracts(ui, map_rect, &extract_markers);
+        draw_transits(ui, map_rect, &transit_markers);
 
         labels::draw(
             ui.painter(),

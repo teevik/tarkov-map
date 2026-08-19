@@ -4,6 +4,7 @@ use crate::colors;
 use crate::constants::{MINEFIELD_MARKER_SIZE, MINEFIELD_MIN_SIZE};
 use crate::coordinates::game_to_display;
 use crate::labels::{LabelCandidate, LabelKind};
+use crate::markers;
 use crate::screenshot_watcher::PlayerPosition;
 use eframe::egui;
 use geo::{
@@ -22,6 +23,7 @@ pub struct OverlayVisibility {
     pub pmc_extracts: bool,
     pub scav_extracts: bool,
     pub shared_extracts: bool,
+    pub transits: bool,
     pub sniper_zones: bool,
     pub minefields: bool,
     pub player_marker: bool,
@@ -59,6 +61,11 @@ impl OverlayKind {
         offered: |map| has_positioned_extract(map, "shared"),
         visible: |visibility| visibility.shared_extracts,
         visibility_mut: |visibility| &mut visibility.shared_extracts,
+    };
+    pub const TRANSITS: Self = Self {
+        offered: |map| !map.transits.is_empty(),
+        visible: |visibility| visibility.transits,
+        visibility_mut: |visibility| &mut visibility.transits,
     };
     pub const SNIPER_ZONES: Self = Self {
         offered: |map| !map.sniper_zones.is_empty(),
@@ -116,6 +123,7 @@ impl Default for OverlayVisibility {
             pmc_extracts: true,
             scav_extracts: true,
             shared_extracts: true,
+            transits: false,
             sniper_zones: false,
             minefields: false,
             player_marker: true,
@@ -456,6 +464,93 @@ pub fn contribute_extract_labels(
     }
 }
 
+/// One shown Transit projected and styled for this frame.
+pub struct TransitMarker {
+    label: String,
+    source_order: usize,
+    position: egui::Pos2,
+    size: f32,
+    label_font: egui::FontId,
+}
+
+/// Builds the Transit presentation shared by marker and Label drawing.
+pub fn transit_markers(
+    map_rect: egui::Rect,
+    map: &Map,
+    maps: &[Map],
+    zoom: f32,
+) -> Vec<TransitMarker> {
+    map.transits
+        .iter()
+        .enumerate()
+        .filter_map(|(source_order, transit)| {
+            let target = maps
+                .iter()
+                .find(|candidate| candidate.normalized_name == transit.target)?;
+            let position = game_to_display(map, map_rect, transit.position)?;
+            let size = (12.0 * zoom).clamp(8.0, 32.0);
+
+            Some(TransitMarker {
+                label: format!("➡ {}", target.name),
+                source_order,
+                position,
+                size,
+                label_font: egui::FontId::proportional((6.0 * zoom).clamp(9.0, 18.0)),
+            })
+        })
+        .collect()
+}
+
+/// Draws Transit markers using the shared disc and chevron primitives.
+pub fn draw_transits(ui: &mut egui::Ui, map_rect: egui::Rect, transits: &[TransitMarker]) {
+    let painter = ui.painter();
+
+    for transit in transits {
+        if !map_rect.expand(20.0).contains(transit.position) {
+            continue;
+        }
+
+        markers::disc(
+            painter,
+            transit.position,
+            transit.size,
+            colors::MARKER_DISC,
+            colors::TRANSIT,
+        );
+        markers::icon_chevrons(painter, transit.position, transit.size, colors::TRANSIT);
+    }
+}
+
+/// Contributes visible Transit Label candidates to the shared placement pass.
+pub fn contribute_transit_labels(
+    painter: &egui::Painter,
+    transits: &[TransitMarker],
+    candidates: &mut Vec<LabelCandidate>,
+) {
+    for transit in transits {
+        let measured = painter
+            .layout_no_wrap(
+                transit.label.clone(),
+                transit.label_font.clone(),
+                colors::TRANSIT,
+            )
+            .size();
+
+        candidates.push(LabelCandidate {
+            kind: LabelKind::Transit,
+            within_kind_priority: 0.0,
+            source_order: transit.source_order,
+            text: transit.label.clone(),
+            font: transit.label_font.clone(),
+            color: colors::TRANSIT,
+            outline: colors::EXTRACT_TEXT_SHADOW,
+            anchor: transit.position + egui::vec2(0.0, -transit.size / 2.0 - 4.0),
+            align: egui::Align2::CENTER_BOTTOM,
+            measured,
+        });
+    }
+}
+
 fn extract_colors(
     extract: &Extract,
     overlays: &OverlayVisibility,
@@ -544,7 +639,7 @@ pub fn draw_player_marker(
 mod tests {
     use super::*;
     use geo::Area;
-    use tarkov_map::{Minefield, SniperZone};
+    use tarkov_map::{Minefield, SniperZone, Transit};
 
     const MAP_OVERLAYS: [OverlayKind; 2] = [OverlayKind::LABELS, OverlayKind::PLAYER_MARKER];
     const HAZARD_OVERLAYS: [OverlayKind; 2] = [OverlayKind::SNIPER_ZONES, OverlayKind::MINEFIELDS];
@@ -553,6 +648,7 @@ mod tests {
         OverlayKind::SCAV_EXTRACTS,
         OverlayKind::SHARED_EXTRACTS,
     ];
+    const NAVIGATION_OVERLAYS: [OverlayKind; 1] = [OverlayKind::TRANSITS];
 
     fn empty_map() -> Map {
         ron::from_str(
@@ -646,6 +742,31 @@ mod tests {
         assert_eq!(
             category_count(HAZARD_OVERLAYS, &offered, &OverlayVisibility::default()),
             (0, 2)
+        );
+    }
+
+    #[test]
+    fn transits_are_offered_only_for_non_empty_map_collections_and_default_off() {
+        let empty = empty_map();
+        let visibility = OverlayVisibility::default();
+
+        assert!(!visibility.transits);
+        assert!(!overlay_offered(OverlayKind::TRANSITS, &empty));
+        assert_eq!(
+            category_count(NAVIGATION_OVERLAYS, &empty, &visibility),
+            (0, 0)
+        );
+
+        let mut offered = empty_map();
+        offered.transits = vec![Transit {
+            position: [10.0, 20.0],
+            target: "woods".to_owned(),
+        }];
+
+        assert!(overlay_offered(OverlayKind::TRANSITS, &offered));
+        assert_eq!(
+            category_count(NAVIGATION_OVERLAYS, &offered, &visibility),
+            (0, 1)
         );
     }
 

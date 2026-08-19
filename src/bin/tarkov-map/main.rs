@@ -6,6 +6,7 @@ mod constants;
 mod coordinates;
 mod demo;
 mod labels;
+mod markers;
 mod overlays;
 mod screenshot_watcher;
 mod ui;
