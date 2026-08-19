@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.15](https://github.com/teevik/tarkov-map/compare/v0.1.14...v0.1.15) (2026-08-19)
+
+
+### Features
+
+* bundle richer overlay data ([#61](https://github.com/teevik/tarkov-map/issues/61)) ([706b818](https://github.com/teevik/tarkov-map/commit/706b818d79dce290dd04daa288023b1e3f7dd974))
+* categorise offered overlays ([#62](https://github.com/teevik/tarkov-map/issues/62)) ([93b90a1](https://github.com/teevik/tarkov-map/commit/93b90a1b77e3e8000b09c323ed1ba51efb564b80))
+* make map refreshes traceable and atomic ([#20](https://github.com/teevik/tarkov-map/issues/20)) ([2d0987e](https://github.com/teevik/tarkov-map/commit/2d0987e72661a6dd5507326c87c65ae80f08baac))
+* share label placement across overlays ([#63](https://github.com/teevik/tarkov-map/issues/63)) ([9e548e9](https://github.com/teevik/tarkov-map/commit/9e548e98af2a92d3719f7351244df51a05779070))
+* validate bundled map collection ([#19](https://github.com/teevik/tarkov-map/issues/19)) ([9fd518c](https://github.com/teevik/tarkov-map/commit/9fd518c5df587f6186ecbe03c1f370f865b541c7))
+
+
+### Bug Fixes
+
+* borrow map for overlay sidebar ([#62](https://github.com/teevik/tarkov-map/issues/62)) ([ea38c78](https://github.com/teevik/tarkov-map/commit/ea38c78caae2c9be302d008600de1618b2f08191))
+
 ## [0.1.14](https://github.com/teevik/tarkov-map/compare/v0.1.13...v0.1.14) (2026-08-17)
 
 
