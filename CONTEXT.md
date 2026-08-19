@@ -36,6 +36,10 @@ _Avoid_: Transform (the maths inside a Projection), coordinate rotation, CRS
 One toggleable set of markers or areas drawn over a Map's image (e.g. PMC Extracts, Labels, Minefields, the Player Position marker). Each Overlay is independently shown or hidden, and that choice is remembered across Maps and restarts; an Overlay with nothing to draw on the current Map is not offered in the sidebar at all (only the Player Position marker is always offered). The player never orders or stacks Overlays — the app always draws area Overlays beneath marker Overlays.
 _Avoid_: Layer (reserved for tarkov.dev's per-floor tile sets, which are not modelled)
 
+**Label**:
+Any text drawn on a Map: a place name from the "Labels" Overlay, or the name beside a marker (an Extract, Transit, BTR Stop, Switch or Boss Spawn). At any zoom a Label is drawn only if it does not overlap a Label already drawn; Labels are placed in a fixed priority order — Extracts, Transits, BTR Stops, Switches, Boss Spawns, then place names (larger first) — so the important ones survive when a Map is crowded, a culled Label is simply not drawn (its marker still is), and the same Labels survive wherever the Viewport is panned; zooming in makes room and reveals more. A Label that stacks several names (a Boss Spawn's Mobs, clustered Switches) is drawn whole or not at all.
+_Avoid_: Caption, text, annotation, tooltip (nothing is revealed on hover), label culling as a setting (it is never off)
+
 **Overlay Category**:
 A named group of Overlays that share a collapsible heading in the sidebar. Purely presentational: a category has no visibility of its own — collapsing it hides its toggles in the sidebar, not the Overlays on the Map — and its only state is whether it is open. A category none of whose Overlays are offered on the current Map is not shown.
 _Avoid_: Section (the sidebar's top-level headings such as "Map" and "Overlays"), group, layer group
@@ -45,7 +49,7 @@ One named enemy that tarkov.dev lists as a boss on a Map — a real boss (Reshal
 _Avoid_: Boss (only some Mobs are bosses), bot, faction, `mob` key (tarkov.dev's raw id, several of which map to one Mob)
 
 **Boss Spawn**:
-A position on a Map where one or more Mobs may appear, each with its map-wide spawn chance. Drawn as one marker listing every Mob whose Overlay is on; hidden when none is. The marker always draws, but its label is skipped when it would overlap a Boss Spawn or Switch label already drawn at the current zoom (labels reappear as the player zooms in).
+A position on a Map where one or more Mobs may appear, each with its map-wide spawn chance. Drawn as one marker listing every Mob whose Overlay is on; hidden when none is. The marker always draws; its Label follows the general Label rule.
 _Avoid_: Boss zone, boss location, spawn location (tarkov.dev's zone grouping, which is not modelled), "Bosses" Overlay (there is none — each Mob is its own Overlay)
 
 **Sniper Zone**:
@@ -61,7 +65,7 @@ A point on a Map from which a raid continues on another Map, labelled with the d
 _Avoid_: Transfer, portal, exit (an Extract leaves the raid; a Transit continues it)
 
 **Switch**:
-A lever, button or console on a Map that the player can operate — powering an elevator, opening a door, disabling a trap or unlocking an Extract — as listed by tarkov.dev, drawn as a marker labelled with its name in the "Switches" Overlay; Switches within a few metres of each other share one marker with their names stacked, and a label that would overlap one already drawn is skipped, as for Boss Spawns. What a Switch controls is not modelled beyond what its name says.
+A lever, button or console on a Map that the player can operate — powering an elevator, opening a door, disabling a trap or unlocking an Extract — as listed by tarkov.dev, drawn as a marker labelled with its name in the "Switches" Overlay; Switches within a few metres of each other share one marker with their names stacked (one Label). What a Switch controls is not modelled beyond what its name says.
 _Avoid_: Lever, button, console (kinds of Switch), switch-controlled extract (an Extract is drawn the same whether or not a Switch gates it)
 
 **BTR Stop**:
