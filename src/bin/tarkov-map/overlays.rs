@@ -12,7 +12,9 @@ use geo::{
     algorithm::{orient::Direction, unary_union},
 };
 use serde::{Deserialize, Serialize};
-use tarkov_map::{Extract, Label, Map, Spawn};
+use tarkov_map::{Extract, Label, Map, Spawn, Switch};
+
+const SWITCH_CLUSTER_UNITS: f64 = 3.0;
 
 /// Controls visibility of different overlay types on the map.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -24,6 +26,7 @@ pub struct OverlayVisibility {
     pub scav_extracts: bool,
     pub shared_extracts: bool,
     pub transits: bool,
+    pub switches: bool,
     pub sniper_zones: bool,
     pub minefields: bool,
     pub player_marker: bool,
@@ -66,6 +69,11 @@ impl OverlayKind {
         offered: |map| !map.transits.is_empty(),
         visible: |visibility| visibility.transits,
         visibility_mut: |visibility| &mut visibility.transits,
+    };
+    pub const SWITCHES: Self = Self {
+        offered: |map| !map.switches.is_empty(),
+        visible: |visibility| visibility.switches,
+        visibility_mut: |visibility| &mut visibility.switches,
     };
     pub const SNIPER_ZONES: Self = Self {
         offered: |map| !map.sniper_zones.is_empty(),
@@ -124,6 +132,7 @@ impl Default for OverlayVisibility {
             scav_extracts: true,
             shared_extracts: true,
             transits: false,
+            switches: false,
             sniper_zones: false,
             minefields: false,
             player_marker: true,
@@ -304,6 +313,45 @@ pub fn draw_minefields(
     }
 }
 
+/// Base font size for extract and transit labels at the fit view.
+const MARKER_LABEL_BASE: f32 = 11.0;
+
+/// Builds a Label font that grows with the square root of zoom, so text stays
+/// readable at the fit view without ballooning when zoomed in.
+fn label_font(base: f32, zoom: f32, min: f32, max: f32) -> egui::FontId {
+    egui::FontId::proportional((base * zoom.sqrt()).clamp(min, max))
+}
+
+#[derive(Debug, PartialEq)]
+struct SwitchCluster {
+    position: [f64; 2],
+    names: Vec<String>,
+}
+
+/// Greedily groups Switches around the first member of each cluster.
+fn cluster_switches(switches: &[Switch]) -> Vec<SwitchCluster> {
+    let mut clusters: Vec<SwitchCluster> = Vec::new();
+
+    for switch in switches {
+        if let Some(cluster) = clusters.iter_mut().find(|cluster| {
+            let dx = cluster.position[0] - switch.position[0];
+            let dz = cluster.position[1] - switch.position[1];
+            dx * dx + dz * dz <= SWITCH_CLUSTER_UNITS * SWITCH_CLUSTER_UNITS
+        }) {
+            if !cluster.names.contains(&switch.name) {
+                cluster.names.push(switch.name.clone());
+            }
+        } else {
+            clusters.push(SwitchCluster {
+                position: switch.position,
+                names: vec![switch.name.clone()],
+            });
+        }
+    }
+
+    clusters
+}
+
 /// Contributes map Label candidates to the shared placement pass.
 pub fn contribute_place_name_labels(
     painter: &egui::Painter,
@@ -319,9 +367,7 @@ pub fn contribute_place_name_labels(
         };
 
         let size = label.size.unwrap_or(40);
-        let base_size = size as f32 * 0.15;
-        let font_size = (base_size * zoom).clamp(8.0, 48.0);
-        let font = egui::FontId::proportional(font_size);
+        let font = label_font(size as f32 * 0.2, zoom, 11.0, 32.0);
         let measured = painter
             .layout_no_wrap(label.text.clone(), font.clone(), colors::LABEL_TEXT)
             .size();
@@ -405,7 +451,7 @@ pub fn extract_markers<'a>(
                 source_order,
                 position,
                 size,
-                label_font: egui::FontId::proportional((6.0 * zoom).clamp(9.0, 18.0)),
+                label_font: label_font(MARKER_LABEL_BASE, zoom, 11.0, 20.0),
                 fill_color,
                 stroke_color,
             })
@@ -491,11 +537,11 @@ pub fn transit_markers(
             let size = (12.0 * zoom).clamp(8.0, 32.0);
 
             Some(TransitMarker {
-                label: format!("➡ {}", target.name),
+                label: target.name.clone(),
                 source_order,
                 position,
                 size,
-                label_font: egui::FontId::proportional((6.0 * zoom).clamp(9.0, 18.0)),
+                label_font: label_font(MARKER_LABEL_BASE, zoom, 11.0, 20.0),
             })
         })
         .collect()
@@ -639,7 +685,7 @@ pub fn draw_player_marker(
 mod tests {
     use super::*;
     use geo::Area;
-    use tarkov_map::{Minefield, SniperZone, Transit};
+    use tarkov_map::{Minefield, SniperZone, Switch, Transit};
 
     const MAP_OVERLAYS: [OverlayKind; 2] = [OverlayKind::LABELS, OverlayKind::PLAYER_MARKER];
     const HAZARD_OVERLAYS: [OverlayKind; 2] = [OverlayKind::SNIPER_ZONES, OverlayKind::MINEFIELDS];
@@ -648,7 +694,8 @@ mod tests {
         OverlayKind::SCAV_EXTRACTS,
         OverlayKind::SHARED_EXTRACTS,
     ];
-    const NAVIGATION_OVERLAYS: [OverlayKind; 1] = [OverlayKind::TRANSITS];
+    const NAVIGATION_OVERLAYS: [OverlayKind; 2] =
+        [OverlayKind::TRANSITS, OverlayKind::SWITCHES];
 
     fn empty_map() -> Map {
         ron::from_str(
@@ -768,6 +815,92 @@ mod tests {
             category_count(NAVIGATION_OVERLAYS, &offered, &visibility),
             (0, 1)
         );
+    }
+
+    #[test]
+    fn switches_are_offered_only_for_non_empty_map_collections_and_default_off() {
+        let empty = empty_map();
+        let visibility = OverlayVisibility::default();
+
+        assert!(!visibility.switches);
+        assert!(!overlay_offered(OverlayKind::SWITCHES, &empty));
+        assert_eq!(
+            category_count(NAVIGATION_OVERLAYS, &empty, &visibility),
+            (0, 0)
+        );
+
+        let mut offered = empty_map();
+        offered.switches = vec![Switch {
+            position: [10.0, 20.0],
+            name: "Power".to_owned(),
+        }];
+
+        assert!(overlay_offered(OverlayKind::SWITCHES, &offered));
+        assert_eq!(
+            category_count(NAVIGATION_OVERLAYS, &offered, &visibility),
+            (0, 1)
+        );
+    }
+
+    #[test]
+    fn switch_clustering_uses_three_game_units_and_the_first_members_position() {
+        let switches = vec![
+            Switch {
+                position: [10.0, 20.0],
+                name: "First".to_owned(),
+            },
+            Switch {
+                position: [13.0, 20.0],
+                name: "At boundary".to_owned(),
+            },
+            Switch {
+                position: [13.01, 20.0],
+                name: "Outside boundary".to_owned(),
+            },
+        ];
+
+        let clusters = cluster_switches(&switches);
+
+        assert_eq!(clusters.len(), 2);
+        assert_eq!(clusters[0].position, [10.0, 20.0]);
+        assert_eq!(clusters[0].names, ["First", "At boundary"]);
+        assert_eq!(clusters[1].position, [13.01, 20.0]);
+        assert_eq!(clusters[1].names, ["Outside boundary"]);
+    }
+
+    #[test]
+    fn switch_clustering_is_greedy_and_deduplicates_names_without_reordering() {
+        let switches = vec![
+            Switch {
+                position: [0.0, 0.0],
+                name: "First".to_owned(),
+            },
+            Switch {
+                position: [5.0, 0.0],
+                name: "Second cluster".to_owned(),
+            },
+            Switch {
+                position: [3.0, 0.0],
+                name: "Joins first cluster".to_owned(),
+            },
+            Switch {
+                position: [0.5, 0.0],
+                name: "First".to_owned(),
+            },
+            Switch {
+                position: [1.0, 0.0],
+                name: "Last".to_owned(),
+            },
+        ];
+
+        let clusters = cluster_switches(&switches);
+
+        assert_eq!(clusters.len(), 2);
+        assert_eq!(
+            clusters[0].names,
+            ["First", "Joins first cluster", "Last"]
+        );
+        assert_eq!(clusters[1].names, ["Second cluster"]);
     }
 
     #[test]
