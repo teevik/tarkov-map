@@ -18,12 +18,17 @@ pub const SCAV_EXTRACT_STROKE: Color32 = Color32::from_rgb(139, 69, 19);
 pub const SHARED_EXTRACT_FILL: Color32 = Color32::from_rgb(186, 85, 211);
 pub const SHARED_EXTRACT_STROKE: Color32 = Color32::from_rgb(75, 0, 130);
 
-// Shared marker Overlay language
-pub const MARKER_DISC: Color32 = Color32::from_rgba_unmultiplied_const(25, 25, 25, 235);
+// Transit markers
 pub const TRANSIT: Color32 = Color32::from_rgb(80, 220, 230);
+pub const TRANSIT_STROKE: Color32 = Color32::from_rgb(20, 110, 120);
+
+// Switch markers
 pub const SWITCH: Color32 = Color32::from_rgb(255, 225, 60);
+pub const SWITCH_STROKE: Color32 = Color32::from_rgb(130, 105, 10);
+
+// BTR Stop markers
 pub const BTR_STOP: Color32 = Color32::from_rgb(240, 180, 40);
-pub const BOSS_BONE: Color32 = Color32::from_rgb(245, 245, 245);
+pub const BTR_STOP_STROKE: Color32 = Color32::from_rgb(125, 85, 10);
 
 // Inferred Boss Spawn Areas
 pub const BOSS_SPAWN_AREA_FILL: Color32 = Color32::from_rgba_unmultiplied_const(245, 245, 245, 24);

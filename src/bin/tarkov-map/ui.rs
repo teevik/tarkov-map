@@ -33,10 +33,8 @@ enum OverlayGlyph {
     Circle(egui::Color32),
     Rect(egui::Color32),
     Triangle(egui::Color32),
-    Disc {
-        color: egui::Color32,
-        icon: fn(&egui::Painter, egui::Pos2, f32, egui::Color32),
-    },
+    /// A point marker painted by the same function the map uses.
+    Marker(fn(&egui::Painter, egui::Pos2, f32)),
     Area {
         fill: egui::Color32,
         stroke: egui::Color32,
@@ -104,30 +102,27 @@ const HAZARD_OVERLAYS: &[OverlayRow] = &[
         },
     },
 ];
+/// Mob rows share the swatch of the inferred Boss Spawn Areas they toggle.
+const MOB_GLYPH: OverlayGlyph = OverlayGlyph::Area {
+    fill: colors::BOSS_SPAWN_AREA_FILL,
+    stroke: colors::BOSS_SPAWN_AREA_STROKE,
+    dashed: true,
+};
 const NAVIGATION_OVERLAYS: &[OverlayRow] = &[
     OverlayRow {
         overlay: OverlayKind::TRANSITS,
         label: "Transits",
-        glyph: OverlayGlyph::Disc {
-            color: colors::TRANSIT,
-            icon: markers::icon_chevrons,
-        },
+        glyph: OverlayGlyph::Marker(markers::transit),
     },
     OverlayRow {
         overlay: OverlayKind::BTR_STOPS,
         label: "BTR stops",
-        glyph: OverlayGlyph::Disc {
-            color: colors::BTR_STOP,
-            icon: markers::icon_octagon,
-        },
+        glyph: OverlayGlyph::Marker(markers::btr_stop),
     },
     OverlayRow {
         overlay: OverlayKind::SWITCHES,
         label: "Switches",
-        glyph: OverlayGlyph::Disc {
-            color: colors::SWITCH,
-            icon: markers::icon_bolt,
-        },
+        glyph: OverlayGlyph::Marker(markers::switch),
     },
 ];
 const OVERLAY_CATEGORIES: &[OverlayCategory] = &[
@@ -267,7 +262,7 @@ impl TarkovMapApp {
         let was_shown = shown;
         ui.horizontal(|ui| {
             ui.checkbox(&mut shown, "");
-            let icon_response = markers::glyph_skull(ui);
+            let icon_response = Self::overlay_glyph(ui, MOB_GLYPH);
             let label_response = ui
                 .label(name)
                 .interact(egui::Sense::click())
@@ -290,80 +285,7 @@ impl TarkovMapApp {
         let value = row.overlay.visibility_mut(visibility);
         ui.horizontal(|ui| {
             ui.checkbox(value, "");
-            let icon_response = match row.glyph {
-                OverlayGlyph::Disc { color, icon } => markers::glyph_disc(ui, icon, color),
-                glyph => {
-                    let (rect, response) =
-                        ui.allocate_exact_size(egui::Vec2::splat(14.0), egui::Sense::click());
-                    match glyph {
-                        OverlayGlyph::Circle(color) => {
-                            ui.painter().circle_filled(rect.center(), 5.0, color);
-                            ui.painter().circle_stroke(
-                                rect.center(),
-                                5.0,
-                                egui::Stroke::new(1.0, egui::Color32::GRAY),
-                            );
-                        }
-                        OverlayGlyph::Rect(color) => {
-                            let icon_rect = rect.shrink(1.0);
-                            ui.painter().rect_filled(icon_rect, 2.0, color);
-                            ui.painter().rect_stroke(
-                                icon_rect,
-                                2.0,
-                                egui::Stroke::new(1.0, color.gamma_multiply(0.5)),
-                                egui::StrokeKind::Inside,
-                            );
-                        }
-                        OverlayGlyph::Triangle(color) => {
-                            let center = rect.center();
-                            let size = 5.0;
-                            let points = vec![
-                                center + egui::vec2(0.0, -size),
-                                center + egui::vec2(-size * 0.7, size * 0.5),
-                                center + egui::vec2(size * 0.7, size * 0.5),
-                            ];
-                            ui.painter().add(egui::Shape::convex_polygon(
-                                points,
-                                color,
-                                egui::Stroke::new(1.0, color.gamma_multiply(0.5)),
-                            ));
-                        }
-                        OverlayGlyph::Area {
-                            fill,
-                            stroke,
-                            dashed,
-                        } => {
-                            let icon_rect = rect.shrink(1.5);
-                            ui.painter().rect_filled(icon_rect, 1.0, fill);
-                            if dashed {
-                                let closed = vec![
-                                    icon_rect.left_top(),
-                                    icon_rect.right_top(),
-                                    icon_rect.right_bottom(),
-                                    icon_rect.left_bottom(),
-                                    icon_rect.left_top(),
-                                ];
-                                ui.painter().add(egui::Shape::dashed_line(
-                                    &closed,
-                                    egui::Stroke::new(1.0, stroke),
-                                    2.0,
-                                    1.5,
-                                ));
-                            } else {
-                                ui.painter().rect_stroke(
-                                    icon_rect,
-                                    1.0,
-                                    egui::Stroke::new(1.0, stroke),
-                                    egui::StrokeKind::Inside,
-                                );
-                            }
-                        }
-                        OverlayGlyph::Disc { .. } => unreachable!(),
-                    }
-                    response
-                }
-            };
-
+            let icon_response = Self::overlay_glyph(ui, row.glyph);
             let label_response = ui
                 .label(row.label)
                 .interact(egui::Sense::click())
@@ -372,6 +294,85 @@ impl TarkovMapApp {
                 *value = !*value;
             }
         });
+    }
+
+    /// Allocates and paints the 14-point legend glyph for one sidebar row.
+    fn overlay_glyph(ui: &mut egui::Ui, glyph: OverlayGlyph) -> egui::Response {
+        match glyph {
+            OverlayGlyph::Marker(paint) => markers::glyph(ui, paint),
+            glyph => {
+                let (rect, response) = ui.allocate_exact_size(
+                    egui::Vec2::splat(markers::GLYPH_SIZE),
+                    egui::Sense::click(),
+                );
+                match glyph {
+                    OverlayGlyph::Circle(color) => {
+                        ui.painter().circle_filled(rect.center(), 5.0, color);
+                        ui.painter().circle_stroke(
+                            rect.center(),
+                            5.0,
+                            egui::Stroke::new(1.0, egui::Color32::GRAY),
+                        );
+                    }
+                    OverlayGlyph::Rect(color) => {
+                        let icon_rect = rect.shrink(1.0);
+                        ui.painter().rect_filled(icon_rect, 2.0, color);
+                        ui.painter().rect_stroke(
+                            icon_rect,
+                            2.0,
+                            egui::Stroke::new(1.0, color.gamma_multiply(0.5)),
+                            egui::StrokeKind::Inside,
+                        );
+                    }
+                    OverlayGlyph::Triangle(color) => {
+                        let center = rect.center();
+                        let size = 5.0;
+                        let points = vec![
+                            center + egui::vec2(0.0, -size),
+                            center + egui::vec2(-size * 0.7, size * 0.5),
+                            center + egui::vec2(size * 0.7, size * 0.5),
+                        ];
+                        ui.painter().add(egui::Shape::convex_polygon(
+                            points,
+                            color,
+                            egui::Stroke::new(1.0, color.gamma_multiply(0.5)),
+                        ));
+                    }
+                    OverlayGlyph::Area {
+                        fill,
+                        stroke,
+                        dashed,
+                    } => {
+                        let icon_rect = rect.shrink(1.5);
+                        ui.painter().rect_filled(icon_rect, 1.0, fill);
+                        if dashed {
+                            let closed = vec![
+                                icon_rect.left_top(),
+                                icon_rect.right_top(),
+                                icon_rect.right_bottom(),
+                                icon_rect.left_bottom(),
+                                icon_rect.left_top(),
+                            ];
+                            ui.painter().add(egui::Shape::dashed_line(
+                                &closed,
+                                egui::Stroke::new(1.0, stroke),
+                                2.0,
+                                1.5,
+                            ));
+                        } else {
+                            ui.painter().rect_stroke(
+                                icon_rect,
+                                1.0,
+                                egui::Stroke::new(1.0, stroke),
+                                egui::StrokeKind::Inside,
+                            );
+                        }
+                    }
+                    OverlayGlyph::Marker(_) => unreachable!(),
+                }
+                response
+            }
+        }
     }
 
     /// A quiet uppercase eyebrow that separates sidebar sections.

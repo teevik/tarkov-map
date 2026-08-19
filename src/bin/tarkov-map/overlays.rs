@@ -584,7 +584,7 @@ pub fn transit_markers(
         .collect()
 }
 
-/// Draws Transit markers using the shared disc and chevron primitives.
+/// Draws Transit markers as solid chevrons.
 pub fn draw_transits(ui: &mut egui::Ui, map_rect: egui::Rect, transits: &[TransitMarker]) {
     let painter = ui.painter();
 
@@ -593,14 +593,7 @@ pub fn draw_transits(ui: &mut egui::Ui, map_rect: egui::Rect, transits: &[Transi
             continue;
         }
 
-        markers::disc(
-            painter,
-            transit.position,
-            transit.size,
-            colors::MARKER_DISC,
-            colors::TRANSIT,
-        );
-        markers::icon_chevrons(painter, transit.position, transit.size, colors::TRANSIT);
+        markers::transit(painter, transit.position, transit.size);
     }
 }
 
@@ -668,7 +661,7 @@ pub fn btr_stop_markers<'a>(
         .collect()
 }
 
-/// Draws BTR Stop markers using the shared disc and octagon primitives.
+/// Draws BTR Stop markers as solid stop-sign octagons.
 pub fn draw_btr_stops(ui: &mut egui::Ui, map_rect: egui::Rect, stops: &[BtrStopMarker<'_>]) {
     let painter = ui.painter();
 
@@ -677,14 +670,7 @@ pub fn draw_btr_stops(ui: &mut egui::Ui, map_rect: egui::Rect, stops: &[BtrStopM
             continue;
         }
 
-        markers::disc(
-            painter,
-            stop.position,
-            stop.size,
-            colors::MARKER_DISC,
-            colors::BTR_STOP,
-        );
-        markers::icon_octagon(painter, stop.position, stop.size, colors::BTR_STOP);
+        markers::btr_stop(painter, stop.position, stop.size);
     }
 }
 
@@ -879,7 +865,7 @@ pub fn switch_markers(map_rect: egui::Rect, map: &Map, zoom: f32) -> Vec<SwitchM
         .filter_map(|(source_order, cluster)| {
             let position = game_to_display(map, map_rect, cluster.position)?;
             let stack_size = cluster.names.len();
-            let size = (12.0 * zoom).clamp(8.0, 32.0) * 0.8;
+            let size = (12.0 * zoom).clamp(8.0, 32.0);
 
             Some(SwitchMarker {
                 label: cluster.names.join("\n"),
@@ -893,7 +879,7 @@ pub fn switch_markers(map_rect: egui::Rect, map: &Map, zoom: f32) -> Vec<SwitchM
         .collect()
 }
 
-/// Draws Switch markers using the shared disc and bolt primitives.
+/// Draws Switch markers as solid lightning bolts.
 pub fn draw_switches(ui: &mut egui::Ui, map_rect: egui::Rect, switches: &[SwitchMarker]) {
     let painter = ui.painter();
 
@@ -902,14 +888,7 @@ pub fn draw_switches(ui: &mut egui::Ui, map_rect: egui::Rect, switches: &[Switch
             continue;
         }
 
-        markers::disc(
-            painter,
-            switch.position,
-            switch.size,
-            colors::MARKER_DISC,
-            colors::SWITCH,
-        );
-        markers::icon_bolt(painter, switch.position, switch.size, colors::SWITCH);
+        markers::switch(painter, switch.position, switch.size);
     }
 }
 
