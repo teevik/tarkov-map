@@ -30,11 +30,28 @@ const APP_TITLE: &str = "Tarkov Map";
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 const SETTINGS_STORAGE_KEY: &str = "app_settings";
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 struct AppSettings {
     selected_map_normalized_name: Option<String>,
     overlays: OverlayVisibility,
+    /// Whether the left sidebar is shown; toggled with `Tab`.
+    #[serde(default = "default_true")]
+    sidebar_visible: bool,
+}
+
+impl Default for AppSettings {
+    fn default() -> Self {
+        Self {
+            selected_map_normalized_name: None,
+            overlays: OverlayVisibility::default(),
+            sidebar_visible: true,
+        }
+    }
+}
+
+fn default_true() -> bool {
+    true
 }
 
 /// A map image's BC7 texture, uploaded through wgpu and compressed in VRAM,
@@ -82,6 +99,8 @@ pub struct TarkovMapApp {
     prev_zoom: f32,
     pan_offset: egui::Vec2,
     overlays: OverlayVisibility,
+    /// Whether the left sidebar is shown; toggled with `Tab`.
+    pub sidebar_visible: bool,
     hazard_geometry: HashMap<String, HazardGeometry>,
     asset_cache: AssetCache,
     texture_cache: HashMap<String, MapTexture>,
@@ -151,6 +170,7 @@ impl TarkovMapApp {
             prev_zoom: 1.0,
             pan_offset: egui::Vec2::ZERO,
             overlays: settings.overlays,
+            sidebar_visible: settings.sidebar_visible,
             hazard_geometry: HashMap::new(),
             asset_cache,
             texture_cache: HashMap::new(),
@@ -412,6 +432,7 @@ impl eframe::App for TarkovMapApp {
         let settings = AppSettings {
             selected_map_normalized_name,
             overlays: self.overlays,
+            sidebar_visible: self.sidebar_visible,
         };
 
         eframe::set_value(storage, SETTINGS_STORAGE_KEY, &settings);

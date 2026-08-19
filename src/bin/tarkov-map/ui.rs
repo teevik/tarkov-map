@@ -155,7 +155,7 @@ fn format_age(age: Duration) -> String {
 }
 
 impl TarkovMapApp {
-    /// Handles keyboard shortcuts for zoom and overlay toggles.
+    /// Handles keyboard shortcuts for zoom, overlay toggles, and the sidebar.
     pub fn handle_keyboard_input(&mut self, ctx: &egui::Context) {
         ctx.input(|i| {
             if i.key_pressed(egui::Key::Plus) || i.key_pressed(egui::Key::Equals) {
@@ -172,6 +172,9 @@ impl TarkovMapApp {
             }
             if i.key_pressed(egui::Key::C) {
                 self.center_on_player = true;
+            }
+            if i.key_pressed(egui::Key::Tab) {
+                self.sidebar_visible = !self.sidebar_visible;
             }
         });
     }
@@ -857,7 +860,7 @@ impl TarkovMapApp {
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.weak(
-                        "Scroll: Zoom · Drag: Pan · +/−: Zoom · 0: Fit · C: Center · L: Labels",
+                        "Scroll: Zoom · Drag: Pan · +/−: Zoom · 0: Fit · C: Center · L: Labels · Tab: Sidebar",
                     );
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -876,15 +879,19 @@ impl TarkovMapApp {
                 });
             });
 
-        // Sidebar on left
+        // Sidebar on left; Tab toggles it, and the panel slides in/out.
+        // Copied out so the closure can borrow `self` while the panel holds
+        // the flag (non-resizable, so the panel itself never flips it).
+        let mut sidebar_visible = self.sidebar_visible;
         egui::Panel::left("sidebar")
             .exact_size(SIDEBAR_WIDTH)
             .resizable(false)
-            .show(ui, |ui| {
+            .show_collapsible(ui, &mut sidebar_visible, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     self.show_sidebar_content(ui);
                 });
             });
+        self.sidebar_visible = sidebar_visible;
 
         // Central panel with map
         egui::CentralPanel::default().show(ui, |ui| {
