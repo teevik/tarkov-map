@@ -41,7 +41,6 @@ pub fn icon_octagon(painter: &egui::Painter, pos: egui::Pos2, size: f32, color: 
 }
 
 /// Paints the shared skull icon used by Mob Overlays.
-#[allow(dead_code)] // Reserved for the Boss Spawn Overlay ticket.
 pub fn icon_skull(
     painter: &egui::Painter,
     pos: egui::Pos2,
@@ -68,6 +67,19 @@ pub fn icon_skull(
         eye_offset * 0.6,
         dark,
     );
+}
+
+/// Paints the shared disc and skull used by Boss Spawn markers and Mob glyphs.
+pub fn paint_boss_spawn_marker(painter: &egui::Painter, pos: egui::Pos2, size: f32) {
+    disc(painter, pos, size, colors::MARKER_DISC, colors::BOSS_BONE);
+    icon_skull(painter, pos, size, colors::BOSS_BONE, colors::MARKER_DISC);
+}
+
+/// Allocates and paints the 14-point sidebar glyph shared by Mob Overlays.
+pub fn glyph_skull(ui: &mut egui::Ui) -> egui::Response {
+    let (rect, response) = ui.allocate_exact_size(egui::Vec2::splat(14.0), egui::Sense::click());
+    paint_boss_spawn_marker(ui.painter(), rect.center(), 14.0);
+    response
 }
 
 /// Paints the shared lightning-bolt icon used by the Switches Overlay.

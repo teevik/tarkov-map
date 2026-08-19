@@ -12,12 +12,13 @@ use geo::{
     algorithm::{orient::Direction, unary_union},
 };
 use serde::{Deserialize, Serialize};
-use tarkov_map::{BtrStop, Extract, Label, Map, Spawn, Switch};
+use std::collections::BTreeSet;
+use tarkov_map::{BossSpawn, BtrStop, Extract, Label, Map, Spawn, Switch};
 
 const SWITCH_CLUSTER_UNITS: f64 = 3.0;
 
 /// Controls visibility of different overlay types on the map.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct OverlayVisibility {
     pub labels: bool,
@@ -30,6 +31,7 @@ pub struct OverlayVisibility {
     pub switches: bool,
     pub sniper_zones: bool,
     pub minefields: bool,
+    pub mobs: BTreeSet<String>,
     pub player_marker: bool,
 }
 /// One toggleable Overlay offered in the sidebar.
@@ -107,6 +109,16 @@ pub fn overlay_offered(overlay: OverlayKind, map: &Map) -> bool {
     (overlay.offered)(map)
 }
 
+/// Distinct Mob names offered by a Map, in sidebar order.
+pub fn offered_mobs(map: &Map) -> Vec<&str> {
+    map.boss_spawns
+        .iter()
+        .flat_map(|spawn| spawn.mobs.iter().map(|mob| mob.name.as_str()))
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
+}
+
 fn has_positioned_extract(map: &Map, faction: &str) -> bool {
     map.extracts.as_ref().is_some_and(|extracts| {
         extracts.iter().any(|extract| {
@@ -118,15 +130,55 @@ fn has_positioned_extract(map: &Map, faction: &str) -> bool {
 /// The visible and offered Overlay counts for one Overlay Category.
 pub fn category_count(
     overlays: impl IntoIterator<Item = OverlayKind>,
+    mobs: &[&str],
     map: &Map,
     visibility: &OverlayVisibility,
 ) -> (usize, usize) {
-    overlays
+    let (overlay_on, overlay_total) = overlays
         .into_iter()
         .filter(|overlay| overlay_offered(*overlay, map))
         .fold((0, 0), |(on, total), overlay| {
             (on + usize::from((overlay.visible)(visibility)), total + 1)
+        });
+    let shown_count = mobs
+        .iter()
+        .filter(|name| visibility.mobs.contains(**name))
+        .count();
+    (overlay_on + shown_count, overlay_total + mobs.len())
+}
+
+/// Label and within-kind rank for the shown Mobs at one Boss Spawn.
+#[derive(Debug, PartialEq)]
+pub struct BossSpawnLabel {
+    pub label: String,
+    pub rank: f64,
+}
+
+/// Builds the Boss Spawn Label selected by the shown Mob Overlays.
+pub fn boss_spawn_label(
+    spawn: &BossSpawn,
+    shown_mobs: &BTreeSet<String>,
+) -> Option<BossSpawnLabel> {
+    let shown: Vec<_> = spawn
+        .mobs
+        .iter()
+        .filter(|mob| shown_mobs.contains(&mob.name))
+        .collect();
+    let rank = shown.iter().map(|mob| mob.chance).reduce(f64::max)?;
+    let label = shown
+        .into_iter()
+        .map(|mob| {
+            let percent = (mob.chance * 100.0).round() as i64;
+            if percent == 100 {
+                mob.name.clone()
+            } else {
+                format!("{} {percent}%", mob.name)
+            }
         })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    Some(BossSpawnLabel { label, rank })
 }
 
 impl Default for OverlayVisibility {
@@ -142,6 +194,7 @@ impl Default for OverlayVisibility {
             switches: false,
             sniper_zones: false,
             minefields: false,
+            mobs: BTreeSet::new(),
             player_marker: true,
         }
     }
@@ -688,6 +741,86 @@ pub fn contribute_btr_stop_labels(
     }
 }
 
+/// One shown Boss Spawn projected and styled for this frame.
+pub struct BossSpawnMarker {
+    label: String,
+    source_order: usize,
+    position: egui::Pos2,
+    size: f32,
+    label_font: egui::FontId,
+    rank: f64,
+}
+
+/// Builds Boss Spawn presentation for positions containing at least one shown Mob.
+pub fn boss_spawn_markers(
+    map_rect: egui::Rect,
+    map: &Map,
+    zoom: f32,
+    shown_mobs: &BTreeSet<String>,
+) -> Vec<BossSpawnMarker> {
+    map.boss_spawns
+        .iter()
+        .enumerate()
+        .filter_map(|(source_order, spawn)| {
+            let label = boss_spawn_label(spawn, shown_mobs)?;
+            let position = game_to_display(map, map_rect, spawn.position)?;
+            let size = (12.0 * zoom).clamp(8.0, 32.0) * 0.9;
+
+            Some(BossSpawnMarker {
+                label: label.label,
+                source_order,
+                position,
+                size,
+                label_font: label_font(MARKER_LABEL_BASE, zoom, 11.0, 20.0),
+                rank: label.rank,
+            })
+        })
+        .collect()
+}
+
+/// Draws Boss Spawn markers using the shared disc and skull primitives.
+pub fn draw_boss_spawns(ui: &mut egui::Ui, map_rect: egui::Rect, spawns: &[BossSpawnMarker]) {
+    let painter = ui.painter();
+
+    for spawn in spawns {
+        if !map_rect.expand(20.0).contains(spawn.position) {
+            continue;
+        }
+
+        markers::paint_boss_spawn_marker(painter, spawn.position, spawn.size);
+    }
+}
+
+/// Contributes shown Boss Spawn Labels to the shared placement pass.
+pub fn contribute_boss_spawn_labels(
+    painter: &egui::Painter,
+    spawns: &[BossSpawnMarker],
+    candidates: &mut Vec<LabelCandidate>,
+) {
+    for spawn in spawns {
+        let measured = painter
+            .layout_no_wrap(
+                spawn.label.clone(),
+                spawn.label_font.clone(),
+                egui::Color32::WHITE,
+            )
+            .size();
+
+        candidates.push(LabelCandidate {
+            kind: LabelKind::BossSpawn,
+            within_kind_priority: spawn.rank,
+            source_order: spawn.source_order,
+            text: spawn.label.clone(),
+            font: spawn.label_font.clone(),
+            color: egui::Color32::WHITE,
+            outline: colors::EXTRACT_TEXT_SHADOW,
+            anchor: spawn.position + egui::vec2(0.0, -spawn.size / 2.0 - 4.0),
+            align: egui::Align2::CENTER_BOTTOM,
+            measured,
+        });
+    }
+}
+
 /// One clustered Switch marker projected and styled for this frame.
 pub struct SwitchMarker {
     label: String,
@@ -858,7 +991,7 @@ pub fn draw_player_marker(
 mod tests {
     use super::*;
     use geo::Area;
-    use tarkov_map::{BtrStop, Minefield, SniperZone, Switch, Transit};
+    use tarkov_map::{BossChance, BossSpawn, BtrStop, Minefield, SniperZone, Switch, Transit};
 
     const MAP_OVERLAYS: [OverlayKind; 2] = [OverlayKind::LABELS, OverlayKind::PLAYER_MARKER];
     const HAZARD_OVERLAYS: [OverlayKind; 2] = [OverlayKind::SNIPER_ZONES, OverlayKind::MINEFIELDS];
@@ -933,6 +1066,147 @@ mod tests {
     }
 
     #[test]
+    fn mob_rows_are_distinct_and_alphabetical() {
+        let mut map = empty_map();
+        map.boss_spawns = vec![
+            BossSpawn {
+                position: [10.0, 20.0],
+                mobs: vec![
+                    BossChance {
+                        name: "Raider".to_owned(),
+                        chance: 0.4,
+                    },
+                    BossChance {
+                        name: "Glukhar".to_owned(),
+                        chance: 0.3,
+                    },
+                ],
+            },
+            BossSpawn {
+                position: [30.0, 40.0],
+                mobs: vec![BossChance {
+                    name: "Raider".to_owned(),
+                    chance: 0.4,
+                }],
+            },
+        ];
+
+        assert_eq!(offered_mobs(&map), ["Glukhar", "Raider"]);
+    }
+
+    #[test]
+    fn mob_visibility_round_trips_with_stale_names_and_old_settings_default_empty() {
+        let visibility = OverlayVisibility {
+            mobs: BTreeSet::from(["Cultist Priest".to_owned(), "Renamed Mob".to_owned()]),
+            ..OverlayVisibility::default()
+        };
+
+        let saved = serde_json::to_string(&visibility).expect("visibility should serialize");
+        let restored: OverlayVisibility =
+            serde_json::from_str(&saved).expect("visibility should deserialize");
+        let old_settings: OverlayVisibility =
+            serde_json::from_str(r#"{"spawns":false}"#).expect("old settings should deserialize");
+
+        assert_eq!(restored.mobs, visibility.mobs);
+        assert!(old_settings.mobs.is_empty());
+        assert!(!old_settings.spawns);
+    }
+
+    #[test]
+    fn category_count_combines_pmc_spawns_with_offered_mobs() {
+        let mut map = empty_map();
+        map.spawns = Some(vec![Spawn {
+            position: [0.0, 0.0, 0.0],
+            sides: vec!["pmc".to_owned()],
+            categories: vec!["player".to_owned()],
+        }]);
+        map.boss_spawns = vec![BossSpawn {
+            position: [10.0, 20.0],
+            mobs: vec![
+                BossChance {
+                    name: "Glukhar".to_owned(),
+                    chance: 0.3,
+                },
+                BossChance {
+                    name: "Raider".to_owned(),
+                    chance: 0.4,
+                },
+            ],
+        }];
+        let mobs = offered_mobs(&map);
+
+        let mut visibility = OverlayVisibility::default();
+        assert_eq!(
+            category_count([OverlayKind::PMC_SPAWNS], &mobs, &map, &visibility),
+            (1, 3)
+        );
+
+        visibility.spawns = false;
+        visibility.mobs.insert("Raider".to_owned());
+        visibility.mobs.insert("Stale name".to_owned());
+        assert_eq!(
+            category_count([OverlayKind::PMC_SPAWNS], &mobs, &map, &visibility),
+            (1, 3)
+        );
+    }
+
+    #[test]
+    fn boss_spawn_label_formats_and_orders_only_shown_mobs() {
+        let spawn = BossSpawn {
+            position: [10.0, 20.0],
+            mobs: vec![
+                BossChance {
+                    name: "AF".to_owned(),
+                    chance: 1.0,
+                },
+                BossChance {
+                    name: "Reshala".to_owned(),
+                    chance: 0.452,
+                },
+                BossChance {
+                    name: "Raider".to_owned(),
+                    chance: 0.4,
+                },
+                BossChance {
+                    name: "Cultist Priest".to_owned(),
+                    chance: 0.025,
+                },
+            ],
+        };
+        let shown = BTreeSet::from([
+            "AF".to_owned(),
+            "Cultist Priest".to_owned(),
+            "Reshala".to_owned(),
+        ]);
+
+        let label = boss_spawn_label(&spawn, &shown).expect("shown Mobs should make a marker");
+
+        assert_eq!(label.label, "AF\nReshala 45%\nCultist Priest 3%");
+        assert_eq!(label.rank, 1.0);
+    }
+
+    #[test]
+    fn customs_reshala_visibility_builds_only_reshala_boss_spawn_markers() {
+        let maps: Vec<Map> = ron::from_str(include_str!("../../../assets/maps.ron"))
+            .expect("bundled Maps should parse");
+        let customs = maps
+            .iter()
+            .find(|map| map.normalized_name == "customs")
+            .expect("Customs should be bundled");
+        let map_rect = egui::Rect::from_min_size(
+            egui::Pos2::ZERO,
+            egui::vec2(customs.logical_size[0], customs.logical_size[1]),
+        );
+        let shown = BTreeSet::from(["Reshala".to_owned()]);
+
+        let markers = boss_spawn_markers(map_rect, customs, 1.0, &shown);
+
+        assert_eq!(markers.len(), 29);
+        assert!(markers.iter().all(|marker| marker.label == "Reshala 45%"));
+        assert!(boss_spawn_markers(map_rect, customs, 1.0, &BTreeSet::new()).is_empty());
+    }
+
+    #[test]
     fn overlays_are_offered_only_when_the_map_has_something_to_draw() {
         let empty = empty_map();
 
@@ -963,7 +1237,12 @@ mod tests {
         assert!(overlay_offered(OverlayKind::SNIPER_ZONES, &offered));
         assert!(overlay_offered(OverlayKind::MINEFIELDS, &offered));
         assert_eq!(
-            category_count(HAZARD_OVERLAYS, &offered, &OverlayVisibility::default()),
+            category_count(
+                HAZARD_OVERLAYS,
+                &[],
+                &offered,
+                &OverlayVisibility::default()
+            ),
             (0, 2)
         );
     }
@@ -976,7 +1255,7 @@ mod tests {
         assert!(!visibility.transits);
         assert!(!overlay_offered(OverlayKind::TRANSITS, &empty));
         assert_eq!(
-            category_count(NAVIGATION_OVERLAYS, &empty, &visibility),
+            category_count(NAVIGATION_OVERLAYS, &[], &empty, &visibility),
             (0, 0)
         );
 
@@ -988,7 +1267,7 @@ mod tests {
 
         assert!(overlay_offered(OverlayKind::TRANSITS, &offered));
         assert_eq!(
-            category_count(NAVIGATION_OVERLAYS, &offered, &visibility),
+            category_count(NAVIGATION_OVERLAYS, &[], &offered, &visibility),
             (0, 1)
         );
     }
@@ -1001,7 +1280,7 @@ mod tests {
         assert!(!visibility.switches);
         assert!(!overlay_offered(OverlayKind::SWITCHES, &empty));
         assert_eq!(
-            category_count(NAVIGATION_OVERLAYS, &empty, &visibility),
+            category_count(NAVIGATION_OVERLAYS, &[], &empty, &visibility),
             (0, 0)
         );
 
@@ -1013,7 +1292,7 @@ mod tests {
 
         assert!(overlay_offered(OverlayKind::SWITCHES, &offered));
         assert_eq!(
-            category_count(NAVIGATION_OVERLAYS, &offered, &visibility),
+            category_count(NAVIGATION_OVERLAYS, &[], &offered, &visibility),
             (0, 1)
         );
     }
@@ -1034,7 +1313,7 @@ mod tests {
 
         assert!(overlay_offered(OverlayKind::BTR_STOPS, &offered));
         assert_eq!(
-            category_count(NAVIGATION_OVERLAYS, &offered, &visibility),
+            category_count(NAVIGATION_OVERLAYS, &[], &offered, &visibility),
             (0, 1)
         );
     }
@@ -1057,7 +1336,7 @@ mod tests {
         };
         let visibility = OverlayVisibility::default();
         assert_eq!(
-            category_count(NAVIGATION_OVERLAYS, map("woods"), &visibility),
+            category_count(NAVIGATION_OVERLAYS, &[], map("woods"), &visibility),
             (0, 2)
         );
     }
@@ -1212,8 +1491,11 @@ mod tests {
             ..OverlayVisibility::default()
         };
 
-        assert_eq!(category_count(MAP_OVERLAYS, &map, &visibility), (1, 2));
-        assert_eq!(category_count(EXTRACT_OVERLAYS, &map, &visibility), (2, 2));
+        assert_eq!(category_count(MAP_OVERLAYS, &[], &map, &visibility), (1, 2));
+        assert_eq!(
+            category_count(EXTRACT_OVERLAYS, &[], &map, &visibility),
+            (2, 2)
+        );
     }
 
     #[test]
@@ -1228,15 +1510,15 @@ mod tests {
         let visibility = OverlayVisibility::default();
 
         assert_eq!(
-            category_count(EXTRACT_OVERLAYS, map("terminal"), &visibility),
+            category_count(EXTRACT_OVERLAYS, &[], map("terminal"), &visibility),
             (0, 0)
         );
         assert_eq!(
-            category_count(EXTRACT_OVERLAYS, map("the-lab"), &visibility),
+            category_count(EXTRACT_OVERLAYS, &[], map("the-lab"), &visibility),
             (2, 2)
         );
         assert_eq!(
-            category_count(EXTRACT_OVERLAYS, map("customs"), &visibility),
+            category_count(EXTRACT_OVERLAYS, &[], map("customs"), &visibility),
             (3, 3)
         );
     }

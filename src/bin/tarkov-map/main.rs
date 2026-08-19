@@ -431,7 +431,7 @@ impl eframe::App for TarkovMapApp {
 
         let settings = AppSettings {
             selected_map_normalized_name,
-            overlays: self.overlays,
+            overlays: self.overlays.clone(),
             sidebar_visible: self.sidebar_visible,
         };
 

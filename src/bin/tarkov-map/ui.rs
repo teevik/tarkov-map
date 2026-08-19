@@ -9,11 +9,12 @@ use crate::coordinates::game_to_display;
 use crate::labels::{self, LabelKind};
 use crate::markers;
 use crate::overlays::{
-    OverlayKind, OverlayVisibility, btr_stop_markers, category_count, contribute_btr_stop_labels,
-    contribute_extract_labels, contribute_place_name_labels, contribute_switch_labels,
-    contribute_transit_labels, draw_btr_stops, draw_extracts, draw_minefields, draw_player_marker,
-    draw_sniper_zones, draw_spawns, draw_switches, draw_transits, extract_markers, overlay_offered,
-    switch_markers, transit_markers,
+    OverlayKind, OverlayVisibility, boss_spawn_markers, btr_stop_markers, category_count,
+    contribute_boss_spawn_labels, contribute_btr_stop_labels, contribute_extract_labels,
+    contribute_place_name_labels, contribute_switch_labels, contribute_transit_labels,
+    draw_boss_spawns, draw_btr_stops, draw_extracts, draw_minefields, draw_player_marker,
+    draw_sniper_zones, draw_spawns, draw_switches, draw_transits, extract_markers, offered_mobs,
+    overlay_offered, switch_markers, transit_markers,
 };
 use crate::screenshot_watcher::ScreenshotWatcher;
 use crate::{APP_TITLE, APP_VERSION};
@@ -25,6 +26,7 @@ use tarkov_map::Map;
 struct OverlayCategory {
     title: &'static str,
     overlays: &'static [OverlayRow],
+    mobs: for<'a> fn(&'a Map) -> Vec<&'a str>,
 }
 #[derive(Clone, Copy)]
 enum OverlayGlyph {
@@ -132,24 +134,33 @@ const OVERLAY_CATEGORIES: &[OverlayCategory] = &[
     OverlayCategory {
         title: "Map",
         overlays: MAP_OVERLAYS,
+        mobs: no_mobs,
     },
     OverlayCategory {
         title: "Spawns",
         overlays: SPAWN_OVERLAYS,
+        mobs: offered_mobs,
     },
     OverlayCategory {
         title: "Extracts",
         overlays: EXTRACT_OVERLAYS,
+        mobs: no_mobs,
     },
     OverlayCategory {
         title: "Navigation",
         overlays: NAVIGATION_OVERLAYS,
+        mobs: no_mobs,
     },
     OverlayCategory {
         title: "Hazards",
         overlays: HAZARD_OVERLAYS,
+        mobs: no_mobs,
     },
 ];
+
+fn no_mobs(_: &Map) -> Vec<&str> {
+    Vec::new()
+}
 
 /// Formats a fix age for the position card: "just now", "12 s ago", "5 min ago", "2 h ago".
 fn format_age(age: Duration) -> String {
@@ -221,8 +232,10 @@ impl TarkovMapApp {
 
     fn show_overlay_categories(ui: &mut egui::Ui, map: &Map, visibility: &mut OverlayVisibility) {
         for category in OVERLAY_CATEGORIES {
+            let mobs = (category.mobs)(map);
             let (on, offered) = category_count(
                 category.overlays.iter().map(|row| row.overlay),
+                &mobs,
                 map,
                 visibility,
             );
@@ -242,7 +255,34 @@ impl TarkovMapApp {
                         Self::overlay_toggle(ui, visibility, row);
                     }
                 }
+                for name in mobs {
+                    Self::mob_overlay_toggle(ui, visibility, name);
+                }
             });
+        }
+    }
+
+    fn mob_overlay_toggle(ui: &mut egui::Ui, visibility: &mut OverlayVisibility, name: &str) {
+        let mut shown = visibility.mobs.contains(name);
+        let was_shown = shown;
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut shown, "");
+            let icon_response = markers::glyph_skull(ui);
+            let label_response = ui
+                .label(name)
+                .interact(egui::Sense::click())
+                .on_hover_cursor(egui::CursorIcon::PointingHand);
+            if icon_response.clicked() || label_response.clicked() {
+                shown = !shown;
+            }
+        });
+
+        if shown != was_shown {
+            if shown {
+                visibility.mobs.insert(name.to_owned());
+            } else {
+                visibility.mobs.remove(name);
+            }
         }
     }
 
@@ -690,7 +730,7 @@ impl TarkovMapApp {
             .image(texture_id, map_rect, texture_uv, egui::Color32::WHITE);
 
         // Draw overlays
-        let overlays = self.overlays;
+        let overlays = self.overlays.clone();
         if overlays.sniper_zones || overlays.minefields {
             let geometry = self
                 .hazard_geometry
@@ -724,6 +764,7 @@ impl TarkovMapApp {
         } else {
             Vec::new()
         };
+        let boss_spawn_markers = boss_spawn_markers(map_rect, map, self.zoom, &overlays.mobs);
         if overlays.labels
             && let Some(labels) = &map.labels
         {
@@ -740,6 +781,7 @@ impl TarkovMapApp {
         contribute_transit_labels(ui.painter(), &transit_markers, &mut label_candidates);
         contribute_btr_stop_labels(ui.painter(), &btr_stop_markers, &mut label_candidates);
         contribute_switch_labels(ui.painter(), &switch_markers, &mut label_candidates);
+        contribute_boss_spawn_labels(ui.painter(), &boss_spawn_markers, &mut label_candidates);
         let placed_labels = labels::place(label_candidates);
 
         labels::draw(
@@ -759,6 +801,7 @@ impl TarkovMapApp {
         draw_transits(ui, map_rect, &transit_markers);
         draw_btr_stops(ui, map_rect, &btr_stop_markers);
         draw_switches(ui, map_rect, &switch_markers);
+        draw_boss_spawns(ui, map_rect, &boss_spawn_markers);
 
         labels::draw(
             ui.painter(),
