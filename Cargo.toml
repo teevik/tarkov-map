@@ -50,3 +50,7 @@ required-features = ["encode"]
 [[bin]]
 name = "tarkov-map"
 path = "src/bin/tarkov-map/main.rs"
+
+# PROTOTYPE (wayfinder #54): workspace stanza so `crates/core` builds beside the app.
+[workspace]
+members = ["crates/core"]

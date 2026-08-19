@@ -1,0 +1,21 @@
+[package]
+name = "tarkov-map-core"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "PROTOTYPE — throwaway skeleton of the core crate (wayfinder #54)"
+
+[features]
+# Hand-rolled fakes for the ports, for adapters' tests / a headless binary.
+fakes = []
+
+[dependencies]
+euclid = { version = "0.22", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+futures = { version = "0.3", default-features = false, features = ["std", "executor"] }
+tokio = { version = "1", default-features = false, features = ["rt", "sync"] }
+tokio-util = { version = "0.7", default-features = false }
+eros = { version = "0.7", default-features = false }
+
+[dev-dependencies]
+tokio = { version = "1", default-features = false, features = ["rt", "sync", "macros", "time"] }
