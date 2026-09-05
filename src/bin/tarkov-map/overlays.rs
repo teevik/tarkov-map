@@ -963,10 +963,8 @@ pub fn draw_player_marker(
     let triangle_size = (8.0 * zoom).clamp(5.0, 14.0);
     let triangle_offset = circle_radius + triangle_size * 0.6; // Distance from center to triangle
 
-    // The yaw from the screenshot represents the player's facing direction.
-    // We need to adjust for the map's coordinate rotation to display correctly.
-    let coord_rotation = map.coordinate_rotation.unwrap_or(0.0) as f32;
-    let adjusted_yaw = player.yaw - coord_rotation.to_radians();
+    let heading = map.projection.heading(f64::from(player.yaw));
+    let adjusted_yaw = (heading.x as f32).atan2(-heading.y as f32);
 
     // Draw the circle at player position
     painter.circle(
@@ -1031,8 +1029,10 @@ mod tests {
                 normalizedName: "test",
                 name: "Test",
                 imagePath: "maps/test.bc7z",
-                imageSize: (256.0, 256.0),
-                logicalSize: (200.0, 200.0),
+                projection: Projection(
+                    gameToImage: Transform2D(m11: 1.0, m12: 0.0, m21: 0.0, m22: -1.0, m31: 100.0, m32: 100.0, _unit: ()),
+                    imageSize: (200.0, 200.0),
+                ),
             )"#,
         )
         .expect("test Map should parse")
@@ -1238,7 +1238,10 @@ mod tests {
             .expect("Interchange should be bundled");
         let map_rect = egui::Rect::from_min_size(
             egui::Pos2::ZERO,
-            egui::vec2(interchange.logical_size[0], interchange.logical_size[1]),
+            egui::vec2(
+                interchange.projection.image_size.width as f32,
+                interchange.projection.image_size.height as f32,
+            ),
         );
         let shown = BTreeSet::from(["Tagilla".to_owned()]);
 
@@ -1258,7 +1261,10 @@ mod tests {
             .expect("Customs should be bundled");
         let map_rect = egui::Rect::from_min_size(
             egui::Pos2::ZERO,
-            egui::vec2(customs.logical_size[0], customs.logical_size[1]),
+            egui::vec2(
+                customs.projection.image_size.width as f32,
+                customs.projection.image_size.height as f32,
+            ),
         );
         let shown = BTreeSet::from(["Reshala".to_owned()]);
 

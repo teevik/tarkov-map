@@ -6,6 +6,8 @@
 
 pub mod bc7z;
 mod catalog;
+mod projection;
+pub use projection::{Game, GamePos, Image, ImagePos, Projection};
 
 pub use catalog::{CatalogError, MapCatalog};
 
@@ -29,13 +31,8 @@ pub struct Map {
     /// Path to the pre-rendered high-resolution PNG image.
     pub image_path: String,
 
-    /// Original image dimensions `[width, height]` in pixels.
-    pub image_size: [f32; 2],
-
-    /// Logical dimensions `[width, height]` in game units (meters).
-    ///
-    /// Used for consistent zoom scaling across maps.
-    pub logical_size: [f32; 2],
+    /// Fixed game-to-image mapping for the bundled Main Floor.
+    pub projection: Projection,
 
     /// Alternative map keys that share this map.
     #[serde(default)]
@@ -48,21 +45,6 @@ pub struct Map {
     /// URL to the author's page.
     #[serde(default)]
     pub author_link: Option<String>,
-
-    /// Transform matrix `[scaleX, translateX, scaleY, translateY]`.
-    ///
-    /// Used for coordinate conversion in some maps (e.g., Labs, Labyrinth).
-    #[serde(default)]
-    pub transform: Option<[f64; 4]>,
-
-    /// Coordinate rotation in degrees.
-    ///
-    /// Different maps use different rotations:
-    /// - 180° (most maps)
-    /// - 270° (Labs, Labyrinth)
-    /// - 90° (Factory)
-    #[serde(default)]
-    pub coordinate_rotation: Option<f64>,
 
     /// Map bounds `[[maxX, minY], [minX, maxY]]` in game coordinates.
     #[serde(default)]
@@ -233,17 +215,19 @@ mod tests {
     }
 
     #[test]
-    fn older_map_data_defaults_new_overlay_collections_to_empty() {
+    fn omitted_overlay_collections_default_to_empty() {
         let map: Map = ron::from_str(
             r#"Map(
                 normalizedName: "factory",
                 name: "Factory",
                 imagePath: "maps/factory.bc7z",
-                imageSize: (256.0, 256.0),
-                logicalSize: (200.0, 200.0),
+                projection: Projection(
+                    gameToImage: Transform2D(m11: 1.0, m12: 0.0, m21: 0.0, m22: -1.0, m31: 100.0, m32: 100.0, _unit: ()),
+                    imageSize: (256.0, 256.0),
+                ),
             )"#,
         )
-        .expect("old map data should still parse");
+        .expect("map data with a Projection should parse");
 
         assert!(map.sniper_zones.is_empty());
         assert!(map.minefields.is_empty());

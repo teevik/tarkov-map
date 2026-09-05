@@ -78,7 +78,7 @@ pub struct MapTransition {
 #[derive(Debug, Clone)]
 pub struct OutgoingMap {
     pub path: String,
-    pub logical_size: egui::Vec2,
+    pub image_size: egui::Vec2,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -38,7 +38,9 @@ impl MapCatalog {
             }
 
             if !map
+                .projection
                 .image_size
+                .to_array()
                 .iter()
                 .all(|dimension| dimension.is_finite() && *dimension > 0.0)
             {
@@ -50,15 +52,19 @@ impl MapCatalog {
                 ));
             }
             if !map
-                .logical_size
+                .projection
+                .game_to_image
+                .to_array()
                 .iter()
-                .all(|dimension| dimension.is_finite() && *dimension > 0.0)
+                .all(|n| n.is_finite())
+                || map.projection.game_to_image.inverse().is_none()
+                || !map.projection.metres_per_pixel().is_finite()
             {
                 diagnostics.push(CatalogDiagnostic::new(
                     &map.normalized_name,
                     "metadata",
-                    "logical_size",
-                    "must contain finite, positive dimensions",
+                    "projection",
+                    "must contain a finite, invertible affine",
                 ));
             }
 
@@ -334,13 +340,13 @@ mod tests {
             normalized_name: normalized_name.to_owned(),
             name: normalized_name.to_owned(),
             image_path: format!("maps/{normalized_name}.bc7z"),
-            image_size: [256.0, 256.0],
-            logical_size: [100.0, 100.0],
+            projection: crate::Projection {
+                game_to_image: euclid::Transform2D::new(2.56, 0.0, 0.0, -2.56, 128.0, 128.0),
+                image_size: euclid::Size2D::new(256.0, 256.0),
+            },
             alt_maps: None,
             author: None,
             author_link: None,
-            transform: None,
-            coordinate_rotation: None,
             bounds: Some([[50.0, -50.0], [-50.0, 50.0]]),
             labels: None,
             spawns: None,
@@ -386,8 +392,8 @@ mod tests {
     #[test]
     fn catalog_rejects_invalid_map_sizes_and_bounds() {
         let mut missing_bounds = valid_map("missing-bounds");
-        missing_bounds.image_size = [0.0, f32::NAN];
-        missing_bounds.logical_size = [-1.0, f32::INFINITY];
+        missing_bounds.projection.image_size = euclid::Size2D::new(0.0, f64::NAN);
+        missing_bounds.projection.game_to_image.m11 = 0.0;
         missing_bounds.bounds = None;
 
         let mut non_finite_bounds = valid_map("non-finite-bounds");
@@ -402,7 +408,7 @@ mod tests {
 
         for expected in [
             "Map `missing-bounds`, collection `metadata`, entry image_size: must contain finite, positive dimensions",
-            "Map `missing-bounds`, collection `metadata`, entry logical_size: must contain finite, positive dimensions",
+            "Map `missing-bounds`, collection `metadata`, entry projection: must contain a finite, invertible affine",
             "Map `missing-bounds`, collection `metadata`, entry bounds: bounds are required",
             "Map `non-finite-bounds`, collection `metadata`, entry bounds: every coordinate must be finite",
             "Map `degenerate-bounds`, collection `metadata`, entry bounds: must describe a non-zero-area box",

@@ -6,6 +6,7 @@ license = "MIT"
 default-run = "tarkov-map"
 
 [dependencies]
+euclid = { version = "0.22.14", features = ["serde"] }
 base64 = "0.23.1"
 eframe = { version = "0.36.1", default-features = false, features = ["accesskit", "default_fonts", "wgpu", "links", "persistence", "wayland", "x11"] }
 egui_extras = { version = "0.36.1", features = ["svg", "image"] }

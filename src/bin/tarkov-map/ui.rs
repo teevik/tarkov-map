@@ -575,10 +575,9 @@ impl TarkovMapApp {
         let Some((texture_id, uv)) = self.get_texture(&outgoing.path) else {
             return;
         };
-        let fit = (viewport_rect.width() / outgoing.logical_size.x)
-            .min(viewport_rect.height() / outgoing.logical_size.y);
-        let rect =
-            egui::Rect::from_center_size(viewport_rect.center(), outgoing.logical_size * fit);
+        let fit = (viewport_rect.width() / outgoing.image_size.x)
+            .min(viewport_rect.height() / outgoing.image_size.y);
+        let rect = egui::Rect::from_center_size(viewport_rect.center(), outgoing.image_size * fit);
         ui.painter().with_clip_rect(viewport_rect).image(
             texture_id,
             rect,
@@ -646,7 +645,10 @@ impl TarkovMapApp {
         use crate::assets::AssetLoadState;
 
         let image_path = map.image_path.clone();
-        let logical_size = egui::vec2(map.logical_size[0], map.logical_size[1]);
+        let image_size = egui::vec2(
+            map.projection.image_size.width as f32,
+            map.projection.image_size.height as f32,
+        );
 
         // Demand-driven: request the active image the first time it is needed.
         // Retention is active-image-only; anything else was freed in `logic`.
@@ -682,11 +684,11 @@ impl TarkovMapApp {
         ui.multiply_opacity(opacity);
         self.last_drawn_map = Some(OutgoingMap {
             path: image_path.clone(),
-            logical_size,
+            image_size,
         });
 
         // Calculate base scale to fit map in viewport at zoom 1.0
-        let fit_scale = (viewport_size.x / logical_size.x).min(viewport_size.y / logical_size.y);
+        let fit_scale = (viewport_size.x / image_size.x).min(viewport_size.y / image_size.y);
 
         // Handle zoom
         let zoomed_this_frame = self.handle_scroll_zoom(ui, viewport_rect);
@@ -708,7 +710,7 @@ impl TarkovMapApp {
                 if self.zoom <= ZOOM_MIN {
                     self.zoom = CENTER_ZOOM;
                 }
-                let display_size = logical_size * fit_scale * self.zoom;
+                let display_size = image_size * fit_scale * self.zoom;
                 let map_rect = egui::Rect::from_center_size(
                     viewport_rect.center() + self.pan_offset,
                     display_size,
@@ -720,7 +722,7 @@ impl TarkovMapApp {
             }
         }
 
-        let display_size = logical_size * fit_scale * self.zoom;
+        let display_size = image_size * fit_scale * self.zoom;
         let map_center = viewport_rect.center() + self.pan_offset;
         let map_rect = egui::Rect::from_center_size(map_center, display_size);
 

@@ -24,8 +24,11 @@ use tarkov_map::{
     TarkovMaps, Transit,
 };
 
+#[path = "fetch_maps/projection.rs"]
+mod projection;
 #[path = "fetch_maps/refresh.rs"]
 mod refresh;
+use projection::{ImagePlacement, bake_projection, tile_bounds};
 
 use refresh::{
     GenerationOptions, ProvenanceSource, RefreshProvenance, StagedBundle, write_staged_provenance,
@@ -75,6 +78,9 @@ pub enum FetchError {
 
     #[error("map '{name}' has no svgPath or tilePath")]
     MissingMapSource { name: String },
+
+    #[error("map '{name}' has an invalid Projection: {reason}")]
+    InvalidProjection { name: String, reason: String },
 
     #[error("map '{name}' is missing minZoom")]
     MissingMinZoom { name: String },
@@ -161,6 +167,8 @@ struct FetchedMap {
     bounds: Option<[[f64; 2]; 2]>,
     #[serde(default)]
     svg_path: Option<String>,
+    #[serde(default)]
+    svg_bounds: Option<[[f64; 2]; 2]>,
     #[serde(default)]
     tile_path: Option<String>,
     #[serde(default)]
@@ -918,7 +926,8 @@ fn write_maps_ron(maps: &TarkovMaps, bundle_root: &Path) -> Result<(), FetchErro
 
 struct ImageResult {
     image_path: String,
-    image_size: [f32; 2],
+    image_size: [f64; 2],
+    placement: ImagePlacement,
     source: ProvenanceSource,
 }
 
@@ -950,23 +959,6 @@ async fn process_svg_map(
     let image_disk_path = staged_assets.join(&image_relative);
     let cached_image_path = usable_assets.join(&image_relative);
 
-    if !force && cached_image_path.exists() {
-        if let Some(parent) = image_disk_path.parent() {
-            async_fs::create_dir_all(parent).await?;
-        }
-        async_fs::copy(&cached_image_path, &image_disk_path).await?;
-        let img = image::open(&cached_image_path)?;
-        let source_size = [
-            img.width() as f32 / SVG_RENDER_SCALE,
-            img.height() as f32 / SVG_RENDER_SCALE,
-        ];
-        return Ok(ImageResult {
-            image_path: image_relative,
-            image_size: source_size,
-            source: cached_main_floor_source(normalized_name),
-        });
-    }
-
     let response = client
         .get(svg_url)
         .header(reqwest::header::USER_AGENT, USER_AGENT)
@@ -988,6 +980,26 @@ async fn process_svg_map(
     let render_w = (source_size[0] * SVG_RENDER_SCALE) as u32;
     let render_h = (source_size[1] * SVG_RENDER_SCALE) as u32;
 
+    let placement = ImagePlacement::Svg {
+        size: source_size.map(f64::from),
+        render_scale: f64::from(SVG_RENDER_SCALE),
+    };
+    if !force
+        && cached_image_path.exists()
+        && image::image_dimensions(&cached_image_path)? == (render_w, render_h)
+    {
+        if let Some(parent) = image_disk_path.parent() {
+            async_fs::create_dir_all(parent).await?;
+        }
+        async_fs::copy(&cached_image_path, &image_disk_path).await?;
+        return Ok(ImageResult {
+            image_path: image_relative,
+            image_size: [f64::from(render_w), f64::from(render_h)],
+            placement,
+            source: cached_main_floor_source(normalized_name),
+        });
+    }
+
     let mut pixmap = Pixmap::new(render_w, render_h).ok_or(FetchError::PixmapCreation)?;
 
     resvg::render(
@@ -1005,7 +1017,8 @@ async fn process_svg_map(
 
     Ok(ImageResult {
         image_path: image_relative,
-        image_size: source_size,
+        image_size: [f64::from(render_w), f64::from(render_h)],
+        placement,
         source: main_floor_source("main-floor-svg", svg_url.to_owned(), normalized_name),
     })
 }
@@ -1031,9 +1044,15 @@ async fn process_tile_map(
     let zoom = (max_zoom - zoom_offset).max(min_zoom);
     let tiles_per_axis = 1u32 << zoom;
     let full_size = tiles_per_axis * tile_size as u32;
-    let source_size = [tile_size as f32, tile_size as f32];
+    let source_size = [f64::from(full_size), f64::from(full_size)];
+    let placement = ImagePlacement::Tiles {
+        tile_size: f64::from(tile_size),
+    };
 
-    if !force && cached_image_path.exists() {
+    if !force
+        && cached_image_path.exists()
+        && image::image_dimensions(&cached_image_path)? == (full_size, full_size)
+    {
         if let Some(parent) = image_disk_path.parent() {
             async_fs::create_dir_all(parent).await?;
         }
@@ -1041,6 +1060,7 @@ async fn process_tile_map(
         return Ok(ImageResult {
             image_path: image_relative,
             image_size: source_size,
+            placement,
             source: cached_main_floor_source(normalized_name),
         });
     }
@@ -1130,6 +1150,7 @@ async fn process_tile_map(
     Ok(ImageResult {
         image_path: image_relative,
         image_size: source_size,
+        placement,
         source: main_floor_source(
             "main-floor-tiles",
             remote_template.to_owned(),
@@ -1260,14 +1281,16 @@ async fn convert_group(
         }
     };
 
-    let logical_size = interactive
-        .bounds
-        .map(|bounds| {
-            let width = (bounds[0][0] - bounds[1][0]).abs() as f32;
-            let height = (bounds[1][1] - bounds[0][1]).abs() as f32;
-            [width, height]
-        })
-        .unwrap_or(result.image_size);
+    let projection = bake_projection(
+        &normalized_name,
+        &interactive,
+        result.placement,
+        result.image_size,
+    )?;
+    let bounds = match result.placement {
+        ImagePlacement::Tiles { .. } => Some(tile_bounds(&projection)),
+        ImagePlacement::Svg { .. } => interactive.bounds.map(round_bounds),
+    };
 
     let mut source_names = vec![normalized_name.clone()];
     source_names.extend(interactive.alt_maps.iter().flatten().cloned());
@@ -1289,14 +1312,11 @@ async fn convert_group(
             normalized_name: normalized_name.clone(),
             name,
             image_path: result.image_path,
-            image_size: result.image_size,
-            logical_size,
+            projection,
             alt_maps: interactive.alt_maps,
             author: interactive.author,
             author_link: interactive.author_link,
-            transform: interactive.transform,
-            coordinate_rotation: interactive.coordinate_rotation,
-            bounds: interactive.bounds.map(round_bounds),
+            bounds,
             labels: interactive
                 .labels
                 .map(|l| l.into_iter().map(Into::into).collect()),
