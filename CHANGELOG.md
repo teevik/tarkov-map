@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.17](https://github.com/teevik/tarkov-map/compare/v0.1.16...v0.1.17) (2026-09-06)
+
+
+### Bug Fixes
+
+* correct Reserve and Icebreaker map alignment ([96ab7ab](https://github.com/teevik/tarkov-map/commit/96ab7ab176a3698ecdf1c083cfd37291328ce7b3))
+
 ## [0.1.16](https://github.com/teevik/tarkov-map/compare/v0.1.15...v0.1.16) (2026-08-19)
 
 
