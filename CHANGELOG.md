@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.18](https://github.com/teevik/tarkov-map/compare/v0.1.17...v0.1.18) (2026-09-10)
+
+
+### Bug Fixes
+
+* refresh bundled maps from tarkov.dev ([dd3d5cf](https://github.com/teevik/tarkov-map/commit/dd3d5cf161e01b7bbc7a70622659a0d0097faa09))
+
 ## [0.1.17](https://github.com/teevik/tarkov-map/compare/v0.1.16...v0.1.17) (2026-09-06)
 
 
