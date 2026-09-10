@@ -1248,7 +1248,7 @@ mod tests {
         let areas = boss_spawn_areas(map_rect, interchange, 1.0, &shown);
 
         assert_eq!(areas.len(), 1);
-        assert_eq!(areas[0].label, "Tagilla 25%");
+        assert_eq!(areas[0].label, "Tagilla 35%");
     }
 
     #[test]
@@ -1272,7 +1272,7 @@ mod tests {
 
         assert!(!areas.is_empty());
         assert!(areas.len() < customs.boss_spawns.len());
-        assert!(areas.iter().all(|area| area.label == "Reshala 45%"));
+        assert!(areas.iter().all(|area| area.label == "Reshala 60%"));
         assert!(boss_spawn_areas(map_rect, customs, 1.0, &BTreeSet::new()).is_empty());
     }
 

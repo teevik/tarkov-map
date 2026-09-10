@@ -1,0 +1,89 @@
+RefreshProvenance(
+  formatVersion: 1,
+  sources: [
+    ProvenanceSource(
+      role: "main-floor-svg",
+      identifier: "https://assets.tarkov.dev/maps/svg/Customs.svg",
+      map: Some("customs"),
+    ),
+    ProvenanceSource(
+      role: "main-floor-svg",
+      identifier: "https://assets.tarkov.dev/maps/svg/Factory.svg",
+      map: Some("factory"),
+    ),
+    ProvenanceSource(
+      role: "main-floor-svg",
+      identifier: "https://assets.tarkov.dev/maps/svg/GroundZero.svg",
+      map: Some("ground-zero"),
+    ),
+    ProvenanceSource(
+      role: "main-floor-svg",
+      identifier: "https://assets.tarkov.dev/maps/svg/Interchange.svg",
+      map: Some("interchange"),
+    ),
+    ProvenanceSource(
+      role: "main-floor-svg",
+      identifier: "https://assets.tarkov.dev/maps/svg/Lighthouse.svg",
+      map: Some("lighthouse"),
+    ),
+    ProvenanceSource(
+      role: "main-floor-svg",
+      identifier: "https://assets.tarkov.dev/maps/svg/Reserve.svg",
+      map: Some("reserve"),
+    ),
+    ProvenanceSource(
+      role: "main-floor-svg",
+      identifier: "https://assets.tarkov.dev/maps/svg/Shoreline.svg",
+      map: Some("shoreline"),
+    ),
+    ProvenanceSource(
+      role: "main-floor-svg",
+      identifier: "https://assets.tarkov.dev/maps/svg/StreetsOfTarkov.svg",
+      map: Some("streets-of-tarkov"),
+    ),
+    ProvenanceSource(
+      role: "main-floor-svg",
+      identifier: "https://assets.tarkov.dev/maps/svg/Terminal.svg",
+      map: Some("terminal"),
+    ),
+    ProvenanceSource(
+      role: "main-floor-svg",
+      identifier: "https://assets.tarkov.dev/maps/svg/Woods.svg",
+      map: Some("woods"),
+    ),
+    ProvenanceSource(
+      role: "main-floor-tiles",
+      identifier: "https://assets.tarkov.dev/maps/icebreaker/06_infirmary/{z}/{x}/{y}.png",
+      map: Some("icebreaker"),
+    ),
+    ProvenanceSource(
+      role: "main-floor-tiles",
+      identifier: "https://assets.tarkov.dev/maps/labs_v4/1st/{z}/{x}/{y}.png",
+      map: Some("the-lab"),
+    ),
+    ProvenanceSource(
+      role: "main-floor-tiles",
+      identifier: "https://assets.tarkov.dev/maps/labyrinth/main/{z}/{x}/{y}.png",
+      map: Some("the-labyrinth"),
+    ),
+    ProvenanceSource(
+      role: "map-data",
+      identifier: "https://json.tarkov.dev/regular/maps",
+    ),
+    ProvenanceSource(
+      role: "map-metadata",
+      identifier: "https://raw.githubusercontent.com/the-hideout/tarkov-dev/main/src/data/maps.json",
+    ),
+    ProvenanceSource(
+      role: "translations",
+      identifier: "https://json.tarkov.dev/regular/maps_en",
+    ),
+  ],
+  options: GenerationOptions(
+    tileZoomOffset: 2,
+    svgRenderScale: 2.0,
+    force: true,
+    convertOnly: false,
+    imageFormat: "BC7+zstd",
+  ),
+)

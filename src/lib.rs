@@ -263,8 +263,8 @@ mod tests {
                 .count(),
             61
         );
-        assert_eq!(map("lighthouse").sniper_zones.len(), 6);
-        assert_eq!(map("lighthouse").minefields.len(), 338);
+        assert_eq!(map("lighthouse").sniper_zones.len(), 13);
+        assert_eq!(map("lighthouse").minefields.len(), 103);
         for name in ["terminal", "the-labyrinth", "icebreaker"] {
             assert!(map(name).transits.is_empty());
         }

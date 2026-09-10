@@ -295,7 +295,7 @@ struct ApiSpawn {
 #[derive(Debug, Deserialize)]
 struct ApiExtract {
     name: String,
-    faction: String,
+    faction: Option<String>,
     #[serde(default)]
     position: Option<ApiPosition>,
 }
@@ -319,6 +319,37 @@ struct ApiMapData {
 struct HazardSplit {
     sniper_zones: Vec<SniperZone>,
     minefields: Vec<Minefield>,
+}
+
+fn convert_extracts(
+    extracts: Vec<ApiExtract>,
+    map_name: &str,
+    translations: &HashMap<String, String>,
+    warnings: &mut Vec<String>,
+) -> Vec<Extract> {
+    extracts
+        .into_iter()
+        .filter_map(|extract| {
+            let Some(faction) = extract.faction else {
+                warnings.push(format!(
+                    "map '{map_name}': dropping extract '{}' without a faction",
+                    extract.name
+                ));
+                return None;
+            };
+            Some(Extract {
+                name: translated_name(translations, &extract.name, warnings),
+                faction,
+                position: extract.position.map(|p| {
+                    [
+                        round_coordinate(p.x),
+                        round_coordinate(p.y),
+                        round_coordinate(p.z),
+                    ]
+                }),
+            })
+        })
+        .collect()
 }
 
 #[derive(Default)]
@@ -727,20 +758,12 @@ async fn fetch_api_map_data(client: &reqwest::Client) -> Result<ApiMapData, Fetc
         );
         extracts.insert(
             normalized_name.clone(),
-            raw_extracts
-                .into_iter()
-                .map(|extract| Extract {
-                    name: translated_name(&translations.data, &extract.name, &mut warnings),
-                    faction: extract.faction,
-                    position: extract.position.map(|p| {
-                        [
-                            round_coordinate(p.x),
-                            round_coordinate(p.y),
-                            round_coordinate(p.z),
-                        ]
-                    }),
-                })
-                .collect(),
+            convert_extracts(
+                raw_extracts,
+                &normalized_name,
+                &translations.data,
+                &mut warnings,
+            ),
         );
         overlay_maps.insert(
             normalized_name,
@@ -1542,6 +1565,40 @@ async fn main() -> Result<(), FetchError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn missing_extract_factions_are_dropped_with_diagnostics() {
+        let extracts = serde_json::from_str::<Vec<ApiExtract>>(
+            r#"[
+                {"name":"missing"},
+                {"name":"null", "faction":null},
+                {"name":"exit", "faction":"pmc", "position":{"x":1.234,"y":2,"z":3}},
+                {"name":"unknown", "faction":"new-faction"}
+            ]"#,
+        )
+        .unwrap();
+        let translations = HashMap::from([
+            ("exit".into(), "Exit".into()),
+            ("unknown".into(), "Unknown".into()),
+        ]);
+        let mut warnings = Vec::new();
+
+        let converted = convert_extracts(extracts, "night-factory", &translations, &mut warnings);
+
+        assert_eq!(converted.len(), 2);
+        assert_eq!(converted[0].name, "Exit");
+        assert_eq!(converted[0].faction, "pmc");
+        assert_eq!(converted[0].position, Some([1.23, 2.0, 3.0]));
+        // Unknown variants must reach catalog validation, never silently disappear.
+        assert_eq!(converted[1].faction, "new-faction");
+        assert_eq!(
+            warnings,
+            vec![
+                "map 'night-factory': dropping extract 'missing' without a faction",
+                "map 'night-factory': dropping extract 'null' without a faction",
+            ]
+        );
+    }
 
     #[test]
     fn rounds_game_coordinates_to_two_decimal_places() {
